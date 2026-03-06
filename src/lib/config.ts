@@ -33,7 +33,7 @@ const configSchema = z.object({
 
 export type AppConfig = z.infer<typeof configSchema>
 
-const CONFIG_DIR = join(homedir(), '.c411-dl')
+const CONFIG_DIR = join(homedir(), '.inkpipe')
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json')
 
 export async function loadConfig(): Promise<AppConfig> {

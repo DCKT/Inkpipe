@@ -146,7 +146,7 @@ export default function SettingsForm({ config, onSave, isSaving }: SettingsFormP
           <input
             type="text"
             className={inputClass}
-            placeholder="/tmp/c411-dl"
+            placeholder="/tmp/inkpipe"
             value={form.tempDir}
             onChange={(e) => setForm({ ...form, tempDir: e.target.value })}
           />

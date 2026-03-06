@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type { AppConfig } from '../config'
 
 export function getTempBase(config: AppConfig): string {
-  return config.tempDir || join(tmpdir(), 'c411-dl')
+  return config.tempDir || join(tmpdir(), 'inkpipe')
 }
 
 export function getJobDir(jobId: string, config: AppConfig): string {

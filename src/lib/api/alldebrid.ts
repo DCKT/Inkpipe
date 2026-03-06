@@ -4,7 +4,7 @@ import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import type { AppConfig } from '../config'
 
-const AGENT = 'c411-dl'
+const AGENT = 'inkpipe'
 
 function client(config: AppConfig) {
   return ky.create({

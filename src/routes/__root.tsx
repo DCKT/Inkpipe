@@ -18,7 +18,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'c411-dl' },
+      { title: 'Inkpipe' },
     ],
     links: [{ rel: 'stylesheet', href: appCss }],
   }),
@@ -56,7 +56,7 @@ function RootComponent() {
         <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--header-bg)] backdrop-blur-md">
           <div className="page-wrap flex items-center justify-between py-3">
             <Link to="/" className="text-lg font-bold text-[var(--sea-ink)] no-underline">
-              c411-dl
+              Inkpipe
             </Link>
             <nav className="flex gap-6 text-sm font-medium">
               <Link to="/" className="nav-link" activeProps={{ className: 'nav-link is-active' }}>

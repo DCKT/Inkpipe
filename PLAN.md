@@ -49,7 +49,7 @@ src/
       pipeline.ts     # Full download->convert orchestration
       kcc.ts          # child_process.spawn wrapper for kcc-c2e
       fileManager.ts  # Temp dir create/cleanup
-    config.ts         # Read/write ~/.c411-dl/config.json
+    config.ts         # Read/write ~/.inkpipe/config.json
     jobs.ts           # In-memory Map<jobId, JobState>
   server/
     functions/
@@ -66,7 +66,7 @@ src/
 - Deps: ky, zod, tailwindcss, @tanstack/react-query
 
 ### 2. Config management ✅
-- Store in `~/.c411-dl/config.json`: Prowlarr URL+key, AllDebrid key, KCC path, temp dir
+- Store in `~/.inkpipe/config.json`: Prowlarr URL+key, AllDebrid key, KCC path, temp dir
 - Zod schema validation
 - Settings page to edit, server functions to read/write
 
@@ -90,7 +90,7 @@ src/
 Per selected item, sequential stages:
 1. `UPLOADING` — upload magnet to AllDebrid
 2. `DEBRID_PROCESSING` — poll AllDebrid until ready
-3. `DOWNLOADING` — stream file to `tmp/c411-dl/{jobId}/`
+3. `DOWNLOADING` — stream file to `tmp/inkpipe/{jobId}/`
 4. `CONVERTING` — run `kcc-c2e` if not already `.epub`
 5. `DONE` — cleanup temp files
 Errors -> `FAILED` with message in job state.
@@ -105,7 +105,7 @@ Errors -> `FAILED` with message in job state.
 - Active/completed sections
 
 ### 9. Temp file handling ✅
-- Default: `os.tmpdir() + '/c411-dl/'`
+- Default: `os.tmpdir() + '/inkpipe/'`
 - Each job: `{tempDir}/{jobId}/`
 - Cleanup after success; keep on error
 
