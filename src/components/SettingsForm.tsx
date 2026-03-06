@@ -87,7 +87,7 @@ export default function SettingsForm({ config, onSave, isSaving }: SettingsFormP
             <input
               type="text"
               className={inputClass}
-              placeholder="KoBO"
+              placeholder="KLC"
               value={form.kcc.profile}
               onChange={(e) =>
                 setForm({ ...form, kcc: { ...form.kcc, profile: e.target.value } })

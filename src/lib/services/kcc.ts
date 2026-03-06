@@ -1,6 +1,6 @@
-import { spawn } from 'node:child_process'
-import { basename } from 'node:path'
-import type { AppConfig } from '../config'
+import { spawn } from "node:child_process";
+import { basename } from "node:path";
+import type { AppConfig } from "../config";
 
 export function convertWithKcc(
   inputPath: string,
@@ -8,42 +8,52 @@ export function convertWithKcc(
   config: AppConfig,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const inputFilename = basename(inputPath)
+    const inputFilename = basename(inputPath);
 
     // Mount the output dir (which contains the input file) into the container
     const args = [
-      'run',
-      '--rm',
-      '-v', `${outputDir}:/data`,
+      "run",
+      "--rm",
+      "-v",
+      `${outputDir}:/data`,
       config.kcc.dockerImage,
-      '--profile', config.kcc.profile,
+      "--profile",
+      config.kcc.profile,
       `/data/${inputFilename}`,
-      '-o', '/data',
-    ]
+      "--forcecolor",
+      "--upscale",
+      "--title",
+      inputFilename,
+      "--cropping",
+      "1",
+      "--eraserainbow",
+      "-o",
+      "/data",
+    ];
 
-    const proc = spawn('docker', args)
+    const proc = spawn("docker", args);
 
-    let stdout = ''
-    let stderr = ''
+    let stdout = "";
+    let stderr = "";
 
-    proc.stdout.on('data', (data: Buffer) => {
-      stdout += data.toString()
-    })
+    proc.stdout.on("data", (data: Buffer) => {
+      stdout += data.toString();
+    });
 
-    proc.stderr.on('data', (data: Buffer) => {
-      stderr += data.toString()
-    })
+    proc.stderr.on("data", (data: Buffer) => {
+      stderr += data.toString();
+    });
 
-    proc.on('close', (code) => {
+    proc.on("close", (code) => {
       if (code === 0) {
-        resolve(stdout)
+        resolve(stdout);
       } else {
-        reject(new Error(`KCC Docker exited with code ${code}: ${stderr}`))
+        reject(new Error(`KCC Docker exited with code ${code}: ${stderr}`));
       }
-    })
+    });
 
-    proc.on('error', (err) => {
-      reject(new Error(`Failed to start Docker for KCC: ${err.message}`))
-    })
-  })
+    proc.on("error", (err) => {
+      reject(new Error(`Failed to start Docker for KCC: ${err.message}`));
+    });
+  });
 }

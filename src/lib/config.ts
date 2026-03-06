@@ -26,7 +26,7 @@ const copypartySchema = z.object({
 const configSchema = z.object({
   prowlarr: prowlarrSchema.default({ url: '', apiKey: '' }),
   alldebrid: alldebridSchema.default({ apiKey: '' }),
-  kcc: kccSchema.default({ dockerImage: 'ghcr.io/ciromattia/kcc:latest', profile: 'KoBO' }),
+  kcc: kccSchema.default({ dockerImage: 'ghcr.io/ciromattia/kcc:latest', profile: 'KLC' }),
   copyparty: copypartySchema.default({ url: '', uploadPath: '/', password: '' }),
   tempDir: z.string().default(''),
 })
