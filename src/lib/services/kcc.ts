@@ -33,6 +33,7 @@ export function convertWithKcc(
       "--profile", kcc.profile,
       "--cropping", kcc.cropping,
       "--title", parse(inputFilename).name,
+      "--author", "",
     ];
 
     // Boolean flags
