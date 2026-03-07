@@ -67,6 +67,8 @@ function latestJob(): Job {
 beforeEach(() => {
   vi.useFakeTimers()
   vi.resetAllMocks()
+  vi.spyOn(console, 'log').mockImplementation(() => {})
+  vi.spyOn(console, 'error').mockImplementation(() => {})
   vi.mocked(loadConfig).mockResolvedValue(mockConfig)
   vi.mocked(ensureJobDir).mockResolvedValue('/tmp/inkpipe-test/1')
   vi.mocked(cleanupJobDir).mockResolvedValue(undefined)
@@ -74,6 +76,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.restoreAllMocks()
 })
 
 describe('pipeline', () => {
