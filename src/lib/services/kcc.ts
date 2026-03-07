@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
-import { basename } from "node:path";
+import { basename, relative } from "node:path";
 import type { AppConfig } from "../config";
+import { getTempBase } from "./fileManager";
 
 export function convertWithKcc(
   inputPath: string,
@@ -10,16 +11,32 @@ export function convertWithKcc(
   return new Promise((resolve, reject) => {
     const inputFilename = basename(inputPath);
 
-    // Mount the output dir (which contains the input file) into the container
+    let volumeMount: string;
+    let containerInput: string;
+    let containerOutput: string;
+
+    if (config.tempVolume) {
+      // Docker-in-Docker: mount the shared named volume
+      const relPath = relative(getTempBase(config), outputDir);
+      volumeMount = `${config.tempVolume}:/data`;
+      containerInput = `/data/${relPath}/${inputFilename}`;
+      containerOutput = `/data/${relPath}`;
+    } else {
+      // Host mode: bind-mount the output directory directly
+      volumeMount = `${outputDir}:/data`;
+      containerInput = `/data/${inputFilename}`;
+      containerOutput = "/data";
+    }
+
     const args = [
       "run",
       "--rm",
       "-v",
-      `${outputDir}:/data`,
+      volumeMount,
       config.kcc.dockerImage,
       "--profile",
       config.kcc.profile,
-      `/data/${inputFilename}`,
+      containerInput,
       "--forcecolor",
       "--upscale",
       "--title",
@@ -28,7 +45,7 @@ export function convertWithKcc(
       "1",
       "--eraserainbow",
       "-o",
-      "/data",
+      containerOutput,
     ];
 
     const proc = spawn("docker", args);

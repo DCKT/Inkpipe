@@ -29,6 +29,7 @@ const configSchema = z.object({
   kcc: kccSchema.default({ dockerImage: 'ghcr.io/ciromattia/kcc:latest', profile: 'KLC' }),
   copyparty: copypartySchema.default({ url: '', uploadPath: '/', password: '' }),
   tempDir: z.string().default(''),
+  tempVolume: z.string().default(''),
 })
 
 export type AppConfig = z.infer<typeof configSchema>
@@ -37,12 +38,18 @@ const CONFIG_DIR = join(homedir(), '.inkpipe')
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json')
 
 export async function loadConfig(): Promise<AppConfig> {
+  let config: AppConfig
   try {
     const raw = await readFile(CONFIG_PATH, 'utf-8')
-    return configSchema.parse(JSON.parse(raw))
+    config = configSchema.parse(JSON.parse(raw))
   } catch {
-    return configSchema.parse({})
+    config = configSchema.parse({})
   }
+  const tempVolume = process.env.INKPIPE_TEMP_VOLUME
+  if (tempVolume) {
+    config.tempVolume = tempVolume
+  }
+  return config
 }
 
 export async function saveConfig(config: AppConfig): Promise<void> {
