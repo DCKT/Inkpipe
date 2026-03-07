@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { loadConfig } from '../config'
 import { createJob, updateJob } from '../jobs'
-import { uploadMagnet, getMagnetStatus, getMagnetFiles, unlockLink, downloadFile } from '../api/alldebrid'
+import { uploadMagnet, getMagnetStatus, getMagnetFiles, unlockLink, downloadFile, deleteMagnet } from '../api/alldebrid'
 import { convertWithKcc } from './kcc'
 import { uploadToCopyparty } from '../api/copyparty'
 import { ensureJobDir, cleanupJobDir, findFileByExtension } from './fileManager'
@@ -28,11 +28,14 @@ export async function runPipeline(result: ProwlarrResult): Promise<void> {
   const job = createJob(result.title)
   console.log('[pipeline] Created job:', job.id, 'for:', result.title)
 
+  let magnetId: number | null = null
+
   try {
     // Stage 1: Upload magnet to AllDebrid
     console.log('[pipeline] [job %s] Stage: UPLOADING', job.id)
     updateJob(job.id, { stage: 'UPLOADING', progress: 0 })
     const upload = await uploadMagnet(magnetOrUrl, config)
+    magnetId = upload.id
     console.log('[pipeline] [job %s] Magnet uploaded, id: %d, ready: %s', job.id, upload.id, upload.ready)
 
     // Stage 2: Wait until ready (skip polling if already ready at upload)
@@ -126,7 +129,6 @@ export async function runPipeline(result: ProwlarrResult): Promise<void> {
     // Done
     console.log('[pipeline] [job %s] Stage: DONE', job.id)
     updateJob(job.id, { stage: 'DONE', progress: 100 })
-    await cleanupJobDir(job.id, config)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[pipeline] [job %s] FAILED:', job.id, message)
@@ -137,5 +139,12 @@ export async function runPipeline(result: ProwlarrResult): Promise<void> {
       stage: 'FAILED',
       error: message,
     })
+  } finally {
+    // Cleanup: remove temp files and AllDebrid magnet regardless of outcome
+    console.log('[pipeline] [job %s] Cleaning up', job.id)
+    await cleanupJobDir(job.id, config)
+    if (magnetId !== null) {
+      await deleteMagnet(magnetId, config)
+    }
   }
 }

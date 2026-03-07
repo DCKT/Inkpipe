@@ -300,6 +300,24 @@ export async function unlockLink(
   }
 }
 
+export async function deleteMagnet(
+  magnetId: number,
+  config: AppConfig,
+): Promise<void> {
+  const api = client(config)
+  console.log('[alldebrid] Deleting magnet:', magnetId)
+
+  try {
+    await api.get('v4/magnet/delete', {
+      searchParams: { id: String(magnetId) },
+    })
+    console.log('[alldebrid] Magnet deleted:', magnetId)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[alldebrid] Failed to delete magnet', magnetId, ':', message)
+  }
+}
+
 export async function downloadFile(
   url: string,
   destPath: string,

@@ -15,6 +15,7 @@ vi.mock('../api/alldebrid', () => ({
   getMagnetFiles: vi.fn(),
   unlockLink: vi.fn(),
   downloadFile: vi.fn(),
+  deleteMagnet: vi.fn(),
 }))
 
 vi.mock('./kcc', () => ({
@@ -32,7 +33,7 @@ vi.mock('./fileManager', () => ({
 }))
 
 import { loadConfig } from '../config'
-import { uploadMagnet, getMagnetStatus, getMagnetFiles, unlockLink, downloadFile } from '../api/alldebrid'
+import { uploadMagnet, getMagnetStatus, getMagnetFiles, unlockLink, downloadFile, deleteMagnet } from '../api/alldebrid'
 import { convertWithKcc } from './kcc'
 import { uploadToCopyparty } from '../api/copyparty'
 import { ensureJobDir, cleanupJobDir, findFileByExtension } from './fileManager'
@@ -111,6 +112,7 @@ describe('pipeline', () => {
         mockConfig,
       )
       expect(cleanupJobDir).toHaveBeenCalled()
+      expect(deleteMagnet).toHaveBeenCalledWith(123, mockConfig)
     })
   })
 
@@ -311,6 +313,9 @@ describe('pipeline', () => {
       const job = latestJob()
       expect(job.stage).toBe('FAILED')
       expect(job.error).toBe('AllDebrid API down')
+      // Cleanup still runs but no magnetId to delete
+      expect(cleanupJobDir).toHaveBeenCalled()
+      expect(deleteMagnet).not.toHaveBeenCalled()
     })
 
     it('marks job as FAILED when getMagnetFiles returns empty', async () => {
@@ -324,7 +329,7 @@ describe('pipeline', () => {
       expect(job.error).toBe('No files returned from AllDebrid')
     })
 
-    it('marks job as FAILED when download fails', async () => {
+    it('marks job as FAILED when download fails and still cleans up', async () => {
       vi.mocked(uploadMagnet).mockResolvedValue({ id: 700, ready: true })
       vi.mocked(getMagnetFiles).mockResolvedValue([
         { filename: 'file.cbz', link: 'https://alldebrid.com/f/eee', size: 5000 },
@@ -341,6 +346,8 @@ describe('pipeline', () => {
       const job = latestJob()
       expect(job.stage).toBe('FAILED')
       expect(job.error).toBe('Network timeout')
+      expect(cleanupJobDir).toHaveBeenCalled()
+      expect(deleteMagnet).toHaveBeenCalledWith(700, mockConfig)
     })
 
     it('marks job as FAILED when KCC conversion fails', async () => {
