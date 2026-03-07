@@ -59,8 +59,8 @@ function SearchPage() {
   };
 
   return (
-    <main className="page-wrap px-4 pb-8 pt-8">
-      <section className="mb-6">
+    <main className="page-wrap px-4 pb-8 pt-8 flex flex-col gap-6">
+      <section className="">
         <h1 className="display-title mb-4 text-3xl font-bold text-[var(--sea-ink)]">
           Search
         </h1>
@@ -68,13 +68,13 @@ function SearchPage() {
       </section>
 
       {searchQuery.isError && (
-        <div className="island-shell mb-6 rounded-2xl border-red-200 p-4 text-sm text-red-600">
+        <div className="island-shell  rounded-2xl border-red-200 p-4 text-sm text-red-600">
           {searchQuery.error.message}
         </div>
       )}
 
       {downloadMutation.isSuccess && (
-        <p className="mt-4 text-center text-sm border border-palm py-2 rounded text-[var(--palm)]">
+        <p className="text-center text-sm border border-palm py-2 rounded text-[var(--palm)]">
           Started {downloadMutation.data.started} downloads. Check the Jobs page
           for progress.
         </p>
@@ -88,7 +88,7 @@ function SearchPage() {
       />
 
       {selected.size > 0 && (
-        <div className="sticky bottom-4 mt-6 flex justify-center">
+        <div className="sticky bottom-4 flex justify-center">
           <button
             onClick={handleDownload}
             disabled={downloadMutation.isPending}

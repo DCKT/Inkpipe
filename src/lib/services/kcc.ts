@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { basename, relative } from "node:path";
+import { basename, parse, relative } from "node:path";
 import type { AppConfig } from "../config";
 import { getTempBase } from "./fileManager";
 
@@ -32,7 +32,7 @@ export function convertWithKcc(
     const kccArgs: string[] = [
       "--profile", kcc.profile,
       "--cropping", kcc.cropping,
-      "--title", inputFilename,
+      "--title", parse(inputFilename).name,
     ];
 
     // Boolean flags
