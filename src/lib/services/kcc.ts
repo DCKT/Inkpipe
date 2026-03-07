@@ -28,22 +28,53 @@ export function convertWithKcc(
       containerOutput = "/data";
     }
 
+    const kcc = config.kcc;
+    const kccArgs: string[] = [
+      "--profile", kcc.profile,
+      "--cropping", kcc.cropping,
+      "--title", inputFilename,
+    ];
+
+    // Boolean flags
+    const booleanFlags: [boolean, string][] = [
+      [kcc.mangaStyle, "--manga-style"],
+      [kcc.webtoon, "--webtoon"],
+      [kcc.twoPanel, "--two-panel"],
+      [kcc.upscale, "--upscale"],
+      [kcc.stretch, "--stretch"],
+      [kcc.hq, "--hq"],
+      [kcc.forceColor, "--forcecolor"],
+      [kcc.forcePng, "--forcepng"],
+      [kcc.noAutoContrast, "--noautocontrast"],
+      [kcc.blackBorders, "--blackborders"],
+      [kcc.whiteBorders, "--whiteborders"],
+      [kcc.noProcessing, "--noprocessing"],
+      [kcc.eraseRainbow, "--eraserainbow"],
+      [kcc.coverFill, "--coverfill"],
+      [kcc.noKepub, "--nokepub"],
+    ];
+    for (const [enabled, flag] of booleanFlags) {
+      if (enabled) kccArgs.push(flag);
+    }
+
+    // Conditional value options
+    if (kcc.format !== "Auto") kccArgs.push("--format", kcc.format);
+    if (kcc.gamma !== 1.0) kccArgs.push("--gamma", String(kcc.gamma));
+    if (kcc.croppingPower !== 1.0) kccArgs.push("--croppingpower", String(kcc.croppingPower));
+    if (kcc.splitter !== "0") kccArgs.push("--splitter", kcc.splitter);
+    if (kcc.batchSplit !== "0") kccArgs.push("--batchsplit", kcc.batchSplit);
+    if (kcc.targetSize > 0) kccArgs.push("--targetsize", String(kcc.targetSize));
+    if (kcc.customWidth > 0) kccArgs.push("--customwidth", String(kcc.customWidth));
+    if (kcc.customHeight > 0) kccArgs.push("--customheight", String(kcc.customHeight));
+
     const args = [
       "run",
       "--rm",
       "-v",
       volumeMount,
-      config.kcc.dockerImage,
-      "--profile",
-      config.kcc.profile,
+      kcc.dockerImage,
+      ...kccArgs,
       containerInput,
-      "--forcecolor",
-      "--upscale",
-      "--title",
-      inputFilename,
-      "--cropping",
-      "1",
-      "--eraserainbow",
       "-o",
       containerOutput,
     ];
