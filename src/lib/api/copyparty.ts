@@ -25,7 +25,7 @@ export async function uploadToCopyparty(
     searchParams.pw = password
   }
 
-  console.log('[copyparty] Uploading %s (%d bytes) to %s', filename, fileBuffer.byteLength, uploadUrl)
+  console.log(`[copyparty] Uploading ${filename} (${fileBuffer.byteLength} bytes) to ${uploadUrl}`)
 
   const response = await ky.put(uploadUrl, {
     body: fileBuffer,

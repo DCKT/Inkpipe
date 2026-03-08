@@ -151,13 +151,13 @@ export async function getMagnetStatus(
         body,
       })
       .json()
-    console.log('[alldebrid] Status raw response for magnet %d:', magnetId, JSON.stringify(raw, null, 2))
+    console.log(`[alldebrid] Status raw response for magnet ${magnetId}:`, JSON.stringify(raw, null, 2))
     const res = raw as MagnetStatusResponse
 
     const magnet = res.data?.magnets?.[0]
     if (!magnet) {
-      console.error('[alldebrid] No magnet found in status response')
-      throw new Error('Magnet not found in AllDebrid status response')
+      console.log(`[alldebrid] Magnet ${magnetId} not yet in status response, treating as not ready`)
+      return { ready: false, statusCode: 0, status: 'Waiting' }
     }
 
     const ready = magnet.statusCode === 4
@@ -233,7 +233,7 @@ export async function getMagnetFiles(
         body,
       })
       .json()
-    console.log('[alldebrid] Files raw response for magnet %d:', magnetId, JSON.stringify(raw, null, 2))
+    console.log(`[alldebrid] Files raw response for magnet ${magnetId}:`, JSON.stringify(raw, null, 2))
     const res = raw as MagnetFilesResponse
 
     const magnet = res.data?.magnets?.[0]
@@ -243,7 +243,7 @@ export async function getMagnetFiles(
     }
 
     const files = flattenFileTree(magnet.files)
-    console.log('[alldebrid] Found %d files for magnet %d:', files.length, magnetId, files.map(f => f.filename))
+    console.log(`[alldebrid] Found ${files.length} files for magnet ${magnetId}:`, files.map(f => f.filename))
     return files
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
