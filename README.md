@@ -16,7 +16,7 @@ docker build -t inkpipe .
 
 docker run -p 3000:3000 \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v inkpipe-config:/root/.inkpipe \
+  -v ~/.inkpipe:/root/.inkpipe \
   -v inkpipe-tmp:/tmp/inkpipe \
   -e INKPIPE_TEMP_VOLUME=inkpipe-tmp \
   inkpipe

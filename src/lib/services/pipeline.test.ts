@@ -30,13 +30,15 @@ vi.mock('./fileManager', () => ({
   ensureJobDir: vi.fn(),
   cleanupJobDir: vi.fn(),
   findFileByExtension: vi.fn(),
+  findAllFilesByExtension: vi.fn(),
+  extractRarArchive: vi.fn(),
 }))
 
 import { loadConfig } from '../config'
 import { uploadMagnet, getMagnetStatus, getMagnetFiles, unlockLink, downloadFile, deleteMagnet } from '../api/alldebrid'
 import { convertWithKcc } from './kcc'
 import { uploadToCopyparty } from '../api/copyparty'
-import { ensureJobDir, cleanupJobDir, findFileByExtension } from './fileManager'
+import { ensureJobDir, cleanupJobDir, findFileByExtension, findAllFilesByExtension, extractRarArchive } from './fileManager'
 
 const mockConfig: AppConfig = {
   prowlarr: { url: 'http://localhost:9696', apiKey: 'test-key' },
@@ -72,6 +74,7 @@ beforeEach(() => {
   vi.mocked(loadConfig).mockResolvedValue(mockConfig)
   vi.mocked(ensureJobDir).mockResolvedValue('/tmp/inkpipe-test/1')
   vi.mocked(cleanupJobDir).mockResolvedValue(undefined)
+  vi.mocked(findAllFilesByExtension).mockResolvedValue([])
 })
 
 afterEach(() => {
@@ -92,9 +95,8 @@ describe('pipeline', () => {
         size: 100000000,
       })
       vi.mocked(downloadFile).mockResolvedValue(undefined)
-      vi.mocked(findFileByExtension)
-        .mockResolvedValueOnce(null) // no epub found
-        .mockResolvedValueOnce('/tmp/inkpipe-test/1/Naruto.T01.cbz') // cbz found for conversion
+      vi.mocked(findFileByExtension).mockResolvedValueOnce(null) // no epub found
+      vi.mocked(findAllFilesByExtension).mockResolvedValueOnce(['/tmp/inkpipe-test/1/Naruto.T01.cbz'])
       vi.mocked(convertWithKcc).mockResolvedValue('OK')
 
       await runPipeline(baseProwlarrResult)
@@ -244,12 +246,66 @@ describe('pipeline', () => {
         .mockResolvedValueOnce({ url: 'https://cdn.example.com/part2.cbz', filename: 'part2.cbz', size: 2000 })
       vi.mocked(downloadFile).mockResolvedValue(undefined)
       vi.mocked(findFileByExtension).mockResolvedValue(null)
+      vi.mocked(findAllFilesByExtension).mockResolvedValueOnce([
+        '/tmp/inkpipe-test/1/part1.cbz',
+        '/tmp/inkpipe-test/1/part2.cbz',
+      ])
       vi.mocked(convertWithKcc).mockResolvedValue('OK')
 
       await runPipeline(baseProwlarrResult)
 
       expect(unlockLink).toHaveBeenCalledTimes(2)
       expect(downloadFile).toHaveBeenCalledTimes(2)
+    })
+
+    it('converts all comic files with KCC', async () => {
+      vi.mocked(uploadMagnet).mockResolvedValue({ id: 301, ready: true })
+      vi.mocked(getMagnetFiles).mockResolvedValue([
+        { filename: 'vol1.cbz', link: 'https://alldebrid.com/f/v1', size: 1000 },
+        { filename: 'vol2.cbz', link: 'https://alldebrid.com/f/v2', size: 2000 },
+      ])
+      vi.mocked(unlockLink)
+        .mockResolvedValueOnce({ url: 'https://cdn.example.com/vol1.cbz', filename: 'vol1.cbz', size: 1000 })
+        .mockResolvedValueOnce({ url: 'https://cdn.example.com/vol2.cbz', filename: 'vol2.cbz', size: 2000 })
+      vi.mocked(downloadFile).mockResolvedValue(undefined)
+      vi.mocked(findFileByExtension).mockResolvedValue(null)
+      vi.mocked(findAllFilesByExtension).mockResolvedValueOnce([
+        '/tmp/inkpipe-test/1/vol1.cbz',
+        '/tmp/inkpipe-test/1/vol2.cbz',
+      ])
+      vi.mocked(convertWithKcc).mockResolvedValue('OK')
+
+      await runPipeline(baseProwlarrResult)
+
+      expect(convertWithKcc).toHaveBeenCalledTimes(2)
+      expect(convertWithKcc).toHaveBeenCalledWith('/tmp/inkpipe-test/1/vol1.cbz', '/tmp/inkpipe-test/1', mockConfig)
+      expect(convertWithKcc).toHaveBeenCalledWith('/tmp/inkpipe-test/1/vol2.cbz', '/tmp/inkpipe-test/1', mockConfig)
+      const job = latestJob()
+      expect(job.stage).toBe('DONE')
+    })
+
+    it('extracts cbr/rar files before passing to KCC', async () => {
+      vi.mocked(uploadMagnet).mockResolvedValue({ id: 302, ready: true })
+      vi.mocked(getMagnetFiles).mockResolvedValue([
+        { filename: 'comic.cbr', link: 'https://alldebrid.com/f/r1', size: 3000 },
+      ])
+      vi.mocked(unlockLink).mockResolvedValue({
+        url: 'https://cdn.example.com/comic.cbr',
+        filename: 'comic.cbr',
+        size: 3000,
+      })
+      vi.mocked(downloadFile).mockResolvedValue(undefined)
+      vi.mocked(findFileByExtension).mockResolvedValue(null)
+      vi.mocked(findAllFilesByExtension).mockResolvedValueOnce(['/tmp/inkpipe-test/1/comic.cbr'])
+      vi.mocked(extractRarArchive).mockResolvedValue('/tmp/inkpipe-test/1/comic')
+      vi.mocked(convertWithKcc).mockResolvedValue('OK')
+
+      await runPipeline(baseProwlarrResult)
+
+      expect(extractRarArchive).toHaveBeenCalledWith('/tmp/inkpipe-test/1/comic.cbr')
+      expect(convertWithKcc).toHaveBeenCalledWith('/tmp/inkpipe-test/1/comic', '/tmp/inkpipe-test/1', mockConfig)
+      const job = latestJob()
+      expect(job.stage).toBe('DONE')
     })
   })
 
@@ -271,10 +327,10 @@ describe('pipeline', () => {
         size: 8000,
       })
       vi.mocked(downloadFile).mockResolvedValue(undefined)
-      vi.mocked(findFileByExtension)
-        .mockResolvedValueOnce(null) // no epub before convert
-        .mockResolvedValueOnce('/tmp/inkpipe-test/1/comic.cbz') // cbz for conversion
-        .mockResolvedValueOnce('/tmp/inkpipe-test/1/comic.epub') // epub after convert (copyparty picks this)
+      vi.mocked(findFileByExtension).mockResolvedValueOnce(null) // no epub before convert
+      vi.mocked(findAllFilesByExtension)
+        .mockResolvedValueOnce(['/tmp/inkpipe-test/1/comic.cbz']) // comic files for conversion
+        .mockResolvedValueOnce(['/tmp/inkpipe-test/1/comic.epub']) // epubs for copyparty upload
       vi.mocked(convertWithKcc).mockResolvedValue('OK')
       vi.mocked(uploadToCopyparty).mockResolvedValue(undefined)
 
@@ -364,9 +420,8 @@ describe('pipeline', () => {
         size: 5000,
       })
       vi.mocked(downloadFile).mockResolvedValue(undefined)
-      vi.mocked(findFileByExtension)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce('/tmp/inkpipe-test/1/file.cbz')
+      vi.mocked(findFileByExtension).mockResolvedValueOnce(null)
+      vi.mocked(findAllFilesByExtension).mockResolvedValueOnce(['/tmp/inkpipe-test/1/file.cbz'])
       vi.mocked(convertWithKcc).mockRejectedValue(new Error('KCC Docker exited with code 1: segfault'))
 
       await runPipeline(baseProwlarrResult)
@@ -393,9 +448,8 @@ describe('pipeline', () => {
         size: 4000,
       })
       vi.mocked(downloadFile).mockResolvedValue(undefined)
-      vi.mocked(findFileByExtension)
-        .mockResolvedValueOnce('/tmp/inkpipe-test/1/file.epub') // epub found, skip convert
-        .mockResolvedValueOnce('/tmp/inkpipe-test/1/file.epub') // copyparty epub search
+      vi.mocked(findFileByExtension).mockResolvedValueOnce('/tmp/inkpipe-test/1/file.epub') // epub found, skip convert
+      vi.mocked(findAllFilesByExtension).mockResolvedValueOnce(['/tmp/inkpipe-test/1/file.epub']) // copyparty epub search
       vi.mocked(uploadToCopyparty).mockRejectedValue(new Error('Connection refused'))
 
       await runPipeline(baseProwlarrResult)

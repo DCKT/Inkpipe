@@ -74,7 +74,10 @@ function SearchPage() {
       )}
 
       {downloadMutation.isSuccess && (
-        <p className="text-center text-sm border border-palm py-2 rounded text-[var(--palm)]">
+        <p
+          onClick={() => downloadMutation.reset()}
+          className="text-center text-sm border border-palm py-2 rounded text-[var(--palm)]"
+        >
           Started {downloadMutation.data.started} downloads. Check the Jobs page
           for progress.
         </p>
