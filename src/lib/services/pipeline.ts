@@ -61,7 +61,7 @@ export async function runPipeline(result: ProwlarrResult): Promise<void> {
       while (true) {
         pollCount++;
         const status = await getMagnetStatus(upload.id, config);
-        if (status.ready) {
+        if (status.status === "Ready") {
           console.log(
             `[pipeline] [job ${job.id}] Debrid ready after ${pollCount} polls`,
           );
