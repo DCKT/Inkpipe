@@ -321,20 +321,6 @@ export default function SettingsForm({ config, onSave, isSaving }: SettingsFormP
         </div>
       </fieldset>
 
-      <fieldset className="island-shell rounded-2xl p-6">
-        <legend className="island-kicker mb-3 px-1">Storage</legend>
-        <div>
-          <label className={labelClass}>Temp Directory (leave empty for system default)</label>
-          <input
-            type="text"
-            className={inputClass}
-            placeholder="/tmp/inkpipe"
-            value={form.tempDir}
-            onChange={(e) => setForm({ ...form, tempDir: e.target.value })}
-          />
-        </div>
-      </fieldset>
-
       <button
         type="submit"
         disabled={isSaving}

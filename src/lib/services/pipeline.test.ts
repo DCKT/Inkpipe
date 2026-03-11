@@ -45,7 +45,6 @@ const mockConfig: AppConfig = {
   alldebrid: { apiKey: 'test-debrid-key' },
   kcc: { dockerImage: 'ghcr.io/ciromattia/kcc:latest', profile: 'KoBO' },
   copyparty: { url: '', uploadPath: '/', password: '' },
-  tempDir: '/tmp/inkpipe-test',
 }
 
 const baseProwlarrResult: ProwlarrResult = {

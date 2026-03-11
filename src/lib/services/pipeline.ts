@@ -98,7 +98,7 @@ export async function runPipeline(result: ProwlarrResult): Promise<void> {
       `[pipeline] [job ${job.id}] Stage: DOWNLOADING (${debridFiles.length} files)`,
     );
     updateJob(job.id, { stage: "DOWNLOADING", progress: 0 });
-    const jobDir = await ensureJobDir(job.id, config);
+    const jobDir = await ensureJobDir(job.id);
     console.log(`[pipeline] [job ${job.id}] Job dir: ${jobDir}`);
 
     for (let i = 0; i < debridFiles.length; i++) {
@@ -214,7 +214,7 @@ export async function runPipeline(result: ProwlarrResult): Promise<void> {
   } finally {
     // Cleanup: remove temp files and AllDebrid magnet regardless of outcome
     console.log(`[pipeline] [job ${job.id}] Cleaning up`);
-    await cleanupJobDir(job.id, config);
+    await cleanupJobDir(job.id);
     if (magnetId !== null) {
       await deleteMagnet(magnetId, config);
     }

@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 import { basename, parse, relative } from "node:path";
 import type { AppConfig } from "../config";
-import { getTempBase } from "./fileManager";
+import { getTempBase, isRunningInDocker } from "./fileManager";
+
+const DOCKER_VOLUME_NAME = "inkpipe-temp";
 
 export function convertWithKcc(
   inputPath: string,
@@ -15,10 +17,10 @@ export function convertWithKcc(
     let containerInput: string;
     let containerOutput: string;
 
-    if (config.tempVolume) {
+    if (isRunningInDocker()) {
       // Docker-in-Docker: mount the shared named volume
-      const relPath = relative(getTempBase(config), outputDir);
-      volumeMount = `${config.tempVolume}:/data`;
+      const relPath = relative(getTempBase(), outputDir);
+      volumeMount = `${DOCKER_VOLUME_NAME}:/data`;
       containerInput = `/data/${relPath}/${inputFilename}`;
       containerOutput = `/data/${relPath}`;
     } else {

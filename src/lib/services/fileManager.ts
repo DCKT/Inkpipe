@@ -1,25 +1,31 @@
 import { mkdir, rm, readdir } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, parse } from 'node:path'
 import { spawn } from 'node:child_process'
-import type { AppConfig } from '../config'
 
-export function getTempBase(config: AppConfig): string {
-  return config.tempDir || join(tmpdir(), 'inkpipe')
+const DOCKER_TEMP_DIR = '/tmp/inkpipe'
+
+export function isRunningInDocker(): boolean {
+  return existsSync('/.dockerenv')
 }
 
-export function getJobDir(jobId: string, config: AppConfig): string {
-  return join(getTempBase(config), jobId)
+export function getTempBase(): string {
+  return isRunningInDocker() ? DOCKER_TEMP_DIR : join(tmpdir(), 'inkpipe')
 }
 
-export async function ensureJobDir(jobId: string, config: AppConfig): Promise<string> {
-  const dir = getJobDir(jobId, config)
+export function getJobDir(jobId: string): string {
+  return join(getTempBase(), jobId)
+}
+
+export async function ensureJobDir(jobId: string): Promise<string> {
+  const dir = getJobDir(jobId)
   await mkdir(dir, { recursive: true })
   return dir
 }
 
-export async function cleanupJobDir(jobId: string, config: AppConfig): Promise<void> {
-  const dir = getJobDir(jobId, config)
+export async function cleanupJobDir(jobId: string): Promise<void> {
+  const dir = getJobDir(jobId)
   await rm(dir, { recursive: true, force: true })
 }
 

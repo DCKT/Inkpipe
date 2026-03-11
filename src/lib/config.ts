@@ -52,8 +52,6 @@ const configSchema = z.object({
   alldebrid: alldebridSchema.default({ apiKey: '' }),
   kcc: kccSchema.default({}),
   copyparty: copypartySchema.default({ url: '', uploadPath: '/', password: '' }),
-  tempDir: z.string().default(''),
-  tempVolume: z.string().default(''),
 })
 
 export type AppConfig = z.infer<typeof configSchema>
@@ -62,18 +60,12 @@ const CONFIG_DIR = join(homedir(), '.inkpipe')
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json')
 
 export async function loadConfig(): Promise<AppConfig> {
-  let config: AppConfig
   try {
     const raw = await readFile(CONFIG_PATH, 'utf-8')
-    config = configSchema.parse(JSON.parse(raw))
+    return configSchema.parse(JSON.parse(raw))
   } catch {
-    config = configSchema.parse({})
+    return configSchema.parse({})
   }
-  const tempVolume = process.env.INKPIPE_TEMP_VOLUME
-  if (tempVolume) {
-    config.tempVolume = tempVolume
-  }
-  return config
 }
 
 export async function saveConfig(config: AppConfig): Promise<void> {

@@ -16,6 +16,5 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install --frozen-lockfile --prod
 COPY --from=builder /app/.output ./.output
-ENV INKPIPE_TEMP_VOLUME=""
 EXPOSE 3000
 CMD ["npm", "start"]
