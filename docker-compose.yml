@@ -6,6 +6,15 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - inkpipe-temp:/tmp/inkpipe
+    depends_on:
+      - kcc
+
+  kcc:
+    image: ghcr.io/ciromattia/kcc:latest
+    container_name: inkpipe-kcc
+    volumes:
+      - inkpipe-temp:/data
+    entrypoint: ["sleep", "infinity"]
 
 volumes:
   inkpipe-temp:
