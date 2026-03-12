@@ -154,7 +154,8 @@ export async function getMagnetStatus(
     console.log(`[alldebrid] Status raw response for magnet ${magnetId}:`, JSON.stringify(raw, null, 2))
     const res = raw as MagnetStatusResponse
 
-    const magnet = res.data?.magnets?.[0]
+    const magnets = res.data?.magnets
+    const magnet = Array.isArray(magnets) ? magnets[0] : magnets
     if (!magnet) {
       console.log(`[alldebrid] Magnet ${magnetId} not yet in status response, treating as not ready`)
       return { ready: false, statusCode: 0, status: 'Waiting' }
