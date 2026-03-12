@@ -69,8 +69,11 @@ async function uploadViaTorrentUrl(
 ): Promise<UploadResult> {
   console.log('[alldebrid] Downloading .torrent file from:', torrentUrl.slice(0, 120))
 
-  // Download the .torrent file from Prowlarr
-  const torrentResponse = await ky.get(torrentUrl, { timeout: 30000 })
+  // Download the .torrent file from Prowlarr (retry on transient failures)
+  const torrentResponse = await ky.get(torrentUrl, {
+    timeout: 60000,
+    retry: { limit: 3, methods: ['get'], statusCodes: [408, 429, 500, 502, 503, 504] },
+  })
   const torrentBuffer = await torrentResponse.arrayBuffer()
   console.log('[alldebrid] Downloaded .torrent file, size:', torrentBuffer.byteLength, 'bytes')
 
