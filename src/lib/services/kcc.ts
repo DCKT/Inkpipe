@@ -66,7 +66,7 @@ export function convertWithKcc(
       const containerOutput = `${KCC_DATA_DIR}/${relPath}`;
       args = [
         "exec", KCC_CONTAINER_NAME,
-        "kcc-c2e",
+        "c2e",
         ...kccArgs,
         containerInput,
         "-o", containerOutput,
