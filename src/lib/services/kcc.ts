@@ -48,7 +48,9 @@ function buildKccArgs(inputFilename: string, config: AppConfig): string[] {
   return args;
 }
 
-export function convertWithKcc(
+let kccQueue: Promise<void> = Promise.resolve();
+
+function doConvertWithKcc(
   inputPath: string,
   outputDir: string,
   config: AppConfig,
@@ -108,4 +110,24 @@ export function convertWithKcc(
       reject(new Error(`Failed to start KCC: ${err.message}`));
     });
   });
+}
+
+export function convertWithKcc(
+  inputPath: string,
+  outputDir: string,
+  config: AppConfig,
+): Promise<string> {
+  let resolve!: (value: string) => void;
+  let reject!: (reason: unknown) => void;
+  const result = new Promise<string>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  kccQueue = kccQueue
+    .catch(() => {})
+    .then(() => doConvertWithKcc(inputPath, outputDir, config))
+    .then(resolve, reject);
+
+  return result;
 }
