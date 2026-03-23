@@ -62,6 +62,9 @@ function RootComponent() {
               <Link to="/" className="nav-link" activeProps={{ className: 'nav-link is-active' }}>
                 Search
               </Link>
+              <Link to="/latest" className="nav-link" activeProps={{ className: 'nav-link is-active' }}>
+                Latest
+              </Link>
               <Link to="/jobs" className="nav-link" activeProps={{ className: 'nav-link is-active' }}>
                 Jobs
               </Link>

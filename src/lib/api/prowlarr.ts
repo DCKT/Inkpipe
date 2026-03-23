@@ -12,6 +12,41 @@ export interface ProwlarrResult {
   categories: string[]
 }
 
+export async function getLatestMangas(
+  config: AppConfig,
+): Promise<ProwlarrResult[]> {
+  const { url, apiKey } = config.prowlarr
+  if (!url || !apiKey) {
+    throw new Error('Prowlarr is not configured')
+  }
+
+  const params = new URLSearchParams()
+  params.append('type', 'search')
+  params.append('categories', '8010')
+  params.append('categories', '7030')
+
+  const response = await ky
+    .get(`${url}/api/v1/search`, {
+      searchParams: params,
+      headers: { 'X-Api-Key': apiKey },
+      timeout: 30000,
+    })
+    .json<Array<Record<string, unknown>>>()
+
+  return response.map((item) => ({
+    title: String(item.title ?? ''),
+    guid: String(item.guid ?? ''),
+    magnetUrl: (item.magnetUrl as string) ?? null,
+    downloadUrl: (item.downloadUrl as string) ?? null,
+    size: Number(item.size ?? 0),
+    seeders: Number(item.seeders ?? 0),
+    indexer: String(item.indexer ?? ''),
+    categories: Array.isArray(item.categories)
+      ? item.categories.map((c: Record<string, unknown>) => String(c.name ?? ''))
+      : [],
+  }))
+}
+
 export async function searchProwlarr(
   query: string,
   config: AppConfig,
