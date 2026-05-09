@@ -26,7 +26,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function runPipeline(result: ProwlarrResult): Promise<void> {
+export async function runPipeline(result: ProwlarrResult, subfolder?: string): Promise<void> {
   console.log("[pipeline] Starting pipeline for:", result.title);
   console.log("[pipeline] magnetUrl:", result.magnetUrl);
   console.log("[pipeline] downloadUrl:", result.downloadUrl);
@@ -182,7 +182,7 @@ export async function runPipeline(result: ProwlarrResult): Promise<void> {
           console.log(
             `[pipeline] [job ${job.id}] Uploading to Copyparty: ${file}`,
           );
-          await uploadToCopyparty(file, config);
+          await uploadToCopyparty(file, config, subfolder);
         }
         console.log(
           `[pipeline] [job ${job.id}] Copyparty upload complete (${filesToUpload.length} file(s))`,

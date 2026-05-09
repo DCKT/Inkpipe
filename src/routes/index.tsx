@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import SearchBar from "../components/SearchBar";
 import ResultsTable from "../components/ResultsTable";
+import DownloadModal from "../components/DownloadModal";
 import { searchFn } from "../server/functions/search";
 import { startDownloadFn } from "../server/functions/download";
 import type { ProwlarrResult } from "../lib/api/prowlarr";
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/")({ component: SearchPage });
 function SearchPage() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [modalItems, setModalItems] = useState<ProwlarrResult[] | null>(null);
 
   const searchQuery = useQuery({
     queryKey: ["search", query],
@@ -20,8 +22,8 @@ function SearchPage() {
   });
 
   const downloadMutation = useMutation({
-    mutationFn: (items: ProwlarrResult[]) =>
-      startDownloadFn({ data: { items } }),
+    mutationFn: ({ items, subfolder }: { items: ProwlarrResult[]; subfolder?: string }) =>
+      startDownloadFn({ data: { items, subfolder } }),
     onSuccess: () => {
       setSelected(new Set());
     },
@@ -51,11 +53,15 @@ function SearchPage() {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownloadClick = () => {
     const items = results.filter((r) => selected.has(r.guid));
     if (items.length > 0) {
-      downloadMutation.mutate(items);
+      setModalItems(items);
     }
+  };
+
+  const handleModalConfirm = (items: ProwlarrResult[], subfolder?: string) => {
+    downloadMutation.mutate({ items, subfolder });
   };
 
   return (
@@ -93,7 +99,7 @@ function SearchPage() {
       {selected.size > 0 && (
         <div className="sticky bottom-4 flex justify-center">
           <button
-            onClick={handleDownload}
+            onClick={handleDownloadClick}
             disabled={downloadMutation.isPending}
             className="rounded-full border border-[rgba(50,143,151,0.3)] bg-[var(--lagoon)] px-8 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[var(--lagoon-deep)] disabled:opacity-50"
           >
@@ -102,6 +108,14 @@ function SearchPage() {
               : `Download ${selected.size} selected`}
           </button>
         </div>
+      )}
+
+      {modalItems && (
+        <DownloadModal
+          items={modalItems}
+          onConfirm={handleModalConfirm}
+          onClose={() => setModalItems(null)}
+        />
       )}
     </main>
   );

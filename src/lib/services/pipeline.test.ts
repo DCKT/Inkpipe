@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { runPipeline } from './pipeline'
-import { getJob, getAllJobs, type Job } from '../jobs'
+import { getAllJobs, type Job } from '../jobs'
 import type { ProwlarrResult } from '../api/prowlarr'
 import type { AppConfig } from '../config'
 
@@ -43,7 +43,34 @@ import { ensureJobDir, cleanupJobDir, findFileByExtension, findAllFilesByExtensi
 const mockConfig: AppConfig = {
   prowlarr: { url: 'http://localhost:9696', apiKey: 'test-key' },
   alldebrid: { apiKey: 'test-debrid-key' },
-  kcc: { dockerImage: 'ghcr.io/ciromattia/kcc:latest', profile: 'KoBO' },
+  kcc: {
+    dockerImage: 'ghcr.io/ciromattia/kcc:latest',
+    profile: 'KoBO',
+    format: 'Auto' as const,
+    mangaStyle: false,
+    webtoon: false,
+    twoPanel: false,
+    upscale: true,
+    stretch: false,
+    hq: false,
+    gamma: 1.0,
+    cropping: '1' as const,
+    croppingPower: 1.0,
+    forceColor: true,
+    forcePng: false,
+    noAutoContrast: false,
+    blackBorders: false,
+    whiteBorders: false,
+    splitter: '0' as const,
+    noProcessing: false,
+    eraseRainbow: true,
+    coverFill: false,
+    batchSplit: '0' as const,
+    targetSize: 0,
+    customWidth: 0,
+    customHeight: 0,
+    noKepub: false,
+  },
   copyparty: { url: '', uploadPath: '/', password: '' },
 }
 
@@ -338,6 +365,7 @@ describe('pipeline', () => {
       expect(uploadToCopyparty).toHaveBeenCalledWith(
         '/tmp/inkpipe-test/1/comic.epub',
         configWithCopyparty,
+        undefined,
       )
       const job = latestJob()
       expect(job.stage).toBe('DONE')

@@ -50,7 +50,7 @@ const copypartySchema = z.object({
 const configSchema = z.object({
   prowlarr: prowlarrSchema.default({ url: '', apiKey: '' }),
   alldebrid: alldebridSchema.default({ apiKey: '' }),
-  kcc: kccSchema.default({}),
+  kcc: kccSchema.default(() => kccSchema.parse({})),
   copyparty: copypartySchema.default({ url: '', uploadPath: '/', password: '' }),
 })
 
