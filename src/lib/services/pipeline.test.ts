@@ -72,6 +72,7 @@ const mockConfig: AppConfig = {
     noKepub: false,
   },
   copyparty: { url: '', uploadPath: '/', password: '' },
+  komga: { url: '', apiKey: '', defaultLibraryId: '' },
 }
 
 const baseProwlarrResult: ProwlarrResult = {

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LatestRouteImport } from './routes/latest'
+import { Route as KomgaRouteImport } from './routes/komga'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -22,6 +23,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const LatestRoute = LatestRouteImport.update({
   id: '/latest',
   path: '/latest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KomgaRoute = KomgaRouteImport.update({
+  id: '/komga',
+  path: '/komga',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JobsRoute = JobsRouteImport.update({
@@ -38,12 +44,14 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/jobs': typeof JobsRoute
+  '/komga': typeof KomgaRoute
   '/latest': typeof LatestRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/jobs': typeof JobsRoute
+  '/komga': typeof KomgaRoute
   '/latest': typeof LatestRoute
   '/settings': typeof SettingsRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/jobs': typeof JobsRoute
+  '/komga': typeof KomgaRoute
   '/latest': typeof LatestRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/jobs' | '/latest' | '/settings'
+  fullPaths: '/' | '/jobs' | '/komga' | '/latest' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/jobs' | '/latest' | '/settings'
-  id: '__root__' | '/' | '/jobs' | '/latest' | '/settings'
+  to: '/' | '/jobs' | '/komga' | '/latest' | '/settings'
+  id: '__root__' | '/' | '/jobs' | '/komga' | '/latest' | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   JobsRoute: typeof JobsRoute
+  KomgaRoute: typeof KomgaRoute
   LatestRoute: typeof LatestRoute
   SettingsRoute: typeof SettingsRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/latest'
       fullPath: '/latest'
       preLoaderRoute: typeof LatestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/komga': {
+      id: '/komga'
+      path: '/komga'
+      fullPath: '/komga'
+      preLoaderRoute: typeof KomgaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/jobs': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   JobsRoute: JobsRoute,
+  KomgaRoute: KomgaRoute,
   LatestRoute: LatestRoute,
   SettingsRoute: SettingsRoute,
 }

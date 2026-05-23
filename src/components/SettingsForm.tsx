@@ -1,10 +1,89 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { AppConfig } from '../lib/config'
+import { getKomgaLibrariesFn } from '../server/functions/komga'
 
 interface SettingsFormProps {
   config: AppConfig
   onSave: (config: AppConfig) => void
   isSaving: boolean
+}
+
+interface KomgaDefaultLibrarySelectProps {
+  savedConfig: AppConfig
+  value: string
+  onChange: (id: string) => void
+  inputClass: string
+  labelClass: string
+}
+
+function KomgaDefaultLibrarySelect({
+  savedConfig,
+  value,
+  onChange,
+  inputClass,
+  labelClass,
+}: KomgaDefaultLibrarySelectProps) {
+  const hasCredentials = !!(savedConfig.komga.url && savedConfig.komga.apiKey)
+
+  const librariesQuery = useQuery({
+    queryKey: ['komga-libraries'],
+    queryFn: () => getKomgaLibrariesFn(),
+    staleTime: 5 * 60 * 1000,
+    enabled: hasCredentials,
+    retry: false,
+  })
+
+  if (!hasCredentials) {
+    return (
+      <div>
+        <label className={labelClass}>Default Library</label>
+        <select disabled className={`${inputClass} opacity-50`}>
+          <option>Save URL & API key first</option>
+        </select>
+      </div>
+    )
+  }
+
+  if (librariesQuery.isLoading) {
+    return (
+      <div>
+        <label className={labelClass}>Default Library</label>
+        <select disabled className={`${inputClass} opacity-50`}>
+          <option>Loading libraries...</option>
+        </select>
+      </div>
+    )
+  }
+
+  if (librariesQuery.isError || !librariesQuery.data) {
+    return (
+      <div>
+        <label className={labelClass}>Default Library</label>
+        <select disabled className={`${inputClass} opacity-50`}>
+          <option>Failed to load libraries</option>
+        </select>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <label className={labelClass}>Default Library</label>
+      <select
+        className={inputClass}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">All libraries</option>
+        {librariesQuery.data.map((lib) => (
+          <option key={lib.id} value={lib.id}>
+            {lib.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
 }
 
 export default function SettingsForm({ config, onSave, isSaving }: SettingsFormProps) {
@@ -318,6 +397,43 @@ export default function SettingsForm({ config, onSave, isSaving }: SettingsFormP
               }
             />
           </div>
+        </div>
+      </fieldset>
+
+      <fieldset className="island-shell rounded-2xl p-6">
+        <legend className="island-kicker mb-3 px-1">Komga</legend>
+        <div className="space-y-4">
+          <div>
+            <label className={labelClass}>URL</label>
+            <input
+              type="url"
+              className={inputClass}
+              placeholder="https://komga.example.com"
+              value={form.komga.url}
+              onChange={(e) =>
+                setForm({ ...form, komga: { ...form.komga, url: e.target.value } })
+              }
+            />
+          </div>
+          <div>
+            <label className={labelClass}>API Key</label>
+            <input
+              type="password"
+              className={inputClass}
+              placeholder="Your Komga API key"
+              value={form.komga.apiKey}
+              onChange={(e) =>
+                setForm({ ...form, komga: { ...form.komga, apiKey: e.target.value } })
+              }
+            />
+          </div>
+          <KomgaDefaultLibrarySelect
+            savedConfig={config}
+            value={form.komga.defaultLibraryId}
+            onChange={(id) => setForm({ ...form, komga: { ...form.komga, defaultLibraryId: id } })}
+            inputClass={inputClass}
+            labelClass={labelClass}
+          />
         </div>
       </fieldset>
 

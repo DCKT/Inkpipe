@@ -1,13 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { z } from 'zod'
 import SettingsForm from '../components/SettingsForm'
 import { getSettingsFn, updateSettingsFn } from '../server/functions/settings'
 import type { AppConfig } from '../lib/config'
 
-export const Route = createFileRoute('/settings')({ component: SettingsPage })
+export const Route = createFileRoute('/settings')({
+  validateSearch: z.object({ komgaNotConfigured: z.boolean().optional() }),
+  component: SettingsPage,
+})
 
 function SettingsPage() {
   const queryClient = useQueryClient()
+  const { komgaNotConfigured } = Route.useSearch()
 
   const configQuery = useQuery({
     queryKey: ['settings'],
@@ -26,6 +31,12 @@ function SettingsPage() {
       <h1 className="display-title mb-6 text-3xl font-bold text-[var(--sea-ink)]">
         Settings
       </h1>
+
+      {komgaNotConfigured && (
+        <div className="island-shell mb-6 rounded-2xl border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+          Komga is not configured yet. Please enter your Komga URL and API key below.
+        </div>
+      )}
 
       {configQuery.isLoading && (
         <p className="text-sm text-[var(--sea-ink-soft)]">Loading settings...</p>

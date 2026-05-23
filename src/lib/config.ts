@@ -47,11 +47,18 @@ const copypartySchema = z.object({
   password: z.string().default(''),
 })
 
+const komgaSchema = z.object({
+  url: z.string().default(''),
+  apiKey: z.string().default(''),
+  defaultLibraryId: z.string().default(''),
+})
+
 const configSchema = z.object({
   prowlarr: prowlarrSchema.default({ url: '', apiKey: '' }),
   alldebrid: alldebridSchema.default({ apiKey: '' }),
   kcc: kccSchema.default(() => kccSchema.parse({})),
   copyparty: copypartySchema.default({ url: '', uploadPath: '/', password: '' }),
+  komga: komgaSchema.default({ url: '', apiKey: '', defaultLibraryId: '' }),
 })
 
 export type AppConfig = z.infer<typeof configSchema>
