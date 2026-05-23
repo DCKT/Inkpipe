@@ -13,6 +13,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LatestRouteImport } from './routes/latest'
 import { Route as KomgaRouteImport } from './routes/komga'
 import { Route as JobsRouteImport } from './routes/jobs'
+import { Route as ConvertRouteImport } from './routes/convert'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -35,6 +36,11 @@ const JobsRoute = JobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConvertRoute = ConvertRouteImport.update({
+  id: '/convert',
+  path: '/convert',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -43,6 +49,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/convert': typeof ConvertRoute
   '/jobs': typeof JobsRoute
   '/komga': typeof KomgaRoute
   '/latest': typeof LatestRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/convert': typeof ConvertRoute
   '/jobs': typeof JobsRoute
   '/komga': typeof KomgaRoute
   '/latest': typeof LatestRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/convert': typeof ConvertRoute
   '/jobs': typeof JobsRoute
   '/komga': typeof KomgaRoute
   '/latest': typeof LatestRoute
@@ -65,14 +74,22 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/jobs' | '/komga' | '/latest' | '/settings'
+  fullPaths: '/' | '/convert' | '/jobs' | '/komga' | '/latest' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/jobs' | '/komga' | '/latest' | '/settings'
-  id: '__root__' | '/' | '/jobs' | '/komga' | '/latest' | '/settings'
+  to: '/' | '/convert' | '/jobs' | '/komga' | '/latest' | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/convert'
+    | '/jobs'
+    | '/komga'
+    | '/latest'
+    | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConvertRoute: typeof ConvertRoute
   JobsRoute: typeof JobsRoute
   KomgaRoute: typeof KomgaRoute
   LatestRoute: typeof LatestRoute
@@ -109,6 +126,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JobsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/convert': {
+      id: '/convert'
+      path: '/convert'
+      fullPath: '/convert'
+      preLoaderRoute: typeof ConvertRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -121,6 +145,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConvertRoute: ConvertRoute,
   JobsRoute: JobsRoute,
   KomgaRoute: KomgaRoute,
   LatestRoute: LatestRoute,
