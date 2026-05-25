@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react'
 import { createFileRoute, redirect } from '@tanstack/react-router'
+import { useServerFn } from '@tanstack/react-start'
 import { ArrowDown, RefreshCw } from 'lucide-react'
 import { getSettingsFn } from '../server/functions/settings'
+import { convertFileFn, downloadConvertedFileFn } from '../server/functions/convert'
 import FileDrop from '../components/FileDrop'
 
 export const Route = createFileRoute('/convert')({
@@ -24,6 +26,9 @@ function ConvertPage() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
   const [downloadFilename, setDownloadFilename] = useState<string | null>(null)
 
+  const convertFile = useServerFn(convertFileFn)
+  const downloadFile = useServerFn(downloadConvertedFileFn)
+
   const handleFile = useCallback(async (file: File) => {
     setStage('processing')
     setSubStage('uploading')
@@ -39,30 +44,24 @@ function ConvertPage() {
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch('/api/convert', {
-        method: 'POST',
-        body: formData,
-      })
-
       clearTimeout(convertingTimer)
 
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({ message: 'Conversion failed' }))
-        throw new Error(data.message || `Server error (${response.status})`)
-      }
-
-      const result = await response.json()
-      const url = `/api/convert?id=${encodeURIComponent(result.id)}`
-      setDownloadUrl(url)
+      const result = await convertFile({ data: formData })
+      setDownloadUrl(`/api/convert?id=${encodeURIComponent(result.id)}`)
       setDownloadFilename(result.filename)
-      setStage('done')
 
+      const blobResponse = await downloadFile({ data: { id: result.id } })
+      const blob = await blobResponse.blob()
+      const blobUrl = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
+      a.href = blobUrl
       a.download = result.filename
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
+      URL.revokeObjectURL(blobUrl)
+
+      setStage('done')
 
       setTimeout(() => {
         setStage('idle')
@@ -75,7 +74,7 @@ function ConvertPage() {
       setError(message)
       setStage('error')
     }
-  }, [])
+  }, [convertFile, downloadFile])
 
   return (
     <main className="page-wrap px-4 pb-8 pt-8">

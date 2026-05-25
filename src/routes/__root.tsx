@@ -13,6 +13,18 @@ import appCss from '../styles.css?url'
 
 const queryClient = new QueryClient()
 
+function NotFound() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
+      <h1 className="text-4xl font-bold">404</h1>
+      <p className="text-[var(--muted)]">Page not found</p>
+      <Link to="/" className="btn btn-primary">
+        Go home
+      </Link>
+    </div>
+  )
+}
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -24,6 +36,7 @@ export const Route = createRootRoute({
   }),
   component: RootComponent,
   shellComponent: RootDocument,
+  notFoundComponent: NotFound,
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {

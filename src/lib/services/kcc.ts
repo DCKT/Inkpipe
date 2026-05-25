@@ -85,6 +85,9 @@ function doConvertWithKcc(
       ];
     }
 
+    console.log(`[kcc] Starting conversion: ${inputFilename}`);
+    console.log(`[kcc] Docker args: docker ${args.join(" ")}`);
+
     const proc = spawn("docker", args);
 
     let stdout = "";
@@ -92,21 +95,28 @@ function doConvertWithKcc(
 
     proc.stdout.on("data", (data: Buffer) => {
       stdout += data.toString();
+      console.log(`[kcc] stdout: ${data.toString().trim()}`);
     });
 
     proc.stderr.on("data", (data: Buffer) => {
       stderr += data.toString();
+      console.log(`[kcc] stderr: ${data.toString().trim()}`);
     });
 
     proc.on("close", (code) => {
+      console.log(`[kcc] Process exited with code ${code}`);
       if (code === 0) {
+        console.log(`[kcc] Conversion succeeded for: ${inputFilename}`);
         resolve(stdout);
       } else {
+        console.error(`[kcc] Conversion failed for: ${inputFilename}`);
+        console.error(`[kcc] stderr: ${stderr}`);
         reject(new Error(`KCC exited with code ${code}: ${stderr}`));
       }
     });
 
     proc.on("error", (err) => {
+      console.error(`[kcc] Failed to start KCC: ${err.message}`);
       reject(new Error(`Failed to start KCC: ${err.message}`));
     });
   });
