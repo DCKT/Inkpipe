@@ -1,5 +1,6 @@
 services:
   inkpipe:
+    build: .
     image: ghcr.io/dckt/inkpipe:latest
     ports:
       - "3001:3000"

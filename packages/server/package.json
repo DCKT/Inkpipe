@@ -1,0 +1,23 @@
+{
+  "name": "@inkpipe/server",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "dev": "bun run --watch src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@effect/platform": "^0.96.0",
+    "@inkpipe/shared": "workspace:*",
+    "effect": "^3.21.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.5"
+  }
+}

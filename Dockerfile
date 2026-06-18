@@ -1,13 +1,17 @@
-# Stage 1: Build
-FROM node:22-slim AS builder
+# Stage 1: Build web frontend
+FROM oven/bun:1-slim AS builder
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm install --frozen-lockfile
+COPY package.json bun.lock ./
+COPY packages/shared/package.json packages/shared/
+COPY packages/server/package.json packages/server/
+COPY packages/web/package.json packages/web/
+COPY packages/watcher/package.json packages/watcher/
+RUN bun install --frozen-lockfile
 COPY . .
-RUN npm run build
+RUN bun run build
 
 # Stage 2: Runtime
-FROM node:22-slim
+FROM oven/bun:1-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
@@ -18,8 +22,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm install --frozen-lockfile --prod
-COPY --from=builder /app/.output ./.output
+COPY package.json bun.lock ./
+COPY packages/shared/package.json packages/shared/
+COPY packages/server/package.json packages/server/
+COPY packages/web/package.json packages/web/
+COPY packages/watcher/package.json packages/watcher/
+RUN bun install --frozen-lockfile --production
+COPY packages/server/src packages/server/src
+COPY packages/shared/src packages/shared/src
+COPY packages/watcher/src packages/watcher/src
+COPY --from=builder /app/packages/web/dist packages/web/dist
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD sh -c "bun run packages/watcher/src/index.ts & bun run packages/server/src/main.ts"

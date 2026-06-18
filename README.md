@@ -1,32 +1,58 @@
 # Inkpipe
 
-Manga/comic pipeline: search, download, convert (via KCC), and upload to your e-reader.
+Manga/comic pipeline: search, download, convert, and upload to your e-reader.
 
-## Run locally
+## Features
 
-```bash
-npm install
-npm run dev
-```
-
-## Run with Docker
-
-```bash
-docker build -t inkpipe .
-
-docker run -p 3000:3000 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v ~/.inkpipe:/root/.inkpipe \
-  -v inkpipe-tmp:/tmp/inkpipe \
-  -e INKPIPE_TEMP_VOLUME=inkpipe-tmp \
-  inkpipe
-```
-
-- `/var/run/docker.sock` — allows inkpipe to spawn KCC containers
-- `inkpipe-config` — persists configuration across restarts
-- `inkpipe-tmp` — shared named volume so KCC containers can access temp files
-- `INKPIPE_TEMP_VOLUME` — tells inkpipe the volume name to mount into KCC containers (required when running in Docker)
+- **Search** Prowlarr for manga/comics
+- **Download** via AllDebrid
+- **Convert** CBZ/CBR/ZIP/RAR/PDF to EPUB using KCC (Kindle Comic Converter)
+- **Upload** to Copyparty file server
+- **Browse** your Komga library with covers and filters
 
 ## Architecture
 
-![schema](https://github.com/user-attachments/assets/4ba7ecbc-6337-4f34-b9a2-eef5095dd703)
+Monorepo: three packages managed by Bun workspaces.
+
+| Package | Description | Stack |
+|---------|-------------|-------|
+| `packages/shared` | Domain types, API contracts, errors | Effect Schema v3 |
+| `packages/server` | HTTP API + pipeline orchestration | Bun.serve, Effect TS, Bun SQLite |
+| `packages/web` | React SPA frontend | React Router v7, TanStack Query, Tailwind v4 |
+
+## Local development
+
+```bash
+# Install dependencies
+bun install
+
+# Start both server and frontend
+bun run dev
+
+# Server: http://localhost:3000
+# Web:   http://localhost:5173
+
+# Run tests
+bun run test
+
+# Type check all packages
+bun run typecheck
+```
+
+## Docker
+
+```bash
+docker compose up -d
+```
+
+Access at `http://localhost:3001` (port mapped from container 3000).
+
+## Configuration
+
+Settings are persisted to `~/.inkpipe/inkpipe.db` (Bun SQLite). Required:
+
+- **Prowlarr** — URL + API key for torrent search
+- **AllDebrid** — API key for debrid service
+- **KCC** — Docker image for comic conversion
+- **Copyparty** (optional) — URL for file uploads
+- **Komga** (optional) — URL + API key for library browsing
