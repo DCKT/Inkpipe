@@ -1,53 +1,105 @@
-name: Release Please
+name: Release
 
 on:
   push:
     branches: [main]
 
 jobs:
-  release-please:
-    runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.releases_created }}
-      version: ${{ steps.release.outputs.version }}
-    steps:
-      - uses: googleapis/release-please-action@v4
-        id: release
-        with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          skip-github-pull-request: true
-
-  sync-files:
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+  release:
+    if: "!contains(github.event.head_commit.message, 'chore: release')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          ref: main
+          fetch-depth: 0
 
-      - name: Sync version to files
+      - name: Bump version and release
+        id: release
         run: |
-          VERSION="${{ needs.release-please.outputs.version }}"
-          echo "Syncing version to $VERSION"
+          set -euo pipefail
+
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No previous tag, skipping." >> "$GITHUB_STEP_SUMMARY"
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Latest tag: $LATEST_TAG"
+
+          COMMITS=$(git log "${LATEST_TAG}"..HEAD --pretty=format:"%s" --no-merges)
+
+          if [ -z "$COMMITS" ]; then
+            echo "No new commits since $LATEST_TAG, skipping." >> "$GITHUB_STEP_SUMMARY"
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "### Commits since $LATEST_TAG" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "$COMMITS" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          BUMP="none"
+          if   echo "$COMMITS" | grep -qE "^(feat|fix)!.*:"; then BUMP="major"
+          elif echo "$COMMITS" | grep -qE "^feat(\(.*\))?:"; then BUMP="minor"
+          elif echo "$COMMITS" | grep -qE "^fix(\(.*\))?:";  then BUMP="patch"
+          fi
+
+          if [ "$BUMP" = "none" ]; then
+            echo "No releasable conventional commits found." >> "$GITHUB_STEP_SUMMARY"
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Bump level: $BUMP" >> "$GITHUB_STEP_SUMMARY"
+
+          CURRENT=$(node --input-type=commonjs -p "require('./package.json').version")
+          echo "Current version: $CURRENT"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          case $BUMP in
+            major) NEW="$((MAJOR + 1)).0.0" ;;
+            minor) NEW="$MAJOR.$((MINOR + 1)).0" ;;
+            patch) NEW="$MAJOR.$MINOR.$((PATCH + 1))" ;;
+          esac
+
+          echo "New version: $NEW"
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+          echo "released=true" >> "$GITHUB_OUTPUT"
 
           node --input-type=commonjs -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
-            pkg.version = '$VERSION';
+            pkg.version = '$NEW';
             fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
 
           node --input-type=commonjs -e "
             const fs = require('fs');
-            fs.writeFileSync('./.release-please-manifest.json', JSON.stringify({'.': '$VERSION'}, null, 2) + '\n');
+            fs.writeFileSync('./.release-please-manifest.json', JSON.stringify({'.': '$NEW'}, null, 2) + '\n');
           "
 
-      - name: Commit and push
-        run: |
+          {
+            echo "## What's Changed"
+            echo ""
+            git log "${LATEST_TAG}"..HEAD --pretty=format:"- %s" --no-merges
+          } > /tmp/notes.md
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json .release-please-manifest.json
-          git commit -m "chore: bump version to $VERSION [skip ci]" || echo "Nothing to commit"
+          git commit -m "chore: release v$NEW" || echo "No changes to commit"
+          git tag "v$NEW"
           git push origin main
+          git push origin "v$NEW"
+
+          gh release create "v$NEW" \
+            --title "v$NEW" \
+            --notes-file /tmp/notes.md
+
+          echo "Released v$NEW" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
