@@ -1,5 +1,6 @@
 import { Layer, ManagedRuntime } from "effect"
 import { existsSync } from "node:fs"
+import { resolve } from "node:path"
 import { ConfigServiceLive } from "./layers/Config"
 import type { ConfigService } from "./layers/Config"
 import { JobStoreServiceLive } from "./layers/JobStore"
@@ -91,14 +92,12 @@ const MainLayer = Layer.mergeAll(
 
 const runtime = ManagedRuntime.make(MainLayer)
 
-const isProduction = process.env.NODE_ENV === "production"
-
 function getWebDistPath(): string {
   const pkgDir = import.meta.dir
   const candidates = [
-    `${pkgDir}/../../packages/web/build/client`,
-    `${pkgDir}/../../packages/web/dist`,
-    `${pkgDir}/../../../dist/client`,
+    resolve(pkgDir, "../../web/dist"),
+    resolve(pkgDir, "../../web/build/client"),
+    resolve(pkgDir, "../../../dist/client"),
   ]
   for (const c of candidates) {
     if (existsSync(c)) return c
@@ -107,6 +106,8 @@ function getWebDistPath(): string {
 }
 
 const WEB_DIST = getWebDistPath()
+
+const isProduction = process.env.NODE_ENV === "production" || existsSync(WEB_DIST)
 
 async function serveStatic(pathname: string): Promise<Response | null> {
   const filePath = `${WEB_DIST}${pathname}`
