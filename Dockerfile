@@ -18,7 +18,7 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/server/package.json packages/server/
 COPY packages/web/package.json packages/web/
 COPY packages/watcher/package.json packages/watcher/
-RUN bun install --frozen-lockfile --production
+RUN bun install --frozen-lockfile --production --ignore-scripts
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
