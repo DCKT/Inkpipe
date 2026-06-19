@@ -17,6 +17,9 @@
     { "type": "ci", "section": "Continuous Integration", "hidden": true }
   ],
   "packages": {
-    ".": {}
+    ".": {
+      "component": "inkpipe",
+      "extra-files": ["package.json"]
+    }
   }
 }
