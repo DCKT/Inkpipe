@@ -27,7 +27,7 @@ import { searchHandler } from "./routes/search"
 import { latestHandler } from "./routes/latest"
 import { downloadHandler } from "./routes/download"
 import { jobsHandler, clearJobsHandler } from "./routes/jobs"
-import { getSettingsHandler, updateSettingsHandler } from "./routes/settings"
+import { getSettingsHandler, updateSettingsHandler, exportSettingsHandler, importSettingsHandler } from "./routes/settings"
 import { convertUploadHandler, convertDownloadHandler } from "./routes/convert"
 import {
   komgaLibrariesHandler,
@@ -193,6 +193,13 @@ const server = Bun.serve({
       if (p === "/api/settings" && m === "POST") {
         const body = (await req.json()) as AppConfig
         return api(await runtime.runPromise(updateSettingsHandler(body)))
+      }
+      if (p === "/api/settings/export" && m === "GET") {
+        return api(await runtime.runPromise(exportSettingsHandler))
+      }
+      if (p === "/api/settings/import" && m === "POST") {
+        const body = await req.json()
+        return api(await runtime.runPromise(importSettingsHandler(body)))
       }
       if (p === "/api/convert" && m === "POST") {
         const fd = await req.formData() as FormData
