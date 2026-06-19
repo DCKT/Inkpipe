@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import SettingsForm from "../components/SettingsForm";
@@ -12,6 +12,7 @@ export default function SettingsPage() {
   const [searchParams] = useSearchParams();
   const komgaNotConfigured = searchParams.get("komgaNotConfigured") === "true";
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [formKey, setFormKey] = useState(0);
 
   const configQuery = useQuery({
     queryKey: ["settings"],
@@ -63,6 +64,7 @@ export default function SettingsPage() {
           if (data.error) throw new Error(data.error);
         });
       queryClient.invalidateQueries({ queryKey: ["settings"] });
+      setFormKey((k) => k + 1);
       ToastGroup.create.success("Settings imported successfully.");
     } catch (err) {
       ToastGroup.create.error(
@@ -122,6 +124,7 @@ export default function SettingsPage() {
 
       {configQuery.data && (
         <SettingsForm
+          key={formKey}
           config={configQuery.data}
           onSave={(config) => saveMutation.mutate(config)}
           isSaving={saveMutation.isPending}
