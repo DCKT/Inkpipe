@@ -42,12 +42,10 @@
       "name": "@inkpipe/watcher",
       "dependencies": {
         "@inkpipe/shared": "workspace:*",
-        "effect": "^3.21.3",
         "web-push": "3.6.7",
       },
       "devDependencies": {
         "@types/bun": "latest",
-        "@types/web-push": "3.6.4",
         "typescript": "^5.7.2",
       },
     },
