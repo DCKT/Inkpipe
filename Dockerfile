@@ -1,5 +1,5 @@
 # Stage 1: Build web frontend
-FROM oven/bun:1-slim AS builder
+FROM oven/bun:1.3.1-slim AS builder
 WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/shared/package.json packages/shared/
@@ -11,7 +11,14 @@ COPY . .
 RUN bun run build
 
 # Stage 2: Runtime
-FROM oven/bun:1-slim
+FROM oven/bun:1.3.1-slim
+WORKDIR /app
+COPY package.json bun.lock ./
+COPY packages/shared/package.json packages/shared/
+COPY packages/server/package.json packages/server/
+COPY packages/web/package.json packages/web/
+COPY packages/watcher/package.json packages/watcher/
+RUN bun install --frozen-lockfile --production
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
@@ -21,13 +28,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list \
     && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY package.json bun.lock ./
-COPY packages/shared/package.json packages/shared/
-COPY packages/server/package.json packages/server/
-COPY packages/web/package.json packages/web/
-COPY packages/watcher/package.json packages/watcher/
-RUN bun install --frozen-lockfile --production
 COPY packages/server/src packages/server/src
 COPY packages/shared/src packages/shared/src
 COPY packages/watcher/src packages/watcher/src

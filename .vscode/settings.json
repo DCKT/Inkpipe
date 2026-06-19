@@ -1,13 +1,4 @@
 {
-  "files.watcherExclude": {
-    "**/routeTree.gen.ts": true
-  },
-  "search.exclude": {
-    "**/routeTree.gen.ts": true
-  },
-  "files.readonlyInclude": {
-    "**/routeTree.gen.ts": true
-  },
   "typescript.preferences.autoImportFileExcludePatterns": ["repos/**"],
   "javascript.preferences.autoImportFileExcludePatterns": ["repos/**"],
 
@@ -22,7 +13,7 @@
   "search.exclude": {
     "repos/**": true
   },
-"js/ts.experimental.useTsgo": true,
-"typescript.experimental.useTsgo": true,
-"typescript.native-preview.tsdk": "node_modules/@typescript/native-preview"
+  "js/ts.experimental.useTsgo": true,
+  "typescript.experimental.useTsgo": true,
+  "typescript.native-preview.tsdk": "node_modules/@typescript/native-preview"
 }
