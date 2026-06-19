@@ -7,9 +7,47 @@ on:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.releases_created }}
+      version: ${{ steps.release.outputs.version }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           skip-github-pull-request: true
+
+  sync-files:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          ref: main
+
+      - name: Sync version to files
+        run: |
+          VERSION="${{ needs.release-please.outputs.version }}"
+          echo "Syncing version to $VERSION"
+
+          node --input-type=commonjs -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+            pkg.version = '$VERSION';
+            fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+          node --input-type=commonjs -e "
+            const fs = require('fs');
+            fs.writeFileSync('./.release-please-manifest.json', JSON.stringify({'.': '$VERSION'}, null, 2) + '\n');
+          "
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json .release-please-manifest.json
+          git commit -m "chore: bump version to $VERSION [skip ci]" || echo "Nothing to commit"
+          git push origin main
