@@ -1,6 +1,8 @@
 import { Layer, ManagedRuntime } from "effect"
-import { existsSync } from "node:fs"
-import { resolve } from "node:path"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { resolve, join } from "node:path"
+import { homedir } from "node:os"
+import webpush from "web-push"
 import { ConfigServiceLive } from "./layers/Config"
 import type { ConfigService } from "./layers/Config"
 import { JobStoreServiceLive } from "./layers/JobStore"
@@ -156,6 +158,24 @@ function corsWrap(response: Response): Response {
 function api(resp: Response): Response {
   return corsWrap(resp)
 }
+
+function ensureVapidKeys(): void {
+  const dir = join(homedir(), ".inkpipe")
+  mkdirSync(dir, { recursive: true })
+  const path = join(dir, "vapid.json")
+  if (!existsSync(path)) {
+    const keys = webpush.generateVAPIDKeys()
+    writeFileSync(path, JSON.stringify(keys, null, 2))
+    return
+  }
+  const existing = JSON.parse(readFileSync(path, "utf-8"))
+  if (!existing.publicKey || !existing.privateKey) {
+    const keys = webpush.generateVAPIDKeys()
+    writeFileSync(path, JSON.stringify(keys, null, 2))
+  }
+}
+
+ensureVapidKeys()
 
 const server = Bun.serve({
   port: Number(process.env.PORT || 3000),

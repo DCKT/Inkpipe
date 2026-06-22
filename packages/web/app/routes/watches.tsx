@@ -4,6 +4,7 @@ import type { Watch } from "../lib/types"
 import { ToastGroup } from "../ui/toast"
 import { WatchFormDialog } from "../components/WatchForm"
 import { useNavigate } from "react-router-dom"
+import { usePushSubscription } from "../hooks/usePushSubscription"
 
 export default function WatchesPage() {
   const queryClient = useQueryClient()
@@ -40,6 +41,8 @@ export default function WatchesPage() {
     },
   })
 
+  const push = usePushSubscription()
+
   return (
     <main className="page-wrap px-4 pb-8 pt-8">
       <div className="mb-6 flex items-center justify-between">
@@ -52,6 +55,36 @@ export default function WatchesPage() {
           }}
         />
       </div>
+
+      {push.status === "subscribed" && (
+        <div className="island-shell mb-4 rounded-2xl border-[var(--chip-line)] p-3 text-sm text-[var(--sea-ink-soft)] flex items-center justify-between">
+          <span>Notifications on</span>
+          <button
+            className="text-xs text-[var(--sea-ink-soft)] hover:text-red-500 transition-colors"
+            onClick={() => push.unsubscribe()}
+          >
+            Turn off
+          </button>
+        </div>
+      )}
+
+      {push.status === "default" && (
+        <div className="island-shell mb-4 rounded-2xl border-[var(--chip-line)] p-3 text-sm flex items-center justify-between">
+          <span className="text-[var(--sea-ink-soft)]">Get notified when new matches are found</span>
+          <button
+            className="rounded-full px-4 py-1.5 text-xs font-medium bg-[var(--lagoon)] text-white hover:bg-[var(--lagoon)]/90 transition-colors"
+            onClick={() => push.subscribe()}
+          >
+            Enable alerts
+          </button>
+        </div>
+      )}
+
+      {push.status === "denied" && (
+        <div className="island-shell mb-4 rounded-2xl border-[var(--chip-line)] p-3 text-sm text-[var(--sea-ink-soft)]">
+          Notifications blocked. Allow them in your browser settings to receive alerts.
+        </div>
+      )}
 
       {unreadQuery.data && unreadQuery.data.count > 0 && (
         <div className="island-shell mb-4 rounded-2xl border-[var(--chip-line)] p-3 text-sm text-[var(--lagoon)]">
