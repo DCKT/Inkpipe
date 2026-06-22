@@ -2,23 +2,17 @@ import { Effect } from "effect"
 import type { PushSubscriptionRequest } from "@inkpipe/shared"
 import { join } from "node:path"
 import { homedir } from "node:os"
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs"
+import { readFileSync, writeFileSync, existsSync } from "node:fs"
 
 const CONFIG_DIR = join(homedir(), ".inkpipe")
 const VAPID_PATH = join(CONFIG_DIR, "vapid.json")
 
-function getOrCreateVapidKeys(): { publicKey: string; privateKey: string } {
-  mkdirSync(CONFIG_DIR, { recursive: true })
-  if (existsSync(VAPID_PATH)) {
-    return JSON.parse(readFileSync(VAPID_PATH, "utf-8"))
-  }
-  const keys = { publicKey: "", privateKey: "" }
-  writeFileSync(VAPID_PATH, JSON.stringify(keys, null, 2))
-  return keys
+function readVapidKeys(): { publicKey: string; privateKey: string } {
+  return JSON.parse(readFileSync(VAPID_PATH, "utf-8"))
 }
 
 export const getVapidPublicKeyHandler = Effect.gen(function* () {
-  const keys = yield* Effect.sync(() => getOrCreateVapidKeys())
+  const keys = yield* Effect.sync(() => readVapidKeys())
   return Response.json({ publicKey: keys.publicKey })
 }).pipe(
   Effect.catchAll((e: { message: string }) =>

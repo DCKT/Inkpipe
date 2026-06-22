@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../hooks/useApiClient";
+import { usePushSubscription } from "../hooks/usePushSubscription";
 
 interface EndpointDef {
   group: string;
@@ -101,6 +102,22 @@ const ENDPOINTS: EndpointDef[] = [
 
   // --- Jobs ---
   { group: "Jobs", label: "List Jobs", method: "GET", path: "/api/jobs" },
+
+  // --- Push ---
+  {
+    group: "Push",
+    label: "VAPID Public Key",
+    method: "GET",
+    path: "/api/push/vapid-public-key",
+  },
+  {
+    group: "Push",
+    label: "Subscribe",
+    method: "POST",
+    path: "/api/push/subscribe",
+    bodyKey: "subscription",
+    mutating: true,
+  },
 ];
 
 function groupEndpoints(endpoints: EndpointDef[]): Map<string, EndpointDef[]> {
@@ -158,6 +175,9 @@ export default function DebugPage() {
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const push = usePushSubscription()
+  const [pushTestResult, setPushTestResult] = useState<string | null>(null)
 
   const grouped = groupEndpoints(ENDPOINTS);
 
@@ -419,6 +439,86 @@ export default function DebugPage() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Push Notifications Test Panel */}
+      <div className="mt-6 island-shell rounded-2xl p-4">
+        <h2 className="text-sm font-semibold text-[var(--sea-ink)] mb-3">
+          Push Notifications
+        </h2>
+
+        {push.status === "unsupported" && (
+          <p className="text-sm text-[var(--sea-ink-soft)]">
+            Push notifications are not supported in this browser.
+          </p>
+        )}
+
+        {push.status !== "unsupported" && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-[var(--sea-ink-soft)]">Permission:</span>
+              <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
+                Notification.permission === "granted"
+                  ? "bg-green-100 text-green-700"
+                  : Notification.permission === "denied"
+                    ? "bg-red-100 text-red-700"
+                    : "bg-gray-100 text-gray-600"
+              }`}>
+                {Notification.permission}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {push.status === "default" && (
+                <button
+                  type="button"
+                  onClick={() => push.subscribe()}
+                  className="rounded-full px-4 py-1.5 text-xs font-medium bg-[var(--lagoon)] text-white hover:bg-[var(--lagoon)]/90 transition-colors"
+                >
+                  Subscribe
+                </button>
+              )}
+              {push.status === "subscribed" && (
+                <button
+                  type="button"
+                  onClick={() => push.unsubscribe()}
+                  className="rounded-full px-4 py-1.5 text-xs font-medium text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+                >
+                  Unsubscribe
+                </button>
+              )}
+              {push.status === "denied" && (
+                <p className="text-xs text-[var(--sea-ink-soft)]">
+                  Permission denied. Enable notifications in your browser settings.
+                </p>
+              )}
+            </div>
+
+            {push.status === "subscribed" && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.serviceWorker.ready.then((reg) => {
+                      reg.showNotification("Inkpipe Test", { body: "This is a test notification from the debug page." })
+                      setPushTestResult("Test notification sent")
+                      setTimeout(() => setPushTestResult(null), 3000)
+                    }).catch(() => {
+                      setPushTestResult("Failed to send test notification")
+                      setTimeout(() => setPushTestResult(null), 3000)
+                    })
+                  }}
+                  className="rounded-full px-4 py-1.5 text-xs font-medium border border-[var(--chip-line)] text-[var(--sea-ink)] hover:bg-[var(--link-bg-hover)] transition-colors"
+                >
+                  Send Test Notification
+                </button>
+                {pushTestResult && (
+                  <span className="ml-3 text-xs text-[var(--sea-ink-soft)]">{pushTestResult}</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );

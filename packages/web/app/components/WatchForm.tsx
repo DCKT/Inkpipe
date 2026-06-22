@@ -279,7 +279,7 @@ export function WatchFormDialog({
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
-              <Dialog.CloseTrigger>
+              <Dialog.CloseTrigger asChild>
                 <Button variant="ghost">Cancel</Button>
               </Dialog.CloseTrigger>
               <Button
