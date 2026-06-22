@@ -18,9 +18,25 @@ Manga/comic pipeline: search for content via Prowlarr, download torrents via All
 ## Architecture
 
 Monorepo with three packages:
-- `packages/shared` — Effect Schema domain types, API contracts, error types, utility functions
-- `packages/server` — Bun HTTP server with Effect TS. Bun SQLite for persistence. All IO via Effect services.
-- `packages/web` — React SPA with React Router v7, TanStack React Query, Tailwind CSS v4. Communicates with server via REST API.
+- `packages/shared` — Effect Schema domain types, RPC contracts, error types, utility functions. RPC groups in `src/rpc/` define typed endpoints with payload/success/error schemas.
+- `packages/server` — Bun HTTP server with Effect TS. Bun SQLite for persistence. All IO via Effect services. RPC handlers in `src/rpc/handlers/` implement group handlers, mounted via `RpcServer.toWebHandler()` at `POST /api/rpc`.
+- `packages/web` — React SPA with React Router v7, TanStack React Query, Tailwind CSS v4. API calls via Effect/RPC client (`RpcClient`), types inferred from shared RPC contracts.
+
+## API Communication
+
+```
+Frontend (Effect/RPC RpcClient) ─── HTTP POST /api/rpc (NDJSON) ─── Server (RpcServer.toWebHandler)
+     │                                                                      │
+     │ typed Effect<E, A>                                                   │ typed Effect<E, A>  
+     │ catchTag("NotFoundError", ...)                                       │ yield* Service.method()
+     ▼                                                                      ▼
+  React hook                                                          Layer service
+```
+
+- **RPC Group** — A namespaced set of typed procedures (e.g. `SearchRpc`, `WatchRpc`). Each group exports its own error union.
+- **RpcClient** — Effect-based client instantiated from an `RpcGroup`. Calls like `client.search.query(q)` return `Effect<Result, TypedError>`.
+- **RpcServer.toWebHandler** — Converts an `RpcGroup` + handler layer into a web-standard `(Request) => Promise<Response>` handler. Mounts at a single HTTP endpoint.
+- **NDJSON** — Newline-delimited JSON serialization. The RPC wire protocol uses NDJSON for streaming-friendly request/response encoding.
 
 ## Glossary
 
@@ -28,3 +44,14 @@ Monorepo with three packages:
 - **Job** — A tracked pipeline execution
 - **Magnet** — A torrent reference uploaded to AllDebrid for debrid processing
 - **Debrid** — AllDebrid service that resolves torrents to direct downloads
+
+## Flagged ambiguities
+
+- "API" was used to mean both the REST endpoints and the shared schema types — resolved: RPC contracts are the canonical API. `shared/src/api.ts` schemas are deprecated, replaced by `shared/src/rpc/` RPC groups.
+
+## Example dialogue
+
+> **Dev:** "I need to add a new endpoint for bulk acknowledging alerts. Where do I define it?"
+> **Domain expert:** "Add an `acknowledgeMany` RPC to the Watch group in `shared/src/rpc/watches.ts`, implement it in `server/src/rpc/handlers/watches.ts` calling `WatchStoreService`, then call it from the frontend with `rpcClient.watches.acknowledgeMany(ids)`."
+> **Dev:** "How are errors surfaced on the frontend?"
+> **Domain expert:** "The handler's Effect error channel becomes the RPC's error schema. On the frontend, use `Effect.catchTag('WatchNotFoundError', ...)` — no string matching."
