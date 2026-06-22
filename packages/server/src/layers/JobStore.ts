@@ -1,9 +1,6 @@
 import { Effect, Layer, Option } from "effect"
-import { Database } from "bun:sqlite"
-import { join } from "node:path"
-import { homedir } from "node:os"
-import { mkdirSync } from "node:fs"
 import { type Job, type JobStage } from "@inkpipe/shared"
+import { DbService } from "@inkpipe/db"
 
 export class JobStoreService extends Effect.Tag("JobStoreService")<
   JobStoreService,
@@ -16,32 +13,12 @@ export class JobStoreService extends Effect.Tag("JobStoreService")<
   }
 >() {}
 
-const CONFIG_DIR = join(homedir(), ".inkpipe")
-const DB_PATH = join(CONFIG_DIR, "inkpipe.db")
-
-function getDb(): Database {
-  mkdirSync(CONFIG_DIR, { recursive: true })
-  const db = new Database(DB_PATH, { create: true })
-  db.run("PRAGMA journal_mode=WAL")
-  db.run(
-    `CREATE TABLE IF NOT EXISTS jobs (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      stage TEXT NOT NULL DEFAULT 'UPLOADING',
-      progress INTEGER NOT NULL DEFAULT 0,
-      error TEXT,
-      startedAt INTEGER NOT NULL
-    )`,
-  )
-  return db
-}
-
 let nextId = 1
 
 export const JobStoreServiceLive = Layer.effect(
   JobStoreService,
   Effect.gen(function* () {
-    const db = yield* Effect.sync(() => getDb())
+    const { db } = yield* DbService
 
     const createJob = (title: string) =>
       Effect.gen(function* () {

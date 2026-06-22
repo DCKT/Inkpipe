@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { resolve, join } from "node:path"
 import { homedir } from "node:os"
 import webpush from "web-push"
+import { DbServiceLive } from "@inkpipe/db"
+import type { DbService } from "@inkpipe/db"
 import { ConfigServiceLive } from "./layers/Config"
 import type { ConfigService } from "./layers/Config"
 import { JobStoreServiceLive } from "./layers/JobStore"
@@ -52,37 +54,38 @@ import {
 import { getVapidPublicKeyHandler, subscribeHandler, unsubscribeHandler } from "./routes/push"
 import type { AppConfig, ProwlarrResult, CreateWatchRequest, UpdateWatchRequest, PushSubscriptionRequest } from "@inkpipe/shared"
 
-type AllServices = LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService
+type AllServices = DbService | LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService
 
-// Layers with no service dependencies (constructable in isolation)
-const NoDepLayer = Layer.mergeAll(
+// Base layer — services with no dependencies of their own
+const BaseLayer = Layer.mergeAll(
+  DbServiceLive,
   LogServiceLive,
-  ConfigServiceLive,
-  JobStoreServiceLive,
   FileManagerServiceLive,
 )
 
-// Layers that depend on services from NoDepLayer during construction.
-// Layer.provide builds the dependency first, then provides its context
-// to the dependent layer — unlike Layer.mergeAll which builds concurrently.
-const ProwlarrLayer = Layer.provide(ProwlarrServiceLive, NoDepLayer)
-const AllDebridLayer = Layer.provide(AllDebridServiceLive, NoDepLayer)
-const KomgaLayer = Layer.provide(KomgaServiceLive, NoDepLayer)
-const CopypartyLayer = Layer.provide(CopypartyServiceLive, NoDepLayer)
-const KccLayer = Layer.provide(KccServiceLive, NoDepLayer)
+// Config + JobStore depend on DbService (in BaseLayer)
+const ConfigLayer = Layer.provide(ConfigServiceLive, BaseLayer)
+const JobStoreLayer = Layer.provide(JobStoreServiceLive, BaseLayer)
+
+// Services that depend on ConfigService
+const ProwlarrLayer = Layer.provide(ProwlarrServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
+const AllDebridLayer = Layer.provide(AllDebridServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
+const KomgaLayer = Layer.provide(KomgaServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
+const CopypartyLayer = Layer.provide(CopypartyServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
+const KccLayer = Layer.provide(KccServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
 
 // Pipeline needs services from multiple layers during construction
 const PipelineLayer = Layer.provide(
   PipelineServiceLive,
-  Layer.mergeAll(NoDepLayer, AllDebridLayer, KccLayer, CopypartyLayer),
+  Layer.mergeAll(BaseLayer, ConfigLayer, JobStoreLayer, AllDebridLayer, KccLayer, CopypartyLayer),
 )
 
-// Merge all self-contained layers. NoDepLayer is included so TypeScript
-// infers the full service union for the ManagedRuntime type.
-const WatchStoreLayer = Layer.provide(WatchStoreServiceLive, NoDepLayer)
+const WatchStoreLayer = Layer.provide(WatchStoreServiceLive, BaseLayer)
 
 const MainLayer = Layer.mergeAll(
-  NoDepLayer,
+  BaseLayer,
+  ConfigLayer,
+  JobStoreLayer,
   ProwlarrLayer,
   AllDebridLayer,
   KomgaLayer,

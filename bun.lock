@@ -15,10 +15,22 @@
         "vitest": "^3.0.5",
       },
     },
+    "packages/db": {
+      "name": "@inkpipe/db",
+      "dependencies": {
+        "effect": "^3.21.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^5.7.2",
+        "vitest": "^3.0.5",
+      },
+    },
     "packages/server": {
       "name": "@inkpipe/server",
       "dependencies": {
         "@effect/platform": "^0.96.0",
+        "@inkpipe/db": "workspace:*",
         "@inkpipe/shared": "workspace:*",
         "effect": "^3.21.3",
       },
@@ -41,6 +53,7 @@
     "packages/watcher": {
       "name": "@inkpipe/watcher",
       "dependencies": {
+        "@inkpipe/db": "workspace:*",
         "@inkpipe/shared": "workspace:*",
         "web-push": "3.6.7",
       },
@@ -221,6 +234,8 @@
     "@floating-ui/dom": ["@floating-ui/dom@1.7.6", "", { "dependencies": { "@floating-ui/core": "^1.7.5", "@floating-ui/utils": "^0.2.11" } }, "sha512-9gZSAI5XM36880PPMm//9dfiEngYoC6Am2izES1FF406YFsjvyBMmeJ2g4SAju3xWwtuynNRFL2s9hgxpLI5SQ=="],
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.11", "", {}, "sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg=="],
+
+    "@inkpipe/db": ["@inkpipe/db@workspace:packages/db"],
 
     "@inkpipe/server": ["@inkpipe/server@workspace:packages/server"],
 

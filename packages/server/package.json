@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@effect/platform": "^0.96.0",
+    "@inkpipe/db": "workspace:*",
     "@inkpipe/shared": "workspace:*",
     "effect": "^3.21.3"
   },

@@ -1,23 +1,23 @@
 import { Effect } from "effect"
 import { describe, it, expect, beforeEach } from "vitest"
-import { Database } from "bun:sqlite"
-import { resetMockDb } from "../__mocks__/bun-sqlite"
+import { DbService } from "@inkpipe/db"
+import { createMockDb, resetMockDb } from "../test/db"
 import { ConfigService, ConfigServiceLive } from "./Config"
 
 beforeEach(() => {
   resetMockDb()
-  new Database("/tmp/test.db").run("CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)")
 })
 
 describe("ConfigService", () => {
   describe("loadConfig", () => {
     it("returns default config when DB is empty", async () => {
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const svc = yield* ConfigService
-          return yield* svc.loadConfig
-        }).pipe(Effect.provide(ConfigServiceLive)),
-      )
+      const { db } = createMockDb()
+      const program = Effect.gen(function* () {
+        const svc = yield* ConfigService
+        return yield* svc.loadConfig
+      }).pipe(Effect.provide(ConfigServiceLive), Effect.provideService(DbService, { db }))
+
+      const result: any = await Effect.runPromise(program as any)
 
       expect(result.prowlarr).toEqual({ url: "", apiKey: "" })
       expect(result.alldebrid).toEqual({ apiKey: "" })
@@ -26,12 +26,13 @@ describe("ConfigService", () => {
     })
 
     it("returns KCC defaults when DB is empty", async () => {
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const svc = yield* ConfigService
-          return yield* svc.loadConfig
-        }).pipe(Effect.provide(ConfigServiceLive)),
-      )
+      const { db } = createMockDb()
+      const program = Effect.gen(function* () {
+        const svc = yield* ConfigService
+        return yield* svc.loadConfig
+      }).pipe(Effect.provide(ConfigServiceLive), Effect.provideService(DbService, { db }))
+
+      const result: any = await Effect.runPromise(program as any)
 
       expect(result.kcc.dockerImage).toBe("ghcr.io/ciromattia/kcc:latest")
       expect(result.kcc.profile).toBe("KoBO")
@@ -41,7 +42,7 @@ describe("ConfigService", () => {
     })
 
     it("loads a previously saved config", async () => {
-      const db = new Database("/tmp/test.db")
+      const { db } = createMockDb()
       const insert = db.prepare("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)")
       insert.run("prowlarr", JSON.stringify({ url: "http://prowlarr:9696", apiKey: "pk" }))
       insert.run("alldebrid", JSON.stringify({ apiKey: "adk" }))
@@ -49,12 +50,12 @@ describe("ConfigService", () => {
       insert.run("copyparty", JSON.stringify({ url: "http://cp:3923", uploadPath: "/comics", password: "pw" }))
       insert.run("komga", JSON.stringify({ url: "http://komga:8080", apiKey: "kk", defaultLibraryId: "lib-1" }))
 
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const svc = yield* ConfigService
-          return yield* svc.loadConfig
-        }).pipe(Effect.provide(ConfigServiceLive)),
-      )
+      const program = Effect.gen(function* () {
+        const svc = yield* ConfigService
+        return yield* svc.loadConfig
+      }).pipe(Effect.provide(ConfigServiceLive), Effect.provideService(DbService, { db }))
+
+      const result: any = await Effect.runPromise(program as any)
 
       expect(result.prowlarr.url).toBe("http://prowlarr:9696")
       expect(result.prowlarr.apiKey).toBe("pk")
@@ -65,16 +66,16 @@ describe("ConfigService", () => {
     })
 
     it("loads partial config and fills defaults for missing values", async () => {
-      const db = new Database("/tmp/test.db")
+      const { db } = createMockDb()
       const insert = db.prepare("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)")
       insert.run("prowlarr", JSON.stringify({ url: "http://prowlarr:9696" }))
 
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const svc = yield* ConfigService
-          return yield* svc.loadConfig
-        }).pipe(Effect.provide(ConfigServiceLive)),
-      )
+      const program = Effect.gen(function* () {
+        const svc = yield* ConfigService
+        return yield* svc.loadConfig
+      }).pipe(Effect.provide(ConfigServiceLive), Effect.provideService(DbService, { db }))
+
+      const result: any = await Effect.runPromise(program as any)
 
       expect(result.prowlarr.url).toBe("http://prowlarr:9696")
       expect(result.prowlarr.apiKey).toBe("") // default
@@ -84,34 +85,36 @@ describe("ConfigService", () => {
 
   describe("saveConfig", () => {
     it("persists all 5 config sections", async () => {
-      await Effect.runPromise(
-        Effect.gen(function* () {
-          const svc = yield* ConfigService
-          yield* svc.saveConfig({
-            prowlarr: { url: "http://p:9696", apiKey: "pk1" },
-            alldebrid: { apiKey: "ad1" },
-            kcc: {
-              dockerImage: "kcc:latest", profile: "KoBO", format: "Auto",
-              mangaStyle: false, webtoon: false, twoPanel: false,
-              upscale: true, stretch: false, hq: false, gamma: 1.0,
-              cropping: "1", croppingPower: 1.0, forceColor: true,
-              forcePng: false, noAutoContrast: false, blackBorders: false,
-              whiteBorders: false, splitter: "0", noProcessing: false,
-              eraseRainbow: true, coverFill: false, batchSplit: "0",
-              targetSize: 0, customWidth: 0, customHeight: 0, noKepub: false,
-            },
-            copyparty: { url: "http://cp:3923", uploadPath: "/", password: "" },
-            komga: { url: "http://k:8080", apiKey: "kk1", defaultLibraryId: "" },
-          })
-        }).pipe(Effect.provide(ConfigServiceLive)),
-      )
+      const { db } = createMockDb()
 
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const svc = yield* ConfigService
-          return yield* svc.loadConfig
-        }).pipe(Effect.provide(ConfigServiceLive)),
-      )
+      const saveProgram = Effect.gen(function* () {
+        const svc = yield* ConfigService
+        yield* svc.saveConfig({
+          prowlarr: { url: "http://p:9696", apiKey: "pk1" },
+          alldebrid: { apiKey: "ad1" },
+          kcc: {
+            dockerImage: "kcc:latest", profile: "KoBO", format: "Auto",
+            mangaStyle: false, webtoon: false, twoPanel: false,
+            upscale: true, stretch: false, hq: false, gamma: 1.0,
+            cropping: "1", croppingPower: 1.0, forceColor: true,
+            forcePng: false, noAutoContrast: false, blackBorders: false,
+            whiteBorders: false, splitter: "0", noProcessing: false,
+            eraseRainbow: true, coverFill: false, batchSplit: "0",
+            targetSize: 0, customWidth: 0, customHeight: 0, noKepub: false,
+          },
+          copyparty: { url: "http://cp:3923", uploadPath: "/", password: "" },
+          komga: { url: "http://k:8080", apiKey: "kk1", defaultLibraryId: "" },
+        })
+      }).pipe(Effect.provide(ConfigServiceLive), Effect.provideService(DbService, { db }))
+
+      await Effect.runPromise(saveProgram as any)
+
+      const loadProgram = Effect.gen(function* () {
+        const svc = yield* ConfigService
+        return yield* svc.loadConfig
+      }).pipe(Effect.provide(ConfigServiceLive), Effect.provideService(DbService, { db }))
+
+      const result: any = await Effect.runPromise(loadProgram as any)
 
       expect(result.prowlarr.apiKey).toBe("pk1")
       expect(result.alldebrid.apiKey).toBe("ad1")
@@ -119,7 +122,9 @@ describe("ConfigService", () => {
     })
 
     it("replaces existing config on second save", async () => {
-      const run = Effect.gen(function* () {
+      const { db } = createMockDb()
+
+      const program = Effect.gen(function* () {
         const svc = yield* ConfigService
         yield* svc.saveConfig({
           prowlarr: { url: "", apiKey: "first" },
@@ -153,28 +158,28 @@ describe("ConfigService", () => {
           copyparty: { url: "", uploadPath: "/", password: "" },
           komga: { url: "", apiKey: "", defaultLibraryId: "" },
         })
-        const result = yield* svc.loadConfig
-        return result
-      }).pipe(Effect.provide(ConfigServiceLive))
+        return yield* svc.loadConfig
+      }).pipe(Effect.provide(ConfigServiceLive), Effect.provideService(DbService, { db }))
 
-      const result = await Effect.runPromise(run)
+      const result: any = await Effect.runPromise(program as any)
+
       expect(result.prowlarr.apiKey).toBe("second")
     })
   })
 
   describe("error handling", () => {
     it("loadConfig catches Schema decode errors as ConfigLoadError", async () => {
-      const db = new Database("/tmp/test.db")
+      const { db } = createMockDb()
       const insert = db.prepare("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)")
       insert.run("prowlarr", JSON.stringify("not_an_object"))
 
+      const program = Effect.gen(function* () {
+        const svc = yield* ConfigService
+        return yield* svc.loadConfig
+      }).pipe(Effect.provide(ConfigServiceLive), Effect.provideService(DbService, { db }))
+
       await expect(
-        Effect.runPromise(
-          Effect.gen(function* () {
-            const svc = yield* ConfigService
-            return yield* svc.loadConfig
-          }).pipe(Effect.provide(ConfigServiceLive)),
-        ),
+        Effect.runPromise(program as any),
       ).rejects.toThrow("Failed to load config")
     })
   })

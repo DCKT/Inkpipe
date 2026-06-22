@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@inkpipe/db": "workspace:*",
     "@inkpipe/shared": "workspace:*",
     "web-push": "3.6.7"
   },

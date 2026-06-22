@@ -1,14 +1,11 @@
 import { Effect, Layer, Schema } from "effect"
-import { Database } from "bun:sqlite"
-import { join } from "node:path"
-import { homedir } from "node:os"
-import { mkdirSync } from "node:fs"
 import {
   AppConfigSchema,
   type AppConfig,
   ConfigLoadError,
   ConfigSaveError,
 } from "@inkpipe/shared"
+import { DbService } from "@inkpipe/db"
 
 export class ConfigService extends Effect.Tag("ConfigService")<
   ConfigService,
@@ -18,23 +15,10 @@ export class ConfigService extends Effect.Tag("ConfigService")<
   }
 >() {}
 
-const CONFIG_DIR = join(homedir(), ".inkpipe")
-const DB_PATH = join(CONFIG_DIR, "inkpipe.db")
-
-function getDb(): Database {
-  mkdirSync(CONFIG_DIR, { recursive: true })
-  const db = new Database(DB_PATH, { create: true })
-  db.run("PRAGMA journal_mode=WAL")
-  db.run(
-    "CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)",
-  )
-  return db
-}
-
 export const ConfigServiceLive = Layer.effect(
   ConfigService,
   Effect.gen(function* () {
-    const db = yield* Effect.sync(() => getDb())
+    const { db } = yield* DbService
 
     const loadConfig = Effect.gen(function* () {
       return yield* Effect.try({

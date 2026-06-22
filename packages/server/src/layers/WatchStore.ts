@@ -1,9 +1,6 @@
 import { Effect, Layer } from "effect"
-import { Database } from "bun:sqlite"
-import { join } from "node:path"
-import { homedir } from "node:os"
-import { mkdirSync } from "node:fs"
 import { type Watch, type WatchAlert, WatchStoreError, WatchNotFoundError } from "@inkpipe/shared"
+import { DbService } from "@inkpipe/db"
 
 export class WatchStoreService extends Effect.Tag("WatchStoreService")<
   WatchStoreService,
@@ -22,41 +19,6 @@ export class WatchStoreService extends Effect.Tag("WatchStoreService")<
     readonly getUnreadCount: Effect.Effect<number, WatchStoreError>
   }
 >() {}
-
-const CONFIG_DIR = join(homedir(), ".inkpipe")
-const DB_PATH = join(CONFIG_DIR, "inkpipe.db")
-
-function getDb(): Database {
-  mkdirSync(CONFIG_DIR, { recursive: true })
-  const db = new Database(DB_PATH, { create: true })
-  db.run("PRAGMA journal_mode=WAL")
-  db.run(
-    `CREATE TABLE IF NOT EXISTS watches (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      enabled INTEGER NOT NULL DEFAULT 1,
-      query TEXT NOT NULL,
-      interval_seconds INTEGER NOT NULL,
-      filter_groups TEXT NOT NULL
-    )`,
-  )
-  db.run(
-    `CREATE TABLE IF NOT EXISTS watch_alerts (
-      id TEXT PRIMARY KEY,
-      watch_id TEXT NOT NULL,
-      guid TEXT NOT NULL,
-      title TEXT NOT NULL,
-      magnet_url TEXT,
-      size INTEGER NOT NULL DEFAULT 0,
-      seeders INTEGER NOT NULL DEFAULT 0,
-      indexer TEXT NOT NULL DEFAULT '',
-      matched_at INTEGER NOT NULL,
-      acknowledged INTEGER NOT NULL DEFAULT 0,
-      UNIQUE(watch_id, guid)
-    )`,
-  )
-  return db
-}
 
 let nextWatchId = 1
 
@@ -89,7 +51,7 @@ function rowToAlert(row: Record<string, unknown>): WatchAlert {
 export const WatchStoreServiceLive = Layer.effect(
   WatchStoreService,
   Effect.gen(function* () {
-    const db = yield* Effect.sync(() => getDb())
+    const { db } = yield* DbService
 
     const listWatches = Effect.try({
       try: () => {

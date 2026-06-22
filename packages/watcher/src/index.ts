@@ -1,4 +1,5 @@
-import { getDb, loadProwlarrConfig } from "./config"
+import { getDb } from "@inkpipe/db"
+import { loadProwlarrConfig } from "./config"
 import { listEnabledWatches, hasAlertForGuid, insertAlert } from "./store"
 import { searchProwlarr } from "./prowlarr"
 import { sendPushNotification } from "./push"
