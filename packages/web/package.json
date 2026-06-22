@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ark-ui/react": "^5.37.2",
+    "@effect/rpc": "^0.75.1",
     "@inkpipe/shared": "workspace:*",
     "@tanstack/react-query": "^5.90.21",
     "effect": "^3.21.3",

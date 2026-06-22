@@ -29,7 +29,6 @@ import { searchHandler } from "./routes/search"
 import { latestHandler } from "./routes/latest"
 import { downloadHandler } from "./routes/download"
 import { jobsHandler, clearJobsHandler } from "./routes/jobs"
-import { getSettingsHandler, updateSettingsHandler, exportSettingsHandler, importSettingsHandler } from "./routes/settings"
 import { convertUploadHandler, convertDownloadHandler } from "./routes/convert"
 import {
   komgaLibrariesHandler,
@@ -50,7 +49,8 @@ import {
   unreadCountHandler,
 } from "./routes/watches"
 import { getVapidPublicKeyHandler, subscribeHandler, unsubscribeHandler } from "./routes/push"
-import type { AppConfig, ProwlarrResult, CreateWatchRequest, UpdateWatchRequest, PushSubscriptionRequest } from "@inkpipe/shared"
+import { createRpcHandler } from "./rpc/adapter"
+import type { ProwlarrResult, CreateWatchRequest, UpdateWatchRequest, PushSubscriptionRequest } from "@inkpipe/shared"
 
 type AllServices = LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService
 
@@ -93,6 +93,8 @@ const MainLayer = Layer.mergeAll(
 ) as Layer.Layer<AllServices, never, never>
 
 const runtime = ManagedRuntime.make(MainLayer)
+
+const rpcHandlerPromise = createRpcHandler()
 
 function getWebDistPath(): string {
   const pkgDir = import.meta.dir
@@ -189,7 +191,13 @@ const server = Bun.serve({
     }
 
     try {
-      // --- API routes ---
+      // --- RPC route (migrated settings, to be joined by other groups) ---
+      if (p === "/api/rpc" && m === "POST") {
+        const handler = await rpcHandlerPromise
+        return handler(req)
+      }
+
+      // --- API routes (not yet migrated to RPC) ---
       if (p === "/api/search" && m === "GET") {
         const q = url.searchParams.get("q") || ""
         return api(await runtime.runPromise(searchHandler(q)))
@@ -206,20 +214,6 @@ const server = Bun.serve({
       }
       if (p === "/api/jobs" && m === "DELETE") {
         return api(await runtime.runPromise(clearJobsHandler))
-      }
-      if (p === "/api/settings" && m === "GET") {
-        return api(await runtime.runPromise(getSettingsHandler))
-      }
-      if (p === "/api/settings" && m === "POST") {
-        const body = (await req.json()) as AppConfig
-        return api(await runtime.runPromise(updateSettingsHandler(body)))
-      }
-      if (p === "/api/settings/export" && m === "GET") {
-        return api(await runtime.runPromise(exportSettingsHandler))
-      }
-      if (p === "/api/settings/import" && m === "POST") {
-        const body = await req.json()
-        return api(await runtime.runPromise(importSettingsHandler(body)))
       }
       if (p === "/api/convert" && m === "POST") {
         const fd = await req.formData() as FormData

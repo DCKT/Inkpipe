@@ -11,7 +11,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@effect/platform": "^0.96.0",
+    "@effect/platform": "0.96.1",
+    "@effect/platform-bun": "^0.90.0",
+    "@effect/rpc": "^0.75.1",
     "@inkpipe/shared": "workspace:*",
     "effect": "^3.21.3"
   },
