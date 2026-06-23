@@ -33,12 +33,12 @@ export default function JobsPage() {
 
   return (
     <main className="page-wrap px-4 pb-8 pt-8">
-      <h1 className="display-title mb-6 text-3xl font-bold text-[var(--sea-ink)]">
+      <h1 className="display-title mb-6 text-3xl font-bold text-primary">
         Jobs
       </h1>
 
       {jobs.length === 0 && (
-        <div className="island-shell rounded-2xl p-8 text-center text-sm text-[var(--sea-ink-soft)]">
+        <div className="island-shell rounded-2xl p-8 text-center text-sm text-secondary">
           No jobs yet. Start a download from the Search page.
         </div>
       )}
@@ -63,7 +63,7 @@ export default function JobsPage() {
               Completed ({completedJobs.length})
             </h2>
             <button
-              className="px-3 py-1 text-sm border border-[var(--sea-ink-soft)] rounded-lg hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-colors"
+              className="px-3 py-1 text-sm border border-secondary rounded-lg hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-colors"
               onClick={() => {
                 if (confirm(`Remove all ${completedJobs.length} completed jobs?`)) {
                   clearMutation.mutate();

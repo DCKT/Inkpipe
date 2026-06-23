@@ -79,7 +79,7 @@ export default function SettingsPage() {
   return (
     <main className="page-wrap px-4 pb-8 pt-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="display-title text-3xl font-bold text-[var(--sea-ink)]">
+        <h1 className="display-title text-3xl font-bold text-primary">
           Settings
         </h1>
         <div className="flex gap-2">
@@ -111,7 +111,7 @@ export default function SettingsPage() {
       )}
 
       {configQuery.isLoading && (
-        <p className="text-sm text-[var(--sea-ink-soft)]">
+        <p className="text-sm text-secondary">
           Loading settings...
         </p>
       )}

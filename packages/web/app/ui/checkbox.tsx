@@ -3,11 +3,11 @@ import type { CheckboxRootProps, CheckboxControlProps, CheckboxLabelProps, Check
 
 const rootClass = "flex items-center gap-2.5";
 const controlClass =
-  "flex h-4 w-4 shrink-0 items-center justify-center rounded border border-[var(--line)] bg-[var(--surface-strong)] data-[state=checked]:bg-[var(--lagoon)] data-[state=checked]:border-[var(--lagoon)] transition-colors";
+  "flex h-4 w-4 shrink-0 items-center justify-center rounded border border-border bg-surface data-[state=checked]:bg-accent data-[state=checked]:border-accent transition-colors";
 
 const indicatorClass = "text-white";
 
-const labelClass = "text-sm text-[var(--sea-ink)] select-none";
+const labelClass = "text-sm text-primary select-none";
 
 export const Checkbox = {
   Root: ({ className, children, ...props }: CheckboxRootProps) => (

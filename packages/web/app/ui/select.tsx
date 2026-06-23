@@ -2,15 +2,15 @@ import * as ArkSelect from "@ark-ui/react/select";
 import { createListCollection } from "@ark-ui/react";
 import type { SelectTriggerProps, SelectContentProps, SelectItemProps, SelectLabelProps, SelectValueTextProps } from "@ark-ui/react/select";
 const triggerClass =
-  "w-full rounded-xl border border-[var(--line)] bg-[var(--surface-strong)] px-4 py-2.5 text-sm text-[var(--sea-ink)] flex items-center justify-between gap-2 data-[placeholder]:text-[var(--sea-ink-soft)] focus:border-[var(--lagoon)] focus:outline-none";
+  "w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-primary flex items-center justify-between gap-2 data-[placeholder]:text-secondary focus:border-accent focus:outline-none";
 
 const contentClass =
-  "z-50 rounded-xl border border-[var(--line)] bg-[var(--surface-strong)] shadow-lg backdrop-blur-sm p-1";
+  "z-50 rounded-xl border border-border bg-surface shadow-lg backdrop-blur-sm p-1";
 
 const itemClass =
-  "rounded-lg px-3 py-2 text-sm text-[var(--sea-ink)] cursor-pointer data-[highlighted]:bg-[var(--lagoon)]/10 data-[highlighted]:text-[var(--lagoon-deep)] data-[selected]:text-[var(--lagoon-deep)] data-[selected]:font-medium";
+  "rounded-lg px-3 py-2 text-sm text-primary cursor-pointer data-[highlighted]:bg-accent/10 data-[highlighted]:text-accent-hover data-[selected]:text-accent-hover data-[selected]:font-medium";
 
-const labelClass = "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[var(--sea-ink-soft)]";
+const labelClass = "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-secondary";
 
 export { createListCollection };
 

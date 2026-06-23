@@ -11,7 +11,7 @@ import { ToggleGroup } from "../ui/toggle-group";
 
 const STATUS_COLORS: Record<string, string> = {
   ONGOING: "text-emerald-600 bg-emerald-50 border-emerald-200",
-  ENDED: "text-[var(--sea-ink-soft)] bg-[var(--surface)] border-[var(--line)]",
+  ENDED: "text-secondary bg-surface-hover border-border",
   HIATUS: "text-amber-600 bg-amber-50 border-amber-200",
   ABANDONED: "text-red-500 bg-red-50 border-red-200",
 };
@@ -61,9 +61,9 @@ function SeriesCard({
       onClick={onClick}
       className="island-shell group flex flex-col gap-0 rounded-2xl overflow-hidden text-left transition hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div className="aspect-[2/3] min-w-64 w-full bg-[var(--surface-strong)] relative overflow-hidden">
+      <div className="aspect-[2/3] min-w-64 w-full bg-surface relative overflow-hidden">
         {!thumbnailQuery.data && (
-          <div className="absolute inset-0 animate-pulse bg-[var(--surface-strong)]" />
+          <div className="absolute inset-0 animate-pulse bg-surface" />
         )}
         {thumbnailQuery.data && (
           <img
@@ -75,7 +75,7 @@ function SeriesCard({
       </div>
       <div className="flex flex-col gap-2 p-3">
         <div className="flex items-start justify-between gap-2">
-          <p className="line-clamp-2 text-sm font-semibold leading-snug text-[var(--sea-ink)] group-hover:text-[var(--lagoon)]">
+          <p className="line-clamp-2 text-sm font-semibold leading-snug text-primary group-hover:text-accent">
             {series.metadata.title || series.name}
           </p>
           {series.metadata.status && (
@@ -86,7 +86,7 @@ function SeriesCard({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-[var(--sea-ink-soft)]">
+        <div className="flex items-center gap-1.5 text-xs text-secondary">
           <Library size={12} />
           <span>
             {series.booksCount} {series.booksCount === 1 ? "book" : "books"}
@@ -164,7 +164,7 @@ export default function KomgaPage() {
   if (configQuery.isLoading) {
     return (
       <main className="page-wrap px-4 pb-8 pt-8 flex items-center justify-center py-24">
-        <span className="text-sm text-[var(--sea-ink-soft)]">Loading...</span>
+        <span className="text-sm text-secondary">Loading...</span>
       </main>
     );
   }
@@ -173,11 +173,11 @@ export default function KomgaPage() {
     <main className="page-wrap px-4 pb-8 pt-8 flex flex-col gap-6">
       <section className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="display-title text-3xl font-bold text-[var(--sea-ink)]">
+          <h1 className="display-title text-3xl font-bold text-primary">
             Komga Library
           </h1>
           {seriesQuery.data && (
-            <p className="mt-1 text-sm text-[var(--sea-ink-soft)]">
+            <p className="mt-1 text-sm text-secondary">
               {series.length} series
             </p>
           )}
@@ -221,7 +221,7 @@ export default function KomgaPage() {
       <div className="relative">
         <Search
           size={16}
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--sea-ink-soft)]"
+          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary"
         />
         <Input
           type="text"
@@ -239,7 +239,7 @@ export default function KomgaPage() {
       )}
 
       {(seriesQuery.isLoading || selectedLibraryId === null) && (
-        <div className="flex items-center justify-center py-24 text-sm text-[var(--sea-ink-soft)]">
+        <div className="flex items-center justify-center py-24 text-sm text-secondary">
           Loading library...
         </div>
       )}
@@ -248,7 +248,7 @@ export default function KomgaPage() {
         !seriesQuery.isLoading &&
         !seriesQuery.isError &&
         selectedLibraryId !== null && (
-          <div className="py-24 text-center text-sm text-[var(--sea-ink-soft)]">
+          <div className="py-24 text-center text-sm text-secondary">
             {search
               ? "No series match your search."
               : "No series found in Komga."}

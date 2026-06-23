@@ -11,7 +11,7 @@ export function UnreadBadge() {
   if (!unreadQuery.data || unreadQuery.data.count === 0) return null
 
   return (
-    <span className="inline-flex items-center justify-center rounded-full bg-[var(--lagoon)] text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 leading-none">
+    <span className="inline-flex items-center justify-center rounded-full bg-accent text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 leading-none">
       {unreadQuery.data.count > 99 ? "99+" : unreadQuery.data.count}
     </span>
   )

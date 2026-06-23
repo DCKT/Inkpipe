@@ -2,10 +2,10 @@ import * as ArkToggleGroup from "@ark-ui/react/toggle-group";
 import type { ToggleGroupRootProps, ToggleGroupItemProps } from "@ark-ui/react/toggle-group";
 
 const rootClass =
-  "flex gap-1 rounded-xl border border-[var(--line)] bg-[var(--surface-strong)] p-1 w-fit";
+  "flex gap-1 rounded-xl border border-border bg-surface p-1 w-fit";
 
 const itemClass =
-  "rounded-lg px-4 py-1.5 text-sm font-medium transition data-[state=on]:bg-[var(--lagoon)] data-[state=on]:text-white data-[state=on]:shadow-sm text-[var(--sea-ink-soft)] hover:text-[var(--sea-ink)] cursor-pointer";
+  "rounded-lg px-4 py-1.5 text-sm font-medium transition data-[state=on]:bg-accent data-[state=on]:text-white data-[state=on]:shadow-sm text-secondary hover:text-primary cursor-pointer";
 
 export const ToggleGroup = {
   Root: ({ className, ...props }: ToggleGroupRootProps) => (

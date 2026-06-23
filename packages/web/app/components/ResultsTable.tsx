@@ -69,7 +69,7 @@ export default function ResultsTable({
     <div className="island-shell overflow-hidden rounded-2xl">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-[var(--line)] text-left text-xs uppercase tracking-wider text-[var(--sea-ink-soft)]">
+          <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-secondary">
             <th className="p-3">
               <Checkbox.Root
                 checked={someSelected ? "indeterminate" : allSelected}
@@ -94,7 +94,7 @@ export default function ResultsTable({
             return (
               <tr
                 key={result.guid}
-                className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface)]"
+                className="border-b border-border last:border-0 hover:bg-surface-hover"
                 onClick={() => onToggle(result.guid)}
               >
                 <td className="p-3">
@@ -105,34 +105,34 @@ export default function ResultsTable({
                     <Checkbox.Control />
                   </Checkbox.Root>
                 </td>
-                <td className="max-w-md p-3 text-[var(--sea-ink)]">
+                <td className="max-w-md p-3 text-primary">
                   <span className="block truncate">{result.title}</span>
                   {match && (
                     <span
                       title={`Komga match score: ${(match.score * 100).toFixed(0)}%`}
-                      className="mt-1 inline-flex items-center gap-1 rounded-md border border-[rgba(114,135,253,0.3)] bg-[rgba(136,57,239,0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--lagoon-deep)]"
+                      className="mt-1 inline-flex items-center gap-1 rounded-md border border-[rgba(114,135,253,0.3)] bg-[rgba(136,57,239,0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-accent-hover"
                     >
                       In Komga · {match.seriesName} · {match.booksCount} {match.booksCount === 1 ? "book" : "books"}
                     </span>
                   )}
                 </td>
-                <td className="p-3 text-[var(--sea-ink-soft)]">
+                <td className="p-3 text-secondary">
                   {(() => {
                     const ft = formatRelativeTime(result.publishDate ?? null);
                     return ft ? (
                       <span title={ft.full}>{ft.relative}</span>
                     ) : (
-                      <span className="text-[var(--sea-ink-faded)]">—</span>
+                      <span className="text-secondary">—</span>
                     );
                   })()}
                 </td>
-                <td className="p-3 text-[var(--sea-ink-soft)]">
+                <td className="p-3 text-secondary">
                   {formatSize(result.size)}
                 </td>
-                <td className="p-3 text-[var(--sea-ink-soft)]">
+                <td className="p-3 text-secondary">
                   {result.seeders}
                 </td>
-                <td className="p-3 text-[var(--sea-ink-soft)]">
+                <td className="p-3 text-secondary">
                   {result.indexer}
                 </td>
               </tr>

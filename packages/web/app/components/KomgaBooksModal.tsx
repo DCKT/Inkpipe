@@ -32,7 +32,7 @@ export default function KomgaBooksModal({ series, onClose }: KomgaBooksModalProp
     <Dialog.Root open onOpenChange={(details: { open: boolean }) => { if (!details.open) onClose(); }}>
       <Dialog.Backdrop />
       <Dialog.Content className="flex max-h-[80vh] w-full max-w-2xl flex-col">
-        <div className="flex items-start justify-between border-b border-[var(--line)] p-5">
+        <div className="flex items-start justify-between border-b border-border p-5">
           <div>
             <Dialog.Title>
               {series.metadata.title || series.name}
@@ -46,7 +46,7 @@ export default function KomgaBooksModal({ series, onClose }: KomgaBooksModalProp
 
         <div className="overflow-y-auto p-5">
           {booksQuery.isLoading && (
-            <div className="flex items-center justify-center py-12 text-sm text-[var(--sea-ink-soft)]">
+            <div className="flex items-center justify-center py-12 text-sm text-secondary">
               Loading books...
             </div>
           )}
@@ -58,7 +58,7 @@ export default function KomgaBooksModal({ series, onClose }: KomgaBooksModalProp
           )}
 
           {booksQuery.data && booksQuery.data.length === 0 && (
-            <div className="py-12 text-center text-sm text-[var(--sea-ink-soft)]">
+            <div className="py-12 text-center text-sm text-secondary">
               No books found.
             </div>
           )}
@@ -68,16 +68,16 @@ export default function KomgaBooksModal({ series, onClose }: KomgaBooksModalProp
               {booksQuery.data.map((book) => (
                 <div
                   key={book.id}
-                  className="flex items-center gap-4 rounded-xl border border-[var(--line)] bg-[var(--surface-strong)] px-4 py-3"
+                  className="flex items-center gap-4 rounded-xl border border-border bg-surface px-4 py-3"
                 >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[rgba(136,57,239,0.12)] text-[var(--lagoon)]">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[rgba(136,57,239,0.12)] text-accent">
                     <BookOpen size={15} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[var(--sea-ink)]">
+                    <p className="truncate text-sm font-medium text-primary">
                       {book.metadata.title || book.name}
                     </p>
-                    <div className="mt-0.5 flex items-center gap-3 text-xs text-[var(--sea-ink-soft)]">
+                    <div className="mt-0.5 flex items-center gap-3 text-xs text-secondary">
                       {book.metadata.number && (
                         <span className="flex items-center gap-1">
                           <Hash size={11} />

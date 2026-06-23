@@ -4,12 +4,12 @@ import type { ProgressRootProps, ProgressTrackProps, ProgressRangeProps, Progres
 const rootClass = "w-full";
 
 const trackClass =
-  "h-1.5 overflow-hidden rounded-full bg-[var(--line)]";
+  "h-1.5 overflow-hidden rounded-full bg-border";
 
 const rangeClass =
-  "h-full rounded-full bg-[var(--lagoon)] transition-all duration-300";
+  "h-full rounded-full bg-accent transition-all duration-300";
 
-const valueTextClass = "text-xs text-[var(--sea-ink-soft)]";
+const valueTextClass = "text-xs text-secondary";
 
 export const Progress = {
   Root: ({ className, ...props }: ProgressRootProps) => (

@@ -7,12 +7,12 @@ const backdropClass = "fixed inset-0 z-50 bg-black/40 backdrop-blur-sm";
 const contentClass =
   "island-shell fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 rounded-2xl shadow-2xl";
 
-const titleClass = "text-lg font-semibold text-[var(--sea-ink)]";
+const titleClass = "text-lg font-semibold text-primary";
 
-const descriptionClass = "text-sm text-[var(--sea-ink-soft)]";
+const descriptionClass = "text-sm text-secondary";
 
 const closeTriggerClass =
-  "rounded-lg p-1.5 text-[var(--sea-ink-soft)] transition hover:bg-[var(--surface)] hover:text-[var(--sea-ink)]";
+  "rounded-lg p-1.5 text-secondary transition hover:bg-surface-hover hover:text-primary";
 
 export const Dialog = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

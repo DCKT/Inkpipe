@@ -10,24 +10,24 @@ import type {
 } from "@ark-ui/react/combobox";
 
 const controlClass =
-  "flex items-center gap-1 w-full rounded-xl border border-[var(--line)] bg-[var(--surface-strong)] px-4 py-2.5 focus-within:border-[var(--lagoon)]";
+  "flex items-center gap-1 w-full rounded-xl border border-border bg-surface px-4 py-2.5 focus-within:border-accent";
 
 const inputClass =
-  "min-w-0 flex-1 text-sm text-[var(--sea-ink)] placeholder:text-[var(--sea-ink-soft)] outline-none bg-transparent border-none";
+  "min-w-0 flex-1 text-sm text-primary placeholder:text-secondary outline-none bg-transparent border-none";
 
 const contentClass =
-  "z-50 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-[var(--line)] bg-[var(--surface-strong)] shadow-lg backdrop-blur-sm p-1";
+  "z-50 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-border bg-surface shadow-lg backdrop-blur-sm p-1";
 
 const itemClass =
-  "rounded-lg px-3 py-2 text-left text-sm text-[var(--sea-ink)] cursor-pointer data-[highlighted]:bg-[var(--lagoon)]/10 data-[highlighted]:text-[var(--lagoon-deep)]";
+  "rounded-lg px-3 py-2 text-left text-sm text-primary cursor-pointer data-[highlighted]:bg-accent/10 data-[highlighted]:text-accent-hover";
 
 const triggerClass =
-  "inline-flex items-center justify-center rounded-lg size-5 text-[var(--sea-ink)]/50 hover:text-[var(--sea-ink)] data-[state=open]:text-[var(--lagoon)] cursor-pointer transition-colors";
+  "inline-flex items-center justify-center rounded-lg size-5 text-primary/50 hover:text-primary data-[state=open]:text-accent cursor-pointer transition-colors";
 
 const clearTriggerClass =
-  "inline-flex items-center justify-center rounded-lg size-5 text-[var(--sea-ink)]/50 hover:text-[var(--sea-ink)] cursor-pointer transition-colors";
+  "inline-flex items-center justify-center rounded-lg size-5 text-primary/50 hover:text-primary cursor-pointer transition-colors";
 
-const labelClass = "text-sm font-medium text-[var(--sea-ink)]";
+const labelClass = "text-sm font-medium text-primary";
 
 export { createListCollection };
 

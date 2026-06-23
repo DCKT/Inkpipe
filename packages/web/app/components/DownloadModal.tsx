@@ -130,7 +130,7 @@ export default function DownloadModal({
         >
           <Combobox.Label>
             Subfolder{" "}
-            <span className="font-normal text-[var(--sea-ink)]/60">
+            <span className="font-normal text-primary/60">
               (optional)
             </span>
           </Combobox.Label>
@@ -151,7 +151,7 @@ export default function DownloadModal({
                 ))}
               </Combobox.List>
               <Combobox.Empty>
-                <p className="px-3 py-2 text-xs text-[var(--sea-ink)]/50">
+                <p className="px-3 py-2 text-xs text-primary/50">
                   No matching folders — type a name to create one.
                 </p>
               </Combobox.Empty>
@@ -160,12 +160,12 @@ export default function DownloadModal({
         </Combobox.Root>
 
         {foldersQuery.isLoading && (
-          <p className="text-xs text-[var(--sea-ink)]/50">
+          <p className="text-xs text-primary/50">
             Loading existing folders…
           </p>
         )}
         {!foldersQuery.isLoading && folders.length === 0 && (
-          <p className="text-xs text-[var(--sea-ink)]/50">
+          <p className="text-xs text-primary/50">
             No existing subfolders — type a new name to create one.
           </p>
         )}

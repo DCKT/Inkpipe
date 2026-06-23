@@ -72,7 +72,7 @@ export default function HomePage() {
   return (
     <main className="page-wrap px-4 pb-8 pt-8 flex flex-col gap-6">
       <section className="">
-        <h1 className="display-title mb-4 text-3xl font-bold text-[var(--sea-ink)]">
+        <h1 className="display-title mb-4 text-3xl font-bold text-primary">
           Search
         </h1>
         <SearchBar onSearch={handleSearch} isLoading={searchQuery.isFetching} />

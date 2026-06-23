@@ -55,7 +55,7 @@ export default function LatestPage() {
   return (
     <main className="page-wrap px-4 pb-8 pt-8 flex flex-col gap-6">
       <section className="flex items-center justify-between">
-        <h1 className="display-title text-3xl font-bold text-[var(--sea-ink)]">
+        <h1 className="display-title text-3xl font-bold text-primary">
           Latest Mangas
         </h1>
         <Button

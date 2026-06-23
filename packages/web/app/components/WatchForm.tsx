@@ -157,10 +157,10 @@ export function WatchFormDialog({
         <Dialog.Backdrop />
         <Dialog.Positioner>
           <Dialog.Content className="max-w-lg w-full max-h-[80vh] overflow-y-auto p-4">
-            <Dialog.Title className="text-lg font-bold text-[var(--sea-ink)]">
+            <Dialog.Title className="text-lg font-bold text-primary">
               {isEdit ? "Edit Watch" : "Create Watch"}
             </Dialog.Title>
-            <Dialog.Description className="text-sm text-[var(--sea-ink-soft)] mb-4">
+            <Dialog.Description className="text-sm text-secondary mb-4">
               Set up a recurring Prowlarr search with title filters.
             </Dialog.Description>
 
@@ -195,11 +195,11 @@ export function WatchFormDialog({
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-[var(--sea-ink)]">
+                  <span className="text-sm font-medium text-primary">
                     Title Filters
                   </span>
                   <button
-                    className="text-xs text-[var(--lagoon)] hover:text-[var(--lagoon-deep)]"
+                    className="text-xs text-accent hover:text-accent-hover"
                     onClick={addGroup}
                   >
                     + Add Group
@@ -207,7 +207,7 @@ export function WatchFormDialog({
                 </div>
 
                 {filterGroups.length === 0 && (
-                  <p className="text-xs text-[var(--sea-ink-soft)]">
+                  <p className="text-xs text-secondary">
                     No filters applied — all results for this query will match.
                   </p>
                 )}
@@ -215,14 +215,14 @@ export function WatchFormDialog({
                 {filterGroups.map((group, gi) => (
                   <div
                     key={gi}
-                    className="border border-[var(--line)] rounded-xl p-3 space-y-2"
+                    className="border border-border rounded-xl p-3 space-y-2"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-[var(--sea-ink-soft)]">
+                        <span className="text-xs text-secondary">
                           Group {gi + 1}
                         </span>
-                        <span className="text-xs text-[var(--sea-ink-soft)]">
+                        <span className="text-xs text-secondary">
                           Mode
                         </span>
                         <select
@@ -233,7 +233,7 @@ export function WatchFormDialog({
                               e.currentTarget.value as FilterGroupMode,
                             )
                           }
-                          className="text-xs rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2 py-1"
+                          className="text-xs rounded-lg border border-border bg-surface-hover px-2 py-1"
                         >
                           <option value="AND">AND</option>
                           <option value="OR">OR</option>
@@ -268,7 +268,7 @@ export function WatchFormDialog({
                       </div>
                     ))}
                     <button
-                      className="text-xs text-[var(--lagoon)] hover:text-[var(--lagoon-deep)]"
+                      className="text-xs text-accent hover:text-accent-hover"
                       onClick={() => addSubstring(gi)}
                     >
                       + Add substring

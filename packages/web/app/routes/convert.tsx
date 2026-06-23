@@ -77,7 +77,7 @@ export default function ConvertPage() {
 
   return (
     <main className="page-wrap px-4 pb-8 pt-8">
-      <h1 className="display-title mb-6 text-3xl font-bold text-[var(--sea-ink)]">
+      <h1 className="display-title mb-6 text-3xl font-bold text-primary">
         Convert CBZ to EPUB
       </h1>
 
@@ -87,11 +87,11 @@ export default function ConvertPage() {
 
       {stage === "processing" && (
         <div className="island-shell rounded-2xl p-8 text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-[var(--lagoon)] border-t-transparent" />
-          <p className="text-sm font-medium text-[var(--sea-ink)]">
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+          <p className="text-sm font-medium text-primary">
             {subStage === "uploading" ? "Uploading..." : "Converting with KCC..."}
           </p>
-          <p className="mt-1 text-xs text-[var(--sea-ink-soft)]">
+          <p className="mt-1 text-xs text-secondary">
             {subStage === "uploading"
               ? "Sending file to the server"
               : "This may take a minute"}
@@ -100,17 +100,17 @@ export default function ConvertPage() {
       )}
 
       {stage === "done" && (
-        <div className="island-shell rounded-2xl border-[var(--palm)] p-8 text-center">
+        <div className="island-shell rounded-2xl border-success p-8 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(23,146,153,0.12)]">
-            <ArrowDown size={20} className="text-[var(--palm)]" />
+            <ArrowDown size={20} className="text-success" />
           </div>
-          <p className="text-sm font-semibold text-[var(--sea-ink)]">
+          <p className="text-sm font-semibold text-primary">
             Download started &mdash; {downloadFilename}
           </p>
           {downloadUrl && (
-            <p className="mt-2 text-xs text-[var(--sea-ink-soft)]">
+            <p className="mt-2 text-xs text-secondary">
               If the download didn&rsquo;t start,{" "}
-              <a href={downloadUrl} className="text-[var(--lagoon-deep)] underline">
+              <a href={downloadUrl} className="text-accent-hover underline">
                 click here
               </a>
             </p>

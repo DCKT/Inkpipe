@@ -110,7 +110,7 @@ export default function WatchDetailPage() {
     <main className="page-wrap px-4 pb-8 pt-8">
       <div className="mb-6 flex items-center gap-3">
         <button
-          className="text-sm text-[var(--sea-ink-soft)] hover:text-[var(--sea-ink)]"
+          className="text-sm text-secondary hover:text-primary"
           onClick={() => navigate("/watches")}
         >
           &larr; Back
@@ -118,7 +118,7 @@ export default function WatchDetailPage() {
       </div>
 
       {watchQuery.isLoading && (
-        <p className="text-sm text-[var(--sea-ink-soft)]">Loading watch...</p>
+        <p className="text-sm text-secondary">Loading watch...</p>
       )}
 
       {watchQuery.isError && (
@@ -131,12 +131,12 @@ export default function WatchDetailPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="display-title text-4xl font-bold text-[var(--sea-ink)]">
+              <h1 className="display-title text-4xl font-bold text-primary">
                 {watchQuery.data.name}
               </h1>
-              <p className="text-sm text-[var(--sea-ink-soft)] mt-1">
+              <p className="text-sm text-secondary mt-1">
                 Query:{" "}
-                <code className="text-xs bg-[var(--chip-bg)] px-1.5 py-0.5 rounded">
+                <code className="text-xs bg-surface px-1.5 py-0.5 rounded">
                   {watchQuery.data.query}
                 </code>{" "}
                 · Every {watchQuery.data.intervalSeconds}s ·{" "}
@@ -153,7 +153,7 @@ export default function WatchDetailPage() {
                   {watchQuery.data.filterGroups.map((g, gi) => (
                     <span
                       key={gi}
-                      className="text-xs bg-[var(--chip-bg)] border border-[var(--chip-line)] rounded-full px-2 py-0.5 text-[var(--sea-ink-soft)]"
+                      className="text-xs bg-surface border border-border rounded-full px-2 py-0.5 text-secondary"
                     >
                       {g.mode}: {g.substrings.join(", ")}
                     </span>
@@ -173,17 +173,17 @@ export default function WatchDetailPage() {
       )}
 
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-[var(--sea-ink)]">
+        <h2 className="text-lg font-semibold text-primary">
           Alerts
           {unacknowledgedCount > 0 && (
-            <span className="ml-2 text-sm font-normal text-[var(--lagoon)]">
+            <span className="ml-2 text-sm font-normal text-accent">
               ({unacknowledgedCount} new)
             </span>
           )}
         </h2>
         {unacknowledgedCount > 0 && (
           <button
-            className="text-xs text-[var(--lagoon)] hover:text-[var(--lagoon-deep)]"
+            className="text-xs text-accent hover:text-accent-hover"
             onClick={() => ackAllMutation.mutate()}
             disabled={ackAllMutation.isPending}
           >
@@ -193,7 +193,7 @@ export default function WatchDetailPage() {
       </div>
 
       {alertsQuery.isLoading && (
-        <p className="text-sm text-[var(--sea-ink-soft)]">Loading alerts...</p>
+        <p className="text-sm text-secondary">Loading alerts...</p>
       )}
 
       {alertsQuery.isError && (
@@ -204,7 +204,7 @@ export default function WatchDetailPage() {
 
       {alerts.length === 0 && (
         <div className="island-shell rounded-2xl p-8 text-center">
-          <p className="text-sm text-[var(--sea-ink-soft)]">
+          <p className="text-sm text-secondary">
             No alerts yet. Alerts appear here when new Prowlarr results match
             your filters.
           </p>
@@ -220,10 +220,10 @@ export default function WatchDetailPage() {
             }`}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-[var(--sea-ink)] truncate">
+              <p className="text-sm text-primary truncate">
                 {alert.title}
               </p>
-              <p className="text-xs text-[var(--sea-ink-soft)] mt-0.5">
+              <p className="text-xs text-secondary mt-0.5">
                 {alert.indexer} · {alert.seeders} seeders ·{" "}
                 {formatSize(alert.size)} ·{" "}
                 {new Date(alert.matchedAt).toLocaleString()}
@@ -231,14 +231,14 @@ export default function WatchDetailPage() {
             </div>
             <div className="flex items-center gap-2 ml-3 shrink-0">
               <button
-                className="text-xs text-[var(--lagoon)] hover:text-[var(--lagoon)]/80 px-2 py-1 rounded-lg hover:bg-[var(--chip-bg)] transition-colors"
+                className="text-xs text-accent hover:text-accent/80 px-2 py-1 rounded-lg hover:bg-surface transition-colors"
                 onClick={() => setModalItems([alertToProwlarrResult(alert)])}
               >
                 Download
               </button>
               {!alert.acknowledged && (
                 <button
-                  className="text-xs text-[var(--sea-ink-soft)] hover:text-[var(--sea-ink)] px-2 py-1 rounded-lg hover:bg-[var(--chip-bg)] transition-colors"
+                  className="text-xs text-secondary hover:text-primary px-2 py-1 rounded-lg hover:bg-surface transition-colors"
                   onClick={() => ackMutation.mutate(alert.id)}
                 >
                   Acknowledge

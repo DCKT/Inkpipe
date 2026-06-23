@@ -2,12 +2,12 @@ import * as ArkField from "@ark-ui/react/field";
 import type { FieldRootProps, FieldLabelProps, FieldInputProps, FieldSelectProps, FieldHelperTextProps, FieldErrorTextProps } from "@ark-ui/react/field";
 
 const labelClass =
-  "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[var(--sea-ink-soft)]";
+  "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-secondary";
 
 const inputClass =
-  "w-full rounded-xl border border-[var(--line)] bg-[var(--surface-strong)] px-4 py-2.5 text-sm text-[var(--sea-ink)] placeholder:text-[var(--sea-ink-soft)] focus:border-[var(--lagoon)] focus:outline-none";
+  "w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-primary placeholder:text-secondary focus:border-accent focus:outline-none";
 
-const helperTextClass = "mt-1 text-xs text-[var(--sea-ink-soft)]";
+const helperTextClass = "mt-1 text-xs text-secondary";
 
 const errorTextClass = "mt-1 text-xs text-red-600";
 

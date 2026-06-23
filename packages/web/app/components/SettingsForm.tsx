@@ -73,7 +73,7 @@ function KomgaDefaultLibrarySelect({
               height="12"
               viewBox="0 0 12 12"
               fill="none"
-              className="text-[var(--sea-ink-soft)]"
+              className="text-secondary"
             >
               <path
                 d="M3 4.5L6 7.5L9 4.5"
@@ -131,7 +131,7 @@ const batchSplitCollection = createListCollection({
 });
 
 const subheadingClass =
-  "text-xs font-semibold uppercase tracking-wider text-[var(--sea-ink-soft)] mt-4 mb-2";
+  "text-xs font-semibold uppercase tracking-wider text-secondary mt-4 mb-2";
 
 export default function SettingsForm({
   config,
@@ -246,7 +246,7 @@ export default function SettingsForm({
                     height="12"
                     viewBox="0 0 12 12"
                     fill="none"
-                    className="text-[var(--sea-ink-soft)]"
+                    className="text-secondary"
                   >
                     <path
                       d="M3 4.5L6 7.5L9 4.5"
@@ -381,7 +381,7 @@ export default function SettingsForm({
                     height="12"
                     viewBox="0 0 12 12"
                     fill="none"
-                    className="text-[var(--sea-ink-soft)]"
+                    className="text-secondary"
                   >
                     <path
                       d="M3 4.5L6 7.5L9 4.5"
@@ -455,7 +455,7 @@ export default function SettingsForm({
                     height="12"
                     viewBox="0 0 12 12"
                     fill="none"
-                    className="text-[var(--sea-ink-soft)]"
+                    className="text-secondary"
                   >
                     <path
                       d="M3 4.5L6 7.5L9 4.5"
@@ -524,7 +524,7 @@ export default function SettingsForm({
                     height="12"
                     viewBox="0 0 12 12"
                     fill="none"
-                    className="text-[var(--sea-ink-soft)]"
+                    className="text-secondary"
                   >
                     <path
                       d="M3 4.5L6 7.5L9 4.5"

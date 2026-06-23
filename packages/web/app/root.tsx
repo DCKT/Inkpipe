@@ -10,9 +10,9 @@ export default function Root() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen">
-        <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--header-bg)] backdrop-blur-md">
+        <header className="sticky top-0 z-50 border-b border-border bg-surface backdrop-blur-md">
           <div className="page-wrap flex items-center justify-between py-3">
-            <NavLink to="/" className="text-lg font-bold text-[var(--sea-ink)] no-underline">
+            <NavLink to="/" className="text-lg font-bold text-primary no-underline">
               Inkpipe
             </NavLink>
             <nav className="flex gap-6 text-sm font-medium">

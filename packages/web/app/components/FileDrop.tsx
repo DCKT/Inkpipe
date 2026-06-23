@@ -70,8 +70,8 @@ export default function FileDrop({ onFile, disabled }: FileDropProps) {
         onClick={() => !disabled && inputRef.current?.click()}
         className={`island-shell rounded-2xl p-12 text-center cursor-pointer transition-all ${
           isDragOver
-            ? "border-[var(--lagoon)] bg-[rgba(136,57,239,0.08)]"
-            : "border-dashed hover:border-[var(--lagoon-deep)]"
+            ? "border-accent bg-accent/8"
+            : "border-dashed hover:border-accent-hover"
         } ${disabled ? "pointer-events-none opacity-50" : ""}`}
       >
         <input
@@ -83,21 +83,21 @@ export default function FileDrop({ onFile, disabled }: FileDropProps) {
         />
         {selectedFile ? (
           <div className="flex flex-col items-center gap-2">
-            <File size={32} className="text-[var(--lagoon)]" />
-            <p className="text-sm font-medium text-[var(--sea-ink)]">
+            <File size={32} className="text-accent" />
+            <p className="text-sm font-medium text-primary">
               {selectedFile.name}
             </p>
-            <p className="text-xs text-[var(--sea-ink-soft)]">
+            <p className="text-xs text-secondary">
               {formatSize(selectedFile.size)}
             </p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <Upload size={32} className="text-[var(--sea-ink-soft)]" />
-            <p className="text-sm font-medium text-[var(--sea-ink)]">
+            <Upload size={32} className="text-secondary" />
+            <p className="text-sm font-medium text-primary">
               Drop your .cbz file here
             </p>
-            <p className="text-xs text-[var(--sea-ink-soft)]">
+            <p className="text-xs text-secondary">
               or click to browse
             </p>
           </div>

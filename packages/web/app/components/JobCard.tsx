@@ -25,10 +25,10 @@ export default function JobCard({ job }: { job: Job }) {
   return (
     <div className="island-shell rounded-2xl p-5">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="truncate text-sm font-semibold text-[var(--sea-ink)]">
+        <h3 className="truncate text-sm font-semibold text-primary">
           {job.title}
         </h3>
-        <span className="ml-2 shrink-0 text-xs text-[var(--sea-ink-soft)]">
+        <span className="ml-2 shrink-0 text-xs text-secondary">
           {formatElapsed(job.startedAt)}
         </span>
       </div>
@@ -37,10 +37,10 @@ export default function JobCard({ job }: { job: Job }) {
         <span
           className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
             isDone
-              ? "bg-[rgba(23,146,153,0.15)] text-[var(--palm)]"
+              ? "bg-success/15 text-success"
               : isFailed
                 ? "bg-red-100 text-red-700"
-                : "bg-[rgba(136,57,239,0.14)] text-[var(--lagoon-deep)]"
+                : "bg-[rgba(136,57,239,0.14)] text-accent-hover"
           }`}
         >
           {STAGE_LABELS[job.stage] ?? job.stage}
