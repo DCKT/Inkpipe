@@ -1,8 +1,6 @@
 import { Layer, ManagedRuntime } from "effect"
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { resolve, join } from "node:path"
-import { homedir } from "node:os"
-import webpush from "web-push"
+import { existsSync } from "node:fs"
+import { resolve } from "node:path"
 import { DbServiceLive } from "@inkpipe/db"
 import type { DbService } from "@inkpipe/db"
 import { ConfigServiceLive } from "./layers/Config"
@@ -27,6 +25,8 @@ import { PipelineServiceLive } from "./layers/Pipeline"
 import type { PipelineService } from "./layers/Pipeline"
 import { WatchStoreServiceLive } from "./layers/WatchStore"
 import type { WatchStoreService } from "./layers/WatchStore"
+import { PushServiceLive } from "./layers/Push"
+import type { PushService } from "./layers/Push"
 import { searchHandler } from "./routes/search"
 import { latestHandler } from "./routes/latest"
 import { downloadHandler } from "./routes/download"
@@ -54,12 +54,13 @@ import {
 import { getVapidPublicKeyHandler, subscribeHandler, unsubscribeHandler } from "./routes/push"
 import type { AppConfig, ProwlarrResult, CreateWatchRequest, UpdateWatchRequest, PushSubscriptionRequest } from "@inkpipe/shared"
 
-type AllServices = DbService | LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService
+type AllServices = DbService | PushService | LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService
 
 // Base layer — services with no dependencies of their own
 const BaseLayer = Layer.mergeAll(
   DbServiceLive,
   LogServiceLive,
+  PushServiceLive,
   FileManagerServiceLive,
 )
 
@@ -161,24 +162,6 @@ function corsWrap(response: Response): Response {
 function api(resp: Response): Response {
   return corsWrap(resp)
 }
-
-function ensureVapidKeys(): void {
-  const dir = join(homedir(), ".inkpipe")
-  mkdirSync(dir, { recursive: true })
-  const path = join(dir, "vapid.json")
-  if (!existsSync(path)) {
-    const keys = webpush.generateVAPIDKeys()
-    writeFileSync(path, JSON.stringify(keys, null, 2))
-    return
-  }
-  const existing = JSON.parse(readFileSync(path, "utf-8"))
-  if (!existing.publicKey || !existing.privateKey) {
-    const keys = webpush.generateVAPIDKeys()
-    writeFileSync(path, JSON.stringify(keys, null, 2))
-  }
-}
-
-ensureVapidKeys()
 
 const server = Bun.serve({
   port: Number(process.env.PORT || 3000),

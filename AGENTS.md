@@ -15,20 +15,20 @@
                     │
                     ▼
 ┌─────────────────────────────────────────────┐
-│            PERSISTENCE (shared SQLite)        │
+│            PERSISTENCE (packages/db)          │
 │  bun:sqlite at ~/.inkpipe/inkpipe.db          │
 │  WAL mode — allows concurrent readers        │
 └─────────────────────────────────────────────┘
            ▲                    ▲
            │ SQLite             │ SQLite
-┌──────────┴──────────┐  ┌─────┴──────────────┐
-│  WATCHER             │  │  SERVER (same DB)   │
-│  packages/watcher    │  │  packages/server     │
-│  Standalone Bun proc │  │  HTTP API + services │
-│  Polls Prowlarr      │  │                      │
-│  Sends push notifs   │  │  Server unaffected   │
-│  Inserts alerts      │  │  if watcher crashes  │
-└──────────────────────┘  └─────────────────────┘
+┌──────────┴────────────────────┴──────────────┐
+│  WATCHER (packages/watcher)   │  SERVER       │
+│  Effect process                │  (same DB)    │
+│  Reuses: ConfigService,        │               │
+│  ProwlarrService,              │               │
+│  WatchStoreService             │               │
+│  Sends push notifs             │               │
+└───────────────────────────────────────────────┘
 ```
 
 ## Project Structure
@@ -87,7 +87,7 @@ inkpipe/
 4. **Run tests** - `bun run test && bun run typecheck` MUST pass before marking work complete
 
 **Data flow**: Frontend (web) → HTTP (ky) → Server routes → Layer services → SQLite
-**Watcher flow**: Watcher (standalone) → reads SQLite → polls Prowlarr → inserts alerts → sends push
+**Watcher flow**: Watcher (Effect process) → reuses server layers (ConfigService, ProwlarrService, WatchStoreService) → SQLite → sends push
 **All layers must be consistent.**
 
 ## 🚫 NEVER RUN DOCKER FOR INFRASTRUCTURE
@@ -168,13 +168,13 @@ bun run typecheck     # TypeScript type checking
 
 ### Watcher (packages/watcher)
 
-**Standalone Bun process** — plain TypeScript, no Effect. Shares the same SQLite database (`~/.inkpipe/inkpipe.db`) with the server.
+**Effect-based process** — reuses server layer services. Separate Bun process for fault isolation. Shares the same SQLite database (`~/.inkpipe/inkpipe.db`) with the server via `@inkpipe/db`.
 
 **Guidelines:**
 
-1. **Keep it simple** — no Effect, no layers. Direct SQLite access, direct HTTP calls.
+1. **Reuse layer services** — imports `ConfigService`, `ProwlarrService`, `WatchStoreService` from server layers. Composes its own Effect runtime.
 2. **Must not crash the server** — runs as a separate process. Server continues serving if watcher goes down.
-3. **Shares DB safely** — SQLite WAL mode allows concurrent readers (watcher reads watches, inserts alerts; server reads/writes watches and alerts via API).
+3. **Shares DB safely** — SQLite WAL mode allows concurrent readers. Uses `@inkpipe/db` for consistent schema.
 
 ### Frontend (packages/web)
 

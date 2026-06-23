@@ -6,6 +6,7 @@ export class WatchStoreService extends Effect.Tag("WatchStoreService")<
   WatchStoreService,
   {
     readonly listWatches: Effect.Effect<Watch[], WatchStoreError>
+    readonly listEnabledWatches: Effect.Effect<Watch[], WatchStoreError>
     readonly getWatch: (id: string) => Effect.Effect<Watch, WatchNotFoundError | WatchStoreError>
     readonly createWatch: (watch: Omit<Watch, "id">) => Effect.Effect<Watch, WatchStoreError>
     readonly updateWatch: (id: string, updates: Partial<Omit<Watch, "id">>) => Effect.Effect<Watch, WatchNotFoundError | WatchStoreError>
@@ -59,6 +60,14 @@ export const WatchStoreServiceLive = Layer.effect(
         return rows.map(rowToWatch)
       },
       catch: (e) => new WatchStoreError({ message: `Failed to list watches: ${String(e)}` }),
+    })
+
+    const listEnabledWatches = Effect.try({
+      try: () => {
+        const rows = db.query("SELECT * FROM watches WHERE enabled = 1 ORDER BY name").all() as Record<string, unknown>[]
+        return rows.map(rowToWatch)
+      },
+      catch: (e) => new WatchStoreError({ message: `Failed to list enabled watches: ${String(e)}` }),
     })
 
     const getWatch = (id: string) =>
@@ -207,6 +216,7 @@ export const WatchStoreServiceLive = Layer.effect(
 
     return {
       listWatches,
+      listEnabledWatches,
       getWatch,
       createWatch,
       updateWatch,

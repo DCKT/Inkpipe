@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@inkpipe/db": "workspace:*",
+    "@inkpipe/server": "workspace:*",
     "@inkpipe/shared": "workspace:*",
+    "effect": "^3.21.3",
     "web-push": "3.6.7"
   },
   "devDependencies": {

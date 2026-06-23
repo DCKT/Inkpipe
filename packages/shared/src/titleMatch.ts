@@ -1,4 +1,4 @@
-import type { MatchResult } from "./schemas";
+import type { MatchResult, FilterGroup } from "./schemas";
 
 /**
  * Cleans a raw Prowlarr release title into a plain series name.
@@ -50,6 +50,22 @@ export function trigramScore(a: string, b: string): number {
   return intersection / union;
 }
 
+/**
+ * Checks whether a Prowlarr result title matches a set of FilterGroups.
+ * All groups are AND'd together; within a group, substrings are AND'd or OR'd.
+ */
+export function matchesFilter(title: string, groups: readonly FilterGroup[]): boolean {
+  const lower = title.toLowerCase()
+  for (const group of groups) {
+    const hits = group.substrings.map((s) => lower.includes(s.toLowerCase()))
+    if (group.mode === "AND") {
+      if (!hits.every(Boolean)) return false
+    } else {
+      if (!hits.some(Boolean)) return false
+    }
+  }
+  return true
+}
 /**
  * Finds the best-matching Komga series for a raw Prowlarr title.
  * Returns null if best score is below threshold.
