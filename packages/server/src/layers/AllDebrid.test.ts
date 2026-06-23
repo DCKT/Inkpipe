@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import type { AppConfig, DebridFile, UploadResult } from "@inkpipe/shared"
 import { AllDebridService, AllDebridServiceLive } from "./AllDebrid"
 import { ConfigService } from "./Config"
+import { LogServiceLive } from "./Log"
 
 const testConfig: AppConfig = {
   prowlarr: { url: "", apiKey: "" },
@@ -32,7 +33,7 @@ function makeProgram<T>(prog: (svc: any) => Effect.Effect<T, any, any>) {
   return Effect.gen(function* () {
     const svc = yield* AllDebridService
     return yield* prog(svc)
-  }).pipe(Effect.provide(Layer.provide(AllDebridServiceLive, makeLayer()))) as Effect.Effect<T, unknown, never>
+  }).pipe(Effect.provide(Layer.provide(AllDebridServiceLive, Layer.merge(LogServiceLive, makeLayer())))) as Effect.Effect<T, unknown, never>
 }
 
 function mockMagnetUploadResponse(id: number, ready = true) {
@@ -312,13 +313,16 @@ describe("AllDebridService", () => {
             Effect.provide(
               Layer.provide(
                 AllDebridServiceLive,
-                Layer.succeed(ConfigService, {
-                  loadConfig: Effect.succeed({
-                    ...testConfig,
-                    alldebrid: { apiKey: "" },
-                  }),
-                  saveConfig: () => Effect.void,
-                } as any),
+                Layer.merge(
+                  LogServiceLive,
+                  Layer.succeed(ConfigService, {
+                    loadConfig: Effect.succeed({
+                      ...testConfig,
+                      alldebrid: { apiKey: "" },
+                    }),
+                    saveConfig: () => Effect.void,
+                  } as any),
+                ),
               ),
             ),
           ) as any,
@@ -336,10 +340,13 @@ describe("AllDebridService", () => {
             Effect.provide(
               Layer.provide(
                 AllDebridServiceLive,
-                Layer.succeed(ConfigService, {
-                  loadConfig: Effect.fail(new Error("config error") as any),
-                  saveConfig: () => Effect.void,
-                } as any),
+                Layer.merge(
+                  LogServiceLive,
+                  Layer.succeed(ConfigService, {
+                    loadConfig: Effect.fail(new Error("config error") as any),
+                    saveConfig: () => Effect.void,
+                  } as any),
+                ),
               ),
             ),
           ) as any,

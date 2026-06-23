@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import type { AppConfig, ProwlarrResult } from "@inkpipe/shared"
 import { ProwlarrService, ProwlarrServiceLive } from "./Prowlarr"
 import { ConfigService } from "./Config"
+import { LogServiceLive } from "./Log"
 
 const testConfig: AppConfig = {
   prowlarr: { url: "http://localhost:9696", apiKey: "test-key" },
@@ -32,7 +33,7 @@ function makeProwlarrProgram(prog: (svc: any) => Effect.Effect<any, any, any>) {
   return Effect.gen(function* () {
     const svc = yield* ProwlarrService
     return yield* prog(svc)
-  }).pipe(Effect.provide(Layer.provide(ProwlarrServiceLive, makeConfigLayer()))) as Effect.Effect<any, unknown, never>
+  }).pipe(Effect.provide(Layer.provide(ProwlarrServiceLive, Layer.merge(LogServiceLive, makeConfigLayer())))) as Effect.Effect<any, unknown, never>
 }
 
 const mockProwlarrResults: Record<string, unknown>[] = [
@@ -187,10 +188,13 @@ describe("ProwlarrService", () => {
             Effect.provide(
               Layer.provide(
                 ProwlarrServiceLive,
-                Layer.succeed(ConfigService, {
-                  loadConfig: Effect.fail(new Error("no config") as any),
-                  saveConfig: () => Effect.void,
-                } as any),
+                Layer.merge(
+                  LogServiceLive,
+                  Layer.succeed(ConfigService, {
+                    loadConfig: Effect.fail(new Error("no config") as any),
+                    saveConfig: () => Effect.void,
+                  } as any),
+                ),
               ),
             ),
           ) as any,
@@ -208,13 +212,16 @@ describe("ProwlarrService", () => {
             Effect.provide(
               Layer.provide(
                 ProwlarrServiceLive,
-                Layer.succeed(ConfigService, {
-                  loadConfig: Effect.succeed({
-                    ...testConfig,
-                    prowlarr: { url: "", apiKey: "" },
-                  }),
-                  saveConfig: () => Effect.void,
-                } as any),
+                Layer.merge(
+                  LogServiceLive,
+                  Layer.succeed(ConfigService, {
+                    loadConfig: Effect.succeed({
+                      ...testConfig,
+                      prowlarr: { url: "", apiKey: "" },
+                    }),
+                    saveConfig: () => Effect.void,
+                  } as any),
+                ),
               ),
             ),
           ) as any,

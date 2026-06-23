@@ -8,6 +8,13 @@ import {
   MagnetStatusError,
 } from "@inkpipe/shared"
 import { ConfigService } from "./Config"
+import { LogService } from "./Log"
+
+interface Logger {
+  info: (namespace: string, ...message: unknown[]) => Effect.Effect<void>
+  error: (namespace: string, ...message: unknown[]) => Effect.Effect<void>
+  warn: (namespace: string, ...message: unknown[]) => Effect.Effect<void>
+}
 
 export class AllDebridService extends Effect.Tag("AllDebridService")<
   AllDebridService,
@@ -61,9 +68,9 @@ function parseApiResponse<T>(raw: ApiResponse<T>): T {
   return raw.data
 }
 
-async function pollDelayedLink(delayedId: number, apiKey: string, maxAttempts = 30): Promise<string> {
+async function pollDelayedLink(delayedId: number, apiKey: string, log: Logger, maxAttempts = 30): Promise<string> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    console.log(`[alldebrid] Polling delayed link ${delayedId} (attempt ${attempt + 1}/${maxAttempts})`)
+    Effect.runSync(log.info("alldebrid", `Polling delayed link ${delayedId} (attempt ${attempt + 1}/${maxAttempts})`))
     const body = new URLSearchParams({ id: String(delayedId) })
     const response = await fetchWithAuth(buildUrl("v4/link/delayed"), apiKey, {
       method: "POST",
@@ -90,19 +97,20 @@ async function pollDelayedLink(delayedId: number, apiKey: string, maxAttempts = 
 async function downloadWithRetry(
   url: string,
   destPath: string,
+  log: Logger,
   onProgress?: (received: number, total: number) => void,
   maxRetries = 3,
 ): Promise<void> {
   let lastError: Error | null = null
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      await downloadSingle(url, destPath, onProgress)
+      await downloadSingle(url, destPath, log, onProgress)
       return
     } catch (e) {
       lastError = e instanceof Error ? e : new Error(String(e))
       if (attempt < maxRetries - 1) {
         const delay = Math.min(1000 * Math.pow(2, attempt), 10000)
-        console.log(`[alldebrid] Download attempt ${attempt + 1} failed: ${lastError.message}, retrying in ${delay}ms`)
+        Effect.runSync(log.info("alldebrid", `Download attempt ${attempt + 1} failed: ${lastError.message}, retrying in ${delay}ms`))
         await new Promise((resolve) => setTimeout(resolve, delay))
       }
     }
@@ -113,16 +121,17 @@ async function downloadWithRetry(
 async function downloadSingle(
   url: string,
   destPath: string,
+  log: Logger,
   onProgress?: (received: number, total: number) => void,
 ): Promise<void> {
-  console.log(`[alldebrid] Downloading to: ${destPath}`)
-  console.log(`[alldebrid] From URL: ${url.slice(0, 120)}...`)
+  Effect.runSync(log.info("alldebrid", `Downloading to: ${destPath}`))
+  Effect.runSync(log.info("alldebrid", `From URL: ${url.slice(0, 120)}...`))
   const response = await fetch(url)
   if (!response.ok) {
     throw new Error(`Download failed: HTTP ${response.status}`)
   }
   const total = Number(response.headers.get("content-length") ?? 0)
-  console.log(`[alldebrid] Download started, content-length: ${total}`)
+  Effect.runSync(log.info("alldebrid", `Download started, content-length: ${total}`))
   const chunks: Uint8Array[] = []
   const reader = response.body!.getReader()
   let received = 0
@@ -140,13 +149,14 @@ async function downloadSingle(
     offset += chunk.byteLength
   }
   await Bun.write(destPath, buffer)
-  console.log(`[alldebrid] Download complete: ${destPath} (${received} bytes)`)
+  Effect.runSync(log.info("alldebrid", `Download complete: ${destPath} (${received} bytes)`))
 }
 
 export const AllDebridServiceLive = Layer.effect(
   AllDebridService,
   Effect.gen(function* () {
     const configService = yield* ConfigService
+    const log = yield* LogService
 
     const uploadMagnet = (magnetOrUrl: string) =>
       Effect.gen(function* () {
@@ -162,7 +172,7 @@ export const AllDebridServiceLive = Layer.effect(
 
         if (isMagnetUri(magnetOrUrl)) {
           return yield* Effect.tryPromise({
-            try: () => uploadViaMagnet(magnetOrUrl, apiKey),
+            try: () => uploadViaMagnet(magnetOrUrl, apiKey, log),
             catch: (e) => {
               const message = e instanceof Error ? e.message : String(e)
               return new MagnetUploadError({ message: `Upload failed: ${message}` })
@@ -170,7 +180,7 @@ export const AllDebridServiceLive = Layer.effect(
           })
         }
         return yield* Effect.tryPromise({
-          try: () => uploadViaTorrentUrl(magnetOrUrl, apiKey),
+          try: () => uploadViaTorrentUrl(magnetOrUrl, apiKey, log),
           catch: (e) => {
             const message = e instanceof Error ? e.message : String(e)
             return new MagnetUploadError({ message: `Upload failed: ${message}` })
@@ -192,7 +202,7 @@ export const AllDebridServiceLive = Layer.effect(
 
         return yield* Effect.tryPromise({
           try: async () => {
-            console.log(`[alldebrid] Checking status for magnet ${magnetId}`)
+            Effect.runSync(log.info("alldebrid", `Checking status for magnet ${magnetId}`))
             const body = new URLSearchParams({ id: String(magnetId) })
             const response = await fetchWithAuth(buildUrl("v4.1/magnet/status"), apiKey, {
               method: "POST",
@@ -202,11 +212,11 @@ export const AllDebridServiceLive = Layer.effect(
             const data = parseApiResponse<{
               magnets?: Array<{ id: number; filename: string; statusCode: number; status: string }>
             }>(await response.json() as ApiResponse<{ magnets?: Array<{ id: number; filename: string; statusCode: number; status: string }> }>)
-            console.log(`[alldebrid] Status response for magnet ${magnetId}:`, JSON.stringify(data))
+            Effect.runSync(log.info("alldebrid", `Status response for magnet ${magnetId}:`, JSON.stringify(data)))
             const magnets = data.magnets
             const magnet = Array.isArray(magnets) ? magnets[0] : magnets
             if (!magnet) {
-              console.log(`[alldebrid] Magnet ${magnetId} not yet in response`)
+              Effect.runSync(log.info("alldebrid", `Magnet ${magnetId} not yet in response`))
               return { ready: false, statusCode: 0, status: "Waiting" }
             }
             return { ready: magnet.statusCode === 4, statusCode: magnet.statusCode, status: magnet.status }
@@ -232,7 +242,7 @@ export const AllDebridServiceLive = Layer.effect(
 
         return yield* Effect.tryPromise({
           try: async () => {
-            console.log(`[alldebrid] Fetching files for magnet ${magnetId}`)
+            Effect.runSync(log.info("alldebrid", `Fetching files for magnet ${magnetId}`))
             const body = new URLSearchParams()
             body.append("id[]", String(magnetId))
             const response = await fetchWithAuth(buildUrl("v4/magnet/files"), apiKey, {
@@ -248,7 +258,7 @@ export const AllDebridServiceLive = Layer.effect(
               throw new Error("No files returned from AllDebrid")
             }
             const files = flattenFileTree(magnetData.files)
-            console.log(`[alldebrid] Found ${files.length} files for magnet ${magnetId}`)
+            Effect.runSync(log.info("alldebrid", `Found ${files.length} files for magnet ${magnetId}`))
             return files
           },
           catch: (e) => {
@@ -272,7 +282,7 @@ export const AllDebridServiceLive = Layer.effect(
 
         return yield* Effect.tryPromise({
           try: async () => {
-            console.log(`[alldebrid] Unlocking link: ${link}`)
+            Effect.runSync(log.info("alldebrid", `Unlocking link: ${link}`))
             const body = new URLSearchParams({ link })
             const response = await fetchWithAuth(buildUrl("v4/link/unlock"), apiKey, {
               method: "POST",
@@ -288,7 +298,7 @@ export const AllDebridServiceLive = Layer.effect(
             const data = parseApiResponse(raw)
 
             if (data.delayed) {
-              const downloadUrl = await pollDelayedLink(data.delayed, apiKey)
+              const downloadUrl = await pollDelayedLink(data.delayed, apiKey, log)
               return { url: downloadUrl, filename: data.filename, size: data.filesize }
             }
 
@@ -315,11 +325,11 @@ export const AllDebridServiceLive = Layer.effect(
 
         yield* Effect.tryPromise({
           try: async () => {
-            console.log(`[alldebrid] Deleting magnet ${magnetId}`)
+            Effect.runSync(log.info("alldebrid", `Deleting magnet ${magnetId}`))
             await fetchWithAuth(buildUrl("v4/magnet/delete", { id: String(magnetId) }), apiKey)
           },
           catch: (e) => {
-            console.error(`[alldebrid] Failed to delete magnet ${magnetId}:`, e)
+            Effect.runSync(log.error("alldebrid", `Failed to delete magnet ${magnetId}:`, e))
             return new AllDebridNotConfigured({ message: `Delete failed: ${e instanceof Error ? e.message : String(e)}` })
           },
         })
@@ -332,7 +342,7 @@ export const AllDebridServiceLive = Layer.effect(
     ) =>
       Effect.gen(function* () {
         yield* Effect.tryPromise({
-          try: () => downloadWithRetry(url, destPath, onProgress),
+          try: () => downloadWithRetry(url, destPath, log, onProgress),
           catch: (e) => {
             const message = e instanceof Error ? e.message : String(e)
             return new AllDebridHttpError({ message: `Download failed: ${message}` })
@@ -368,8 +378,8 @@ function flattenFileTree(nodes: FileNode[]): DebridFile[] {
   return files
 }
 
-async function uploadViaMagnet(magnetUri: string, apiKey: string): Promise<UploadResult> {
-  console.log("[alldebrid] Uploading magnet URI:", magnetUri.slice(0, 80) + "...")
+async function uploadViaMagnet(magnetUri: string, apiKey: string, log: Logger): Promise<UploadResult> {
+  Effect.runSync(log.info("alldebrid", "Uploading magnet URI:", magnetUri.slice(0, 80) + "..."))
   const response = await fetchWithAuth(
     buildUrl("v4/magnet/upload", { magnets: magnetUri }),
     apiKey,
@@ -377,19 +387,19 @@ async function uploadViaMagnet(magnetUri: string, apiKey: string): Promise<Uploa
   const data = parseApiResponse<{
     magnets?: Array<{ id: number; ready: boolean; error?: { code: string; message: string } }>
   }>(await response.json() as ApiResponse<{ magnets?: Array<{ id: number; ready: boolean; error?: { code: string; message: string } }> }>)
-  console.log("[alldebrid] Magnet upload response:", JSON.stringify(data))
+  Effect.runSync(log.info("alldebrid", "Magnet upload response:", JSON.stringify(data)))
   const magnet = data.magnets?.[0]
   if (!magnet) throw new Error("No magnet returned from AllDebrid")
   if (magnet.error) throw new Error(`AllDebrid magnet error: ${magnet.error.code} - ${magnet.error.message}`)
   return { id: magnet.id, ready: magnet.ready }
 }
 
-async function uploadViaTorrentUrl(torrentUrl: string, apiKey: string): Promise<UploadResult> {
-  console.log("[alldebrid] Downloading .torrent from:", torrentUrl.slice(0, 120))
+async function uploadViaTorrentUrl(torrentUrl: string, apiKey: string, log: Logger): Promise<UploadResult> {
+  Effect.runSync(log.info("alldebrid", "Downloading .torrent from:", torrentUrl.slice(0, 120)))
 
   const torrentResponse = await fetch(torrentUrl, { signal: AbortSignal.timeout(60000) })
   const torrentBuffer = await torrentResponse.arrayBuffer()
-  console.log("[alldebrid] Downloaded .torrent, size:", torrentBuffer.byteLength)
+  Effect.runSync(log.info("alldebrid", "Downloaded .torrent, size:", torrentBuffer.byteLength))
 
   const formData = new FormData()
   const blob = new Blob([torrentBuffer], { type: "application/x-bittorrent" })
@@ -403,7 +413,7 @@ async function uploadViaTorrentUrl(torrentUrl: string, apiKey: string): Promise<
   const data = parseApiResponse<{
     files?: Array<{ id: number; ready: boolean; error?: { code: string; message: string } }>
   }>(await response.json() as ApiResponse<{ files?: Array<{ id: number; ready: boolean; error?: { code: string; message: string } }> }>)
-  console.log("[alldebrid] Torrent upload response:", JSON.stringify(data))
+  Effect.runSync(log.info("alldebrid", "Torrent upload response:", JSON.stringify(data)))
   const file = data.files?.[0]
   if (!file) throw new Error("No file returned from AllDebrid")
   if (file.error) throw new Error(`AllDebrid torrent error: ${file.error.code} - ${file.error.message}`)

@@ -5,6 +5,7 @@ import {
   CopypartyFolderError,
 } from "@inkpipe/shared";
 import { ConfigService } from "./Config";
+import { LogService } from "./Log";
 
 export class CopypartyService extends Effect.Tag("CopypartyService")<
   CopypartyService,
@@ -36,6 +37,7 @@ export const CopypartyServiceLive = Layer.effect(
   CopypartyService,
   Effect.gen(function* () {
     const configService = yield* ConfigService;
+    const log = yield* LogService;
 
     const listFolders = Effect.gen(function* () {
       const configOpt = yield* configService.loadConfig.pipe(
@@ -114,17 +116,17 @@ export const CopypartyServiceLive = Layer.effect(
               ? `${uploadUrl}?${sp.toString()}`
               : uploadUrl;
 
-            console.log(
-              `[copyparty] Uploading ${filename} (${fileBuf.byteLength} bytes) to ${uploadUrl}`,
+            Effect.runSync(
+              log.info("copyparty", `Uploading ${filename} (${fileBuf.byteLength} bytes) to ${uploadUrl}`),
             );
             const response = await fetch(finalUrl, {
               method: "PUT",
               body: new Uint8Array(fileBuf),
               signal: AbortSignal.timeout(300000),
             });
-            console.log("[copyparty] Upload response status:", response.status);
+            Effect.runSync(log.info("copyparty", "Upload response status:", response.status));
             const text = await response.text();
-            console.log("[copyparty] Upload response:", text);
+            Effect.runSync(log.info("copyparty", "Upload response:", text));
             if (!response.ok) {
               throw new Error(
                 `Copyparty upload failed: HTTP ${response.status} — ${text}`,
@@ -179,8 +181,8 @@ export const CopypartyServiceLive = Layer.effect(
             body.append("act", "mkdir");
             body.append("name", sanitized);
 
-            console.log(
-              `[copyparty] Creating folder ${sanitized} at ${fetchUrl}`,
+            Effect.runSync(
+              log.info("copyparty", `Creating folder ${sanitized} at ${fetchUrl}`),
             );
             const response = await fetch(fetchUrl, {
               method: "POST",
@@ -188,10 +190,8 @@ export const CopypartyServiceLive = Layer.effect(
               signal: AbortSignal.timeout(10000),
             });
             const text = await response.text();
-            console.log(
-              "[copyparty] Create folder response:",
-              response.status,
-              text,
+            Effect.runSync(
+              log.info("copyparty", "Create folder response:", response.status, text),
             );
             if (!response.ok) {
               throw new Error(
@@ -202,7 +202,7 @@ export const CopypartyServiceLive = Layer.effect(
             const scanParams = new URLSearchParams({ scan: "" });
             if (password) scanParams.set("pw", password);
             const scanUrl = `${parentUrl}?${scanParams.toString()}`;
-            console.log(`[copyparty] Scanning after mkdir: ${scanUrl}`);
+            Effect.runSync(log.info("copyparty", `Scanning after mkdir: ${scanUrl}`));
             await fetch(scanUrl, {
               signal: AbortSignal.timeout(10000),
             });
@@ -251,16 +251,14 @@ export const CopypartyServiceLive = Layer.effect(
             if (password) sp.set("pw", password);
             const fetchUrl = `${folderUrl}?${sp.toString()}`;
 
-            console.log(`[copyparty] Deleting folder ${folderUrl}`);
+            Effect.runSync(log.info("copyparty", `Deleting folder ${folderUrl}`));
             const response = await fetch(fetchUrl, {
               method: "POST",
               signal: AbortSignal.timeout(10000),
             });
             const text = await response.text();
-            console.log(
-              "[copyparty] Delete folder response:",
-              response.status,
-              text,
+            Effect.runSync(
+              log.info("copyparty", "Delete folder response:", response.status, text),
             );
             if (!response.ok) {
               throw new Error(

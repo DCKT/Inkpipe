@@ -8,10 +8,13 @@ import { PushServiceLive, PushService } from "@inkpipe/server/layers/Push"
 import { matchesFilter } from "@inkpipe/shared"
 import type { Watch, WatchAlert } from "@inkpipe/shared"
 
-const BaseLayer = Layer.mergeAll(DbServiceLive, LogServiceLive, PushServiceLive)
+const BaseLayer = Layer.mergeAll(DbServiceLive, Layer.provideMerge(PushServiceLive, LogServiceLive))
 const ConfigLayer = Layer.provide(ConfigServiceLive, BaseLayer)
 const WatchLayer = Layer.provide(WatchStoreServiceLive, BaseLayer)
-const ProwlarrLayer = Layer.provide(ProwlarrServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
+const ProwlarrLayer = ProwlarrServiceLive.pipe(
+  Layer.provide(ConfigLayer),
+  Layer.provide(BaseLayer),
+)
 
 const WatcherLayer = Layer.mergeAll(BaseLayer, ConfigLayer, WatchLayer, ProwlarrLayer)
 

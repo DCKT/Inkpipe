@@ -8,6 +8,7 @@ import {
   buildProwlarrSearchParams,
 } from "@inkpipe/shared"
 import { ConfigService } from "./Config"
+import { LogService } from "./Log"
 
 export class ProwlarrService extends Effect.Tag("ProwlarrService")<
   ProwlarrService,
@@ -21,6 +22,7 @@ export const ProwlarrServiceLive = Layer.effect(
   ProwlarrService,
   Effect.gen(function* () {
     const configService = yield* ConfigService
+    const log = yield* LogService
 
     const search = (query: string) =>
       Effect.gen(function* () {
@@ -36,7 +38,7 @@ export const ProwlarrServiceLive = Layer.effect(
 
         return yield* Effect.tryPromise({
           try: () =>
-            doProwlarrSearch(`${url}/api/v1/search`, apiKey, { query, type: "search" }),
+            doProwlarrSearch(`${url}/api/v1/search`, apiKey, { query, type: "search" }, log),
           catch: (e) => {
             const message = e instanceof Error ? e.message : String(e)
             return new ProwlarrHttpError({ message: `Prowlarr search failed: ${message}` })
@@ -60,7 +62,7 @@ export const ProwlarrServiceLive = Layer.effect(
           doProwlarrSearch(`${url}/api/v1/search`, apiKey, {
             type: "search",
             categories: ["8010", "7030"],
-          }),
+          }, log),
         catch: (e) => {
           const message = e instanceof Error ? e.message : String(e)
           return new ProwlarrHttpError({ message: `Prowlarr latest failed: ${message}` })
@@ -76,8 +78,9 @@ async function doProwlarrSearch(
   url: string,
   apiKey: string,
   params: Record<string, string | string[]>,
+  log: { info: (namespace: string, ...message: unknown[]) => Effect.Effect<void> },
 ): Promise<ProwlarrResult[]> {
-  console.log("[prowlarr] Fetching:", url, params)
+  Effect.runSync(log.info("prowlarr", "Fetching:", url, params))
   const searchParams = buildProwlarrSearchParams(params)
   const response = await fetch(`${url}?${searchParams.toString()}`, {
     headers: { "X-Api-Key": apiKey },

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import type { AppConfig } from "@inkpipe/shared"
 import { KomgaService, KomgaServiceLive } from "./Komga"
 import { ConfigService } from "./Config"
+import { LogServiceLive } from "./Log"
 
 const testConfig: AppConfig = {
   prowlarr: { url: "", apiKey: "" },
@@ -32,7 +33,7 @@ function makeProgram<T>(prog: (svc: any) => Effect.Effect<T, any, any>) {
   return Effect.gen(function* () {
     const svc = yield* KomgaService
     return yield* prog(svc)
-  }).pipe(Effect.provide(Layer.provide(KomgaServiceLive, makeLayer()))) as Effect.Effect<T, unknown, never>
+  }).pipe(Effect.provide(Layer.provide(KomgaServiceLive, Layer.merge(LogServiceLive, makeLayer())))) as Effect.Effect<T, unknown, never>
 }
 
 const mockLibraries = [
@@ -186,13 +187,16 @@ describe("KomgaService", () => {
             Effect.provide(
               Layer.provide(
                 KomgaServiceLive,
-                Layer.succeed(ConfigService, {
-                  loadConfig: Effect.succeed({
-                    ...testConfig,
-                    komga: { url: "", apiKey: "", defaultLibraryId: "" },
-                  }),
-                  saveConfig: () => Effect.void,
-                } as any),
+                Layer.merge(
+                  LogServiceLive,
+                  Layer.succeed(ConfigService, {
+                    loadConfig: Effect.succeed({
+                      ...testConfig,
+                      komga: { url: "", apiKey: "", defaultLibraryId: "" },
+                    }),
+                    saveConfig: () => Effect.void,
+                  } as any),
+                ),
               ),
             ),
           ) as any,

@@ -57,11 +57,12 @@ import type { AppConfig, ProwlarrResult, CreateWatchRequest, UpdateWatchRequest,
 
 type AllServices = DbService | PushService | LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService
 
-// Base layer — services with no dependencies of their own
+// Base layer — services with no dependencies of their own.
+// PushServiceLive requires LogService; use provideMerge to satisfy it
+// while keeping LogService available for other layers.
 const BaseLayer = Layer.mergeAll(
   DbServiceLive,
-  LogServiceLive,
-  PushServiceLive,
+  Layer.provideMerge(PushServiceLive, LogServiceLive),
   FileManagerServiceLive,
 )
 

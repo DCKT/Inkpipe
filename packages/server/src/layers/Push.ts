@@ -4,6 +4,7 @@ import { homedir } from "node:os"
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs"
 import webpush from "web-push"
 import type { PushSubscriptionRequest } from "@inkpipe/shared"
+import { LogService } from "./Log"
 
 export class PushService extends Effect.Tag("PushService")<
   PushService,
@@ -51,6 +52,7 @@ function writeSubscriptionsSync(subs: PushSubscriptionRequest[]): void {
 export const PushServiceLive = Layer.effect(
   PushService,
   Effect.gen(function* () {
+    const log = yield* LogService
     const getVapidPublicKey = Effect.sync(() => ensureVapidKeysSync().publicKey)
 
     const addSubscription = (sub: PushSubscriptionRequest) =>
@@ -78,7 +80,7 @@ export const PushServiceLive = Layer.effect(
             subs.map((sub) =>
               webpush.sendNotification(sub, JSON.stringify(payload)).catch((err) => {
                 if (err.statusCode === 410 || err.statusCode === 404) {
-                  console.log("[push] Removing expired subscription:", sub.endpoint)
+                  Effect.runSync(log.info("push", "Removing expired subscription:", sub.endpoint))
                   return
                 }
                 throw err
@@ -87,7 +89,7 @@ export const PushServiceLive = Layer.effect(
           )
         },
         catch: (e) => {
-          if (e instanceof Error) console.error("[push] Failed to send:", e.message)
+          if (e instanceof Error) Effect.runSync(log.error("push", "Failed to send:", e.message))
           return undefined as void
         },
       }) as Effect.Effect<void>

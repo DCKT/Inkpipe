@@ -7,6 +7,7 @@ import {
   KomgaHttpError,
 } from "@inkpipe/shared"
 import { ConfigService } from "./Config"
+import { LogService } from "./Log"
 
 export class KomgaService extends Effect.Tag("KomgaService")<
   KomgaService,
@@ -29,6 +30,7 @@ export const KomgaServiceLive = Layer.effect(
   KomgaService,
   Effect.gen(function* () {
     const configService = yield* ConfigService
+    const log = yield* LogService
 
     const getApiInfo = () =>
       Effect.gen(function* () {
@@ -70,27 +72,27 @@ export const KomgaServiceLive = Layer.effect(
       })
 
     const listLibraries = Effect.gen(function* () {
-      console.log("[komga] listLibraries")
+      yield* log.info("komga", "listLibraries")
       const info = yield* getApiInfo()
       const response = yield* komgaFetch(info, "api/v1/libraries")
       const data = yield* Effect.tryPromise({
         try: () => response.json() as Promise<KomgaLibrary[]>,
         catch: (e) => new KomgaHttpError({ message: `Failed to parse libraries: ${e}` }),
       })
-      console.log(`[komga] listLibraries — ${data.length} libraries`)
+      yield* log.info("komga", `listLibraries — ${data.length} libraries`)
       return data
     })
 
     const listAllSeries = (libraryId?: string) =>
       Effect.gen(function* () {
-        console.log(`[komga] listAllSeries${libraryId ? ` (libraryId=${libraryId})` : ""}`)
+        yield* log.info("komga", `listAllSeries${libraryId ? ` (libraryId=${libraryId})` : ""}`)
         const info = yield* getApiInfo()
         const all: KomgaSeries[] = []
         let page = 0
         let totalPages = 1
 
         while (page < totalPages) {
-          console.log(`[komga] listAllSeries — fetching page ${page}/${totalPages - 1}`)
+          yield* log.info("komga", `listAllSeries — fetching page ${page}/${totalPages - 1}`)
           const body = libraryId
             ? { condition: { libraryId: { operator: "is", value: libraryId } } }
             : {}
@@ -112,13 +114,13 @@ export const KomgaServiceLive = Layer.effect(
           totalPages = data.totalPages
           page++
         }
-        console.log(`[komga] listAllSeries — ${all.length} series`)
+        yield* log.info("komga", `listAllSeries — ${all.length} series`)
         return all
       })
 
     const getSeriesThumbnail = (seriesId: string) =>
       Effect.gen(function* () {
-        console.log(`[komga] getSeriesThumbnail seriesId=${seriesId}`)
+        yield* log.info("komga", `getSeriesThumbnail seriesId=${seriesId}`)
         const info = yield* getApiInfo()
         const response = yield* komgaFetch(info, `api/v1/series/${seriesId}/thumbnail`)
         const arrayBuffer = yield* Effect.tryPromise({
@@ -131,7 +133,7 @@ export const KomgaServiceLive = Layer.effect(
 
     const getBooksForSeries = (seriesId: string) =>
       Effect.gen(function* () {
-        console.log(`[komga] getBooksForSeries seriesId=${seriesId}`)
+        yield* log.info("komga", `getBooksForSeries seriesId=${seriesId}`)
         const info = yield* getApiInfo()
         const body = { condition: { seriesId: { operator: "is", value: seriesId } } }
         const searchParams = new URLSearchParams({
@@ -148,7 +150,7 @@ export const KomgaServiceLive = Layer.effect(
           try: () => response.json(),
           catch: (e) => new KomgaHttpError({ message: `Failed to parse books: ${e}` }),
         })) as KomgaPage<KomgaBook>
-        console.log(`[komga] getBooksForSeries — ${data.content.length} books`)
+        yield* log.info("komga", `getBooksForSeries — ${data.content.length} books`)
         return data.content
       })
 

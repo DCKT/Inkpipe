@@ -5,6 +5,7 @@ import type { AppConfig } from "@inkpipe/shared"
 import { KccError } from "@inkpipe/shared"
 import { ConfigService } from "./Config"
 import { FileManagerService } from "./FileManager"
+import { LogService } from "./Log"
 
 export class KccService extends Effect.Tag("KccService")<
   KccService,
@@ -74,6 +75,7 @@ export const KccServiceLive = Layer.effect(
   Effect.gen(function* () {
     const configService = yield* ConfigService
     const fileManager = yield* FileManagerService
+    const log = yield* LogService
 
     const convert = (inputPath: string, outputDir: string) =>
       Effect.gen(function* () {
@@ -112,8 +114,8 @@ export const KccServiceLive = Layer.effect(
                   ]
                 }
 
-                console.log(`[kcc] Starting conversion: ${inputFilename}`)
-                console.log(`[kcc] Docker args: docker ${args.join(" ")}`)
+                Effect.runSync(log.info("kcc", `Starting conversion: ${inputFilename}`))
+                Effect.runSync(log.info("kcc", `Docker args: docker ${args.join(" ")}`))
 
                 const proc = spawn("docker", args)
 
@@ -122,28 +124,28 @@ export const KccServiceLive = Layer.effect(
 
                 proc.stdout.on("data", (data: Buffer) => {
                   stdout += data.toString()
-                  console.log(`[kcc] stdout: ${data.toString().trim()}`)
+                  Effect.runSync(log.info("kcc", `stdout: ${data.toString().trim()}`))
                 })
 
                 proc.stderr.on("data", (data: Buffer) => {
                   stderr += data.toString()
-                  console.log(`[kcc] stderr: ${data.toString().trim()}`)
+                  Effect.runSync(log.info("kcc", `stderr: ${data.toString().trim()}`))
                 })
 
                 proc.on("close", (code: number) => {
-                  console.log(`[kcc] Process exited with code ${code}`)
+                  Effect.runSync(log.info("kcc", `Process exited with code ${code}`))
                   if (code === 0) {
-                    console.log(`[kcc] Conversion succeeded for: ${inputFilename}`)
+                    Effect.runSync(log.info("kcc", `Conversion succeeded for: ${inputFilename}`))
                     resolve(stdout)
                   } else {
-                    console.error(`[kcc] Conversion failed for: ${inputFilename}`)
-                    console.error(`[kcc] stderr: ${stderr}`)
+                    Effect.runSync(log.error("kcc", `Conversion failed for: ${inputFilename}`))
+                    Effect.runSync(log.error("kcc", `stderr: ${stderr}`))
                     reject(new Error(`KCC exited with code ${code}: ${stderr}`))
                   }
                 })
 
                 proc.on("error", (err: Error) => {
-                  console.error(`[kcc] Failed to start KCC: ${err.message}`)
+                  Effect.runSync(log.error("kcc", `Failed to start KCC: ${err.message}`))
                   reject(new Error(`Failed to start KCC: ${err.message}`))
                 })
               }),

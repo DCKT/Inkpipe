@@ -71,12 +71,22 @@ function colorFor(namespace: string): (s: string) => string {
   return NAMESPACE_COLORS[namespace] ?? ansi.dim
 }
 
+function inspect(m: unknown): string {
+  if (typeof m === "string") return m
+  if (typeof (globalThis as any).Bun?.inspect === "function") return (globalThis as any).Bun.inspect(m)
+  try {
+    return JSON.stringify(m)
+  } catch {
+    return String(m)
+  }
+}
+
 function format(level: "INFO" | "WARN" | "ERROR", namespace: string, prefix: string, ...message: unknown[]) {
   const ts = ansi.dim(timestamp())
   const ns = colorFor(namespace)(namespace.padEnd(10))
   const levelColors: Record<string, string> = { INFO: ts, WARN: ansi.yellow("WARN "), ERROR: ansi.red("ERROR") }
   const lvl = levelColors[level]
-  const body = message.map((m) => (typeof m === "string" ? m : Bun.inspect(m))).join(" ")
+  const body = message.map(inspect).join(" ")
   const maybePrefix = prefix ? `${prefix} ` : ""
   process.stderr.write(`${lvl} ${ts} ${ns} ${maybePrefix}${body}\n`)
 }

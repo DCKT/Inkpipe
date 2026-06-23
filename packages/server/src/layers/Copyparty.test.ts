@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import type { AppConfig } from "@inkpipe/shared"
 import { CopypartyService, CopypartyServiceLive } from "./Copyparty"
 import { ConfigService } from "./Config"
+import { LogServiceLive } from "./Log"
 
 const testConfig: AppConfig = {
   prowlarr: { url: "", apiKey: "" },
@@ -32,7 +33,7 @@ function makeProgram<T>(prog: (svc: any) => Effect.Effect<T, any, any>) {
   return Effect.gen(function* () {
     const svc = yield* CopypartyService
     return yield* prog(svc)
-  }).pipe(Effect.provide(Layer.provide(CopypartyServiceLive, makeLayer()))) as Effect.Effect<T, unknown, never>
+  }).pipe(Effect.provide(Layer.provide(CopypartyServiceLive, Layer.merge(LogServiceLive, makeLayer())))) as Effect.Effect<T, unknown, never>
 }
 
 beforeEach(() => {
@@ -59,13 +60,16 @@ describe("CopypartyService", () => {
           Effect.provide(
             Layer.provide(
               CopypartyServiceLive,
-              Layer.succeed(ConfigService, {
-                loadConfig: Effect.succeed({
-                  ...testConfig,
-                  copyparty: { url: "", uploadPath: "/", password: "" },
-                }),
-                saveConfig: () => Effect.void,
-              } as any),
+              Layer.merge(
+                LogServiceLive,
+                Layer.succeed(ConfigService, {
+                  loadConfig: Effect.succeed({
+                    ...testConfig,
+                    copyparty: { url: "", uploadPath: "/", password: "" },
+                  }),
+                  saveConfig: () => Effect.void,
+                } as any),
+              ),
             ),
           ),
         ) as any,
@@ -129,13 +133,16 @@ describe("CopypartyService", () => {
           Effect.provide(
             Layer.provide(
               CopypartyServiceLive,
-              Layer.succeed(ConfigService, {
-                loadConfig: Effect.succeed({
-                  ...testConfig,
-                  copyparty: { url: "http://cp:3923", uploadPath: "/", password: "secret" },
-                }),
-                saveConfig: () => Effect.void,
-              } as any),
+              Layer.merge(
+                LogServiceLive,
+                Layer.succeed(ConfigService, {
+                  loadConfig: Effect.succeed({
+                    ...testConfig,
+                    copyparty: { url: "http://cp:3923", uploadPath: "/", password: "secret" },
+                  }),
+                  saveConfig: () => Effect.void,
+                } as any),
+              ),
             ),
           ),
         ) as any,
@@ -222,13 +229,16 @@ describe("CopypartyService", () => {
             Effect.provide(
               Layer.provide(
                 CopypartyServiceLive,
-                Layer.succeed(ConfigService, {
-                  loadConfig: Effect.succeed({
-                    ...testConfig,
-                    copyparty: { url: "", uploadPath: "/", password: "" },
-                  }),
-                  saveConfig: () => Effect.void,
-                } as any),
+                Layer.merge(
+                  LogServiceLive,
+                  Layer.succeed(ConfigService, {
+                    loadConfig: Effect.succeed({
+                      ...testConfig,
+                      copyparty: { url: "", uploadPath: "/", password: "" },
+                    }),
+                    saveConfig: () => Effect.void,
+                  } as any),
+                ),
               ),
             ),
           ) as any,
