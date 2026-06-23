@@ -1,5 +1,9 @@
 import { Effect } from "effect"
 import { WatchStoreService } from "../layers/WatchStore"
+import { ProwlarrService } from "../layers/Prowlarr"
+import { PushService } from "../layers/Push"
+import { matchesFilter } from "@inkpipe/shared"
+import type { WatchAlert } from "@inkpipe/shared"
 import {
   type CreateWatchRequest,
   type UpdateWatchRequest,
@@ -106,6 +110,58 @@ export const acknowledgeAllAlertsHandler = (watchId: string) =>
   }).pipe(
     Effect.catchAll((e: { message: string }) =>
       Effect.succeed(Response.json({ error: e.message }, { status: 500 })),
+    ),
+  )
+
+export const triggerWatchHandler = (id: string) =>
+  Effect.gen(function* () {
+    const store = yield* WatchStoreService
+    const prowlarr = yield* ProwlarrService
+    const push = yield* PushService
+
+    const watch = yield* store.getWatch(id)
+
+    const results = yield* prowlarr.search(watch.query).pipe(
+      Effect.catchAll(() => Effect.succeed([])),
+    )
+
+    let newAlerts = 0
+    let alertIdCounter = Date.now()
+
+    for (const result of results) {
+      if (watch.filterGroups.length > 0 && !matchesFilter(result.title, watch.filterGroups)) continue
+
+      const exists = yield* store.hasAlertForGuid(watch.id, result.guid)
+      if (exists) continue
+
+      const alert: WatchAlert = {
+        id: String(alertIdCounter++),
+        watchId: watch.id,
+        guid: result.guid,
+        title: result.title,
+        magnetUrl: result.magnetUrl,
+        size: result.size,
+        seeders: result.seeders,
+        indexer: result.indexer,
+        matchedAt: Date.now(),
+        acknowledged: false,
+      }
+      yield* store.insertAlert(alert)
+      newAlerts++
+    }
+
+    if (newAlerts > 0) {
+      yield* push.sendNotification({
+        title: `Watch: ${watch.name}`,
+        body: `${newAlerts} new match${newAlerts !== 1 ? "es" : ""} found`,
+        tag: `watch-${watch.id}`,
+      })
+    }
+
+    return Response.json({ matches: newAlerts })
+  }).pipe(
+    Effect.catchAll((e: { message: string }) =>
+      Effect.succeed(Response.json({ error: e.message }, { status: 404 })),
     ),
   )
 

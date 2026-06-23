@@ -230,6 +230,7 @@ export const WatchSchema = Schema.Struct({
   query: Schema.String,
   intervalSeconds: Schema.Number,
   filterGroups: Schema.Array(FilterGroupSchema),
+  unreadCount: Schema.optional(Schema.Number),
 });
 export type Watch = typeof WatchSchema.Type;
 

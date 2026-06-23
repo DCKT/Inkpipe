@@ -2,10 +2,14 @@ import { Effect, Layer } from "effect"
 import { type Watch, type WatchAlert, WatchStoreError, WatchNotFoundError } from "@inkpipe/shared"
 import { DbService } from "@inkpipe/db"
 
+export interface WatchWithUnread extends Watch {
+  unreadCount: number
+}
+
 export class WatchStoreService extends Effect.Tag("WatchStoreService")<
   WatchStoreService,
   {
-    readonly listWatches: Effect.Effect<Watch[], WatchStoreError>
+    readonly listWatches: Effect.Effect<WatchWithUnread[], WatchStoreError>
     readonly listEnabledWatches: Effect.Effect<Watch[], WatchStoreError>
     readonly getWatch: (id: string) => Effect.Effect<Watch, WatchNotFoundError | WatchStoreError>
     readonly createWatch: (watch: Omit<Watch, "id">) => Effect.Effect<Watch, WatchStoreError>
@@ -34,6 +38,13 @@ function rowToWatch(row: Record<string, unknown>): Watch {
   }
 }
 
+function rowToWatchWithUnread(row: Record<string, unknown> & { unread_count: number }): WatchWithUnread {
+  return {
+    ...rowToWatch(row),
+    unreadCount: row.unread_count,
+  }
+}
+
 function rowToAlert(row: Record<string, unknown>): WatchAlert {
   return {
     id: String(row.id),
@@ -56,8 +67,18 @@ export const WatchStoreServiceLive = Layer.effect(
 
     const listWatches = Effect.try({
       try: () => {
-        const rows = db.query("SELECT * FROM watches ORDER BY name").all() as Record<string, unknown>[]
-        return rows.map(rowToWatch)
+        const rows = db.query(
+          `SELECT w.*, COALESCE(a.unread, 0) AS unread_count
+           FROM watches w
+           LEFT JOIN (
+             SELECT watch_id, COUNT(*) AS unread
+             FROM watch_alerts
+             WHERE acknowledged = 0
+             GROUP BY watch_id
+           ) a ON a.watch_id = w.id
+           ORDER BY w.name`
+        ).all() as (Record<string, unknown> & { unread_count: number })[]
+        return rows.map(rowToWatchWithUnread)
       },
       catch: (e) => new WatchStoreError({ message: `Failed to list watches: ${String(e)}` }),
     })

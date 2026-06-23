@@ -50,6 +50,7 @@ import {
   acknowledgeAlertHandler,
   acknowledgeAllAlertsHandler,
   unreadCountHandler,
+  triggerWatchHandler,
 } from "./routes/watches"
 import { getVapidPublicKeyHandler, subscribeHandler, unsubscribeHandler } from "./routes/push"
 import type { AppConfig, ProwlarrResult, CreateWatchRequest, UpdateWatchRequest, PushSubscriptionRequest } from "@inkpipe/shared"
@@ -279,6 +280,10 @@ const server = Bun.serve({
       const alertsMatch = p.match(/^\/api\/watches\/([^\/]+)\/alerts$/)
       if (alertsMatch && m === "GET") {
         return api(await runtime.runPromise(listAlertsHandler(alertsMatch[1])))
+      }
+      const triggerMatch = p.match(/^\/api\/watches\/([^\/]+)\/trigger$/)
+      if (triggerMatch && m === "POST") {
+        return api(await runtime.runPromise(triggerWatchHandler(triggerMatch[1])))
       }
       const watchDetailMatch = p.match(/^\/api\/watches\/([^\/]+)$/)
       if (watchDetailMatch && m === "GET") {

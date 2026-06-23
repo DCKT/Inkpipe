@@ -10,22 +10,16 @@ export default function WatchesPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  const unreadQuery = useQuery({
-    queryKey: ["unread-count"],
-    queryFn: () => api.get("watches/unread-count").json<{ count: number }>(),
-    refetchInterval: 30_000,
-  })
-
   const watchesQuery = useQuery({
     queryKey: ["watches"],
     queryFn: () => api.get("watches").json<{ watches: Watch[] }>(),
+    refetchInterval: 30_000,
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`watches/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watches"] })
-      queryClient.invalidateQueries({ queryKey: ["unread-count"] })
       ToastGroup.create.success("Watch deleted")
     },
     onError: (err) => {
@@ -38,6 +32,35 @@ export default function WatchesPage() {
       api.put(`watches/${id}`, { json: { enabled } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watches"] })
+    },
+  })
+
+  const triggerMutation = useMutation({
+    mutationFn: (id: string) => api.post(`watches/${id}/trigger`).json<{ matches: number; error?: string }>(),
+    onSuccess: (data) => {
+      if (data.error) {
+        ToastGroup.create.error("Trigger failed", data.error)
+        return
+      }
+      if (data.matches === 0) {
+        ToastGroup.create.success("No new matches found")
+      } else {
+        ToastGroup.create.success(`${data.matches} new match${data.matches !== 1 ? "es" : ""} found`)
+      }
+      queryClient.invalidateQueries({ queryKey: ["watches"] })
+    },
+    onError: (err) => {
+      ToastGroup.create.error("Failed to trigger watch", err.message)
+    },
+  })
+
+  const dismissMutation = useMutation({
+    mutationFn: (watchId: string) => api.post(`watches/${watchId}/alerts/acknowledge-all`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["watches"] })
+    },
+    onError: (err) => {
+      ToastGroup.create.error("Failed to dismiss alerts", err.message)
     },
   })
 
@@ -86,12 +109,6 @@ export default function WatchesPage() {
         </div>
       )}
 
-      {unreadQuery.data && unreadQuery.data.count > 0 && (
-        <div className="island-shell mb-4 rounded-2xl border-[var(--chip-line)] p-3 text-sm text-[var(--lagoon)]">
-          {unreadQuery.data.count} unread alert{unreadQuery.data.count !== 1 ? "s" : ""}
-        </div>
-      )}
-
       {watchesQuery.isLoading && (
         <p className="text-sm text-[var(--sea-ink-soft)]">Loading watches...</p>
       )}
@@ -126,6 +143,11 @@ export default function WatchesPage() {
                   <span className={`text-xs px-1.5 py-0.5 rounded-full ${watch.enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                     {watch.enabled ? "Active" : "Paused"}
                   </span>
+                  {(watch.unreadCount ?? 0) > 0 && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-[var(--lagoon)]/10 text-[var(--lagoon)] font-medium">
+                      {watch.unreadCount} new
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-[var(--sea-ink-soft)] mt-0.5 truncate">
                   Query: {watch.query} · Every {watch.intervalSeconds}s
@@ -135,6 +157,29 @@ export default function WatchesPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 ml-3 shrink-0">
+                {(watch.unreadCount ?? 0) > 0 && (
+                  <button
+                    className="text-xs text-[var(--sea-ink-soft)] hover:text-[var(--sea-ink)] px-2 py-1 rounded-lg hover:bg-[var(--chip-bg)] transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      dismissMutation.mutate(watch.id)
+                    }}
+                  >
+                    Dismiss
+                  </button>
+                )}
+                <button
+                  className="text-xs text-[var(--lagoon)] hover:text-[var(--lagoon)]/80 px-2 py-1 rounded-lg hover:bg-[var(--chip-bg)] transition-colors disabled:opacity-50"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    triggerMutation.mutate(watch.id)
+                  }}
+                  disabled={triggerMutation.isPending}
+                >
+                  {triggerMutation.isPending && triggerMutation.variables === watch.id
+                    ? "Running..."
+                    : "Run Now"}
+                </button>
                 <button
                   className="text-xs text-[var(--sea-ink-soft)] hover:text-[var(--sea-ink)] px-2 py-1 rounded-lg hover:bg-[var(--chip-bg)] transition-colors"
                   onClick={(e) => {

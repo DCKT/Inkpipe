@@ -1,48 +1,110 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useParams, useNavigate } from "react-router-dom"
-import { api } from "../hooks/useApiClient"
-import type { Watch, WatchAlert } from "../lib/types"
-import { ToastGroup } from "../ui/toast"
-import { WatchFormDialog } from "../components/WatchForm"
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useParams, useNavigate } from "react-router-dom";
+import { api } from "../hooks/useApiClient";
+import type { Watch, WatchAlert, ProwlarrResult } from "../lib/types";
+import { ToastGroup } from "../ui/toast";
+import { WatchFormDialog } from "../components/WatchForm";
+import DownloadModal from "../components/DownloadModal";
 
 export default function WatchDetailPage() {
-  const { id } = useParams<{ id: string }>()
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const [modalItems, setModalItems] = useState<ProwlarrResult[] | null>(null);
 
   const watchQuery = useQuery({
     queryKey: ["watches", id],
     queryFn: () => api.get(`watches/${id}`).json<Watch>(),
     enabled: !!id,
-  })
+  });
 
   const alertsQuery = useQuery({
     queryKey: ["watch-alerts", id],
-    queryFn: () => api.get(`watches/${id}/alerts`).json<{ alerts: WatchAlert[] }>(),
+    queryFn: () =>
+      api.get(`watches/${id}/alerts`).json<{ alerts: WatchAlert[] }>(),
     enabled: !!id,
     refetchInterval: 60_000,
-  })
+  });
 
   const ackMutation = useMutation({
     mutationFn: (alertId: string) =>
       api.post(`watches/${id}/alerts/${alertId}/acknowledge`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
-      queryClient.invalidateQueries({ queryKey: ["unread-count"] })
+      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
+      queryClient.invalidateQueries({ queryKey: ["unread-count"] });
     },
-  })
+  });
 
   const ackAllMutation = useMutation({
     mutationFn: () => api.post(`watches/${id}/alerts/acknowledge-all`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
-      queryClient.invalidateQueries({ queryKey: ["unread-count"] })
-      ToastGroup.create.success("All alerts acknowledged")
+      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
+      queryClient.invalidateQueries({ queryKey: ["unread-count"] });
+      ToastGroup.create.success("All alerts acknowledged");
     },
-  })
+  });
 
-  const alerts = alertsQuery.data?.alerts ?? []
-  const unacknowledgedCount = alerts.filter((a) => !a.acknowledged).length
+  const downloadMutation = useMutation({
+    mutationFn: (vars: {
+      items: ProwlarrResult[];
+      subfolder?: string;
+      newFolder?: boolean;
+      alertId: string;
+    }) =>
+      api
+        .post("download", {
+          json: {
+            items: vars.items,
+            subfolder: vars.subfolder,
+            newFolder: vars.newFolder,
+          },
+        })
+        .json<{ started: number }>(),
+    onSuccess: (data, { alertId }) => {
+      queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] });
+      api.post(`watches/${id}/alerts/${alertId}/acknowledge`);
+      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
+      queryClient.invalidateQueries({ queryKey: ["unread-count"] });
+      ToastGroup.create.success(
+        `Started ${data.started} download`,
+        "Check the Jobs page for progress.",
+      );
+    },
+    onError: (err) => {
+      ToastGroup.create.error("Failed to start download", err.message);
+    },
+  });
+
+  const alerts = alertsQuery.data?.alerts ?? [];
+  const unacknowledgedCount = alerts.filter((a) => !a.acknowledged).length;
+
+  const alertToProwlarrResult = (alert: WatchAlert): ProwlarrResult => ({
+    title: alert.title,
+    guid: alert.guid,
+    magnetUrl: alert.magnetUrl,
+    downloadUrl: null,
+    size: alert.size,
+    seeders: alert.seeders,
+    indexer: alert.indexer,
+    categories: [],
+    publishDate: null,
+  });
+
+  const handleModalClose = () => setModalItems(null);
+
+  const handleModalConfirm = (
+    items: ProwlarrResult[],
+    subfolder?: string,
+    newFolder?: boolean,
+  ) => {
+    const alertId = alerts.find((a) => a.guid === items[0]?.guid)?.id;
+    if (alertId) {
+      downloadMutation.mutate({ items, subfolder, newFolder, alertId });
+    }
+    setModalItems(null);
+  };
 
   return (
     <main className="page-wrap px-4 pb-8 pt-8">
@@ -69,13 +131,20 @@ export default function WatchDetailPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="display-title text-3xl font-bold text-[var(--sea-ink)]">
+              <h1 className="display-title text-4xl font-bold text-[var(--sea-ink)]">
                 {watchQuery.data.name}
               </h1>
               <p className="text-sm text-[var(--sea-ink-soft)] mt-1">
-                Query: <code className="text-xs bg-[var(--chip-bg)] px-1.5 py-0.5 rounded">{watchQuery.data.query}</code>
-                {" "}· Every {watchQuery.data.intervalSeconds}s
-                {" "}· <span className={watchQuery.data.enabled ? "text-green-600" : "text-gray-400"}>
+                Query:{" "}
+                <code className="text-xs bg-[var(--chip-bg)] px-1.5 py-0.5 rounded">
+                  {watchQuery.data.query}
+                </code>{" "}
+                · Every {watchQuery.data.intervalSeconds}s ·{" "}
+                <span
+                  className={
+                    watchQuery.data.enabled ? "text-green-600" : "text-gray-400"
+                  }
+                >
                   {watchQuery.data.enabled ? "Active" : "Paused"}
                 </span>
               </p>
@@ -95,8 +164,8 @@ export default function WatchDetailPage() {
             <WatchFormDialog
               existing={watchQuery.data}
               onCreated={() => {
-                queryClient.invalidateQueries({ queryKey: ["watches", id] })
-                queryClient.invalidateQueries({ queryKey: ["watches"] })
+                queryClient.invalidateQueries({ queryKey: ["watches", id] });
+                queryClient.invalidateQueries({ queryKey: ["watches"] });
               }}
             />
           </div>
@@ -136,7 +205,8 @@ export default function WatchDetailPage() {
       {alerts.length === 0 && (
         <div className="island-shell rounded-2xl p-8 text-center">
           <p className="text-sm text-[var(--sea-ink-soft)]">
-            No alerts yet. Alerts appear here when new Prowlarr results match your filters.
+            No alerts yet. Alerts appear here when new Prowlarr results match
+            your filters.
           </p>
         </div>
       )}
@@ -150,30 +220,52 @@ export default function WatchDetailPage() {
             }`}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-[var(--sea-ink)] truncate">{alert.title}</p>
+              <p className="text-sm text-[var(--sea-ink)] truncate">
+                {alert.title}
+              </p>
               <p className="text-xs text-[var(--sea-ink-soft)] mt-0.5">
-                {alert.indexer} · {alert.seeders} seeders · {formatSize(alert.size)} ·{" "}
+                {alert.indexer} · {alert.seeders} seeders ·{" "}
+                {formatSize(alert.size)} ·{" "}
                 {new Date(alert.matchedAt).toLocaleString()}
               </p>
             </div>
-            {!alert.acknowledged && (
+            <div className="flex items-center gap-2 ml-3 shrink-0">
               <button
-                className="text-xs text-[var(--lagoon)] hover:text-[var(--lagoon-deep)] ml-3 shrink-0 px-2 py-1 rounded-lg hover:bg-[var(--chip-bg)] transition-colors"
-                onClick={() => ackMutation.mutate(alert.id)}
+                className="text-xs text-[var(--lagoon)] hover:text-[var(--lagoon)]/80 px-2 py-1 rounded-lg hover:bg-[var(--chip-bg)] transition-colors"
+                onClick={() => setModalItems([alertToProwlarrResult(alert)])}
               >
-                Acknowledge
+                Download
               </button>
-            )}
+              {!alert.acknowledged && (
+                <button
+                  className="text-xs text-[var(--sea-ink-soft)] hover:text-[var(--sea-ink)] px-2 py-1 rounded-lg hover:bg-[var(--chip-bg)] transition-colors"
+                  onClick={() => ackMutation.mutate(alert.id)}
+                >
+                  Acknowledge
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
+
+      {modalItems && (
+        <DownloadModal
+          items={modalItems}
+          onConfirm={handleModalConfirm}
+          onClose={handleModalClose}
+        />
+      )}
     </main>
-  )
+  );
 }
 
 function formatSize(bytes: number): string {
-  if (bytes === 0) return "0 B"
-  const units = ["B", "KB", "MB", "GB"]
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const i = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
 }
