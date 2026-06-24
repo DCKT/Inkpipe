@@ -12,13 +12,15 @@ Manga/comic pipeline: search, download, convert, and upload to your e-reader.
 
 ## Architecture
 
-Monorepo: three packages managed by Bun workspaces.
+Monorepo: five packages managed by Bun workspaces.
 
 | Package | Description | Stack |
 |---------|-------------|-------|
 | `packages/shared` | Domain types, API contracts, errors | Effect Schema v3 |
-| `packages/server` | HTTP API + pipeline orchestration | Bun.serve, Effect TS, Bun SQLite |
-| `packages/web` | React SPA frontend | React Router v7, TanStack Query, Tailwind v4 |
+| `packages/db` | SQLite database layer (WAL mode) | Bun SQLite, Effect v3 |
+| `packages/server` | HTTP API + pipeline orchestration | Bun.serve, Effect v3, @effect/platform |
+| `packages/watcher` | Background watch process | Effect v3, web-push |
+| `packages/web` | React SPA frontend | React 19, React Router v7, Ark UI v5, Tailwind v4, TanStack Query v5, ky |
 
 ## Local development
 
