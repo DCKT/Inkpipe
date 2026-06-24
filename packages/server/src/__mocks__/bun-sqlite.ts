@@ -1,163 +1,180 @@
-// Mock for bun:sqlite in vitest (Node.js environment)
-// Map-backed in-memory storage so Config + JobStore live layers can be tested.
+interface RunResult {
+  changes: number
+  lastInsertRowid: number | bigint
+}
 
-type Row = Record<string, unknown>
+interface QueryResult {
+  all: (...params: unknown[]) => Record<string, unknown>[]
+  values: (...params: unknown[]) => unknown[][]
+  get: (...params: unknown[]) => Record<string, unknown> | undefined
+}
 
-const tables = new Map<string, Row[]>()
+const tables = new Map<string, Record<string, unknown>[]>()
 
-function ensureTable(name: string): Row[] {
-  let rows = tables.get(name)
-  if (!rows) {
-    rows = []
-    tables.set(name, rows)
+function parseInsert(sql: string): { table: string; values: Record<string, unknown> } | null {
+  const match = sql.match(/insert\s+into\s+(\w+)\s*\(([^)]+)\)\s*values\s*\(([^)]+)\)/i)
+  if (!match) return null
+  const table = match[1]
+  const cols = match[2].split(",").map((c) => c.trim())
+  const vals = match[3].split(",").map((v) => {
+    const trimmed = v.trim()
+    if (trimmed === "NULL") return null
+    if (trimmed.startsWith("'") || trimmed.startsWith("\"")) return trimmed.slice(1, -1)
+    const num = Number(trimmed)
+    if (!isNaN(num)) return num
+    return trimmed
+  })
+  const row: Record<string, unknown> = {}
+  for (let i = 0; i < cols.length; i++) {
+    row[cols[i]] = vals[i]
   }
-  return rows
+  return { table, values: row }
 }
 
-// Very simple SQL subset parser — enough for the SQL used in this project.
-function parseInsertColumns(sql: string): string[] | null {
-  const m = sql.match(/insert\s+(?:or\s+replace\s+)?into\s+\w+\s*\(([^)]+)\)/i)
-  if (!m) return null
-  return m[1].split(",").map((s) => s.trim())
+function parseCreateTable(sql: string): { table: string; columns: string[] } | null {
+  const match = sql.match(/create\s+table\s+(?:if\s+not\s+exists\s+)?(\w+)\s*\((.+)\)/is)
+  if (!match) return null
+  return { table: match[1], columns: [] }
 }
 
-function parseUpdateTableAndSets(sql: string): { table: string; sets: string[] } | null {
-  const m = sql.match(/update\s+(\w+)\s+set\s+(.+?)\s+where/i)
-  if (!m) return null
-  return { table: m[1], sets: m[2].split(",").map((s) => s.trim()) }
-}
+class Database {
+  constructor(public filename: string, _options?: Record<string, unknown>) {}
 
-function parseSelectColumns(sql: string): string[] {
-  const m = sql.match(/select\s+(.+?)\s+from/i)
-  if (!m) return []
-  if (m[1].trim() === "*") return []
-  return m[1].split(",").map((s) => s.trim())
-}
+  run(sql: string, ..._params: unknown[]): RunResult {
+    const sqlLower = sql.toLowerCase().trim()
 
-function parseSelectFrom(sql: string): string {
-  const m = sql.match(/from\s+(\w+)/i)
-  return m?.[1] ?? ""
-}
+    if (sqlLower.startsWith("create")) {
+      const parsed = parseCreateTable(sql)
+      if (parsed && !tables.has(parsed.table)) {
+        tables.set(parsed.table, [])
+      }
+      return { changes: 0, lastInsertRowid: 0 }
+    }
 
-function parseWhereColumn(sql: string): string | null {
-  const m = sql.match(/where\s+(\w+)\s*=/i)
-  return m?.[1] ?? null
-}
+    if (sqlLower.startsWith("insert")) {
+      const parsed = parseInsert(sql)
+      if (parsed) {
+        if (!tables.has(parsed.table)) tables.set(parsed.table, [])
+        const rows = tables.get(parsed.table)!
+        const id = rows.length > 0 ? (rows[rows.length - 1].id as number) + 1 : 1
+        const newRow = { id, ...parsed.values }
+        rows.push(newRow)
+        return { changes: 1, lastInsertRowid: id }
+      }
+    }
 
-export class Database {
-  constructor(_dbPath: string) {
-    void _dbPath
-  }
+    if (sqlLower.startsWith("delete")) {
+      const tableMatch = sqlLower.match(/delete\s+from\s+(\w+)/i)
+      if (tableMatch && tables.has(tableMatch[1])) {
+        const initial = tables.get(tableMatch[1])!.length
+        tables.set(tableMatch[1], [])
+        return { changes: initial, lastInsertRowid: 0 }
+      }
+    }
 
-  run(_sql: string): { changes: number; lastInsertRowid: number } {
-    const sql = _sql.trim()
-    if (sql.toUpperCase().startsWith("PRAGMA")) return { changes: 0, lastInsertRowid: 0 }
+    if (sqlLower.startsWith("pragma")) {
+      return { changes: 0, lastInsertRowid: 0 }
+    }
 
-    const createMatch = sql.match(/create\s+table\s+(?:if\s+not\s+exists\s+)?(\w+)/i)
-    if (createMatch) {
-      ensureTable(createMatch[1])
+    if (sqlLower.startsWith("insert or replace")) {
+      const insertMatch = sql.match(/insert\s+or\s+replace\s+into\s+(\w+)\s*\(([^)]+)\)\s*values\s*\(([^)]+)\)/i)
+      if (insertMatch) {
+        const table = insertMatch[1]
+        const cols = insertMatch[2].split(",").map((c) => c.trim())
+        const vals = insertMatch[3].split(",").map((v) => {
+          const trimmed = v.trim()
+          if (trimmed === "NULL") return null
+          if (trimmed.startsWith("'")) return trimmed.slice(1, -1)
+          const num = Number(trimmed)
+          if (!isNaN(num)) return num
+          return trimmed
+        })
+        if (!tables.has(table)) tables.set(table, [])
+        const rows = tables.get(table)!
+        const existingIdx = rows.findIndex((r: Record<string, unknown>) => r.key === vals[0])
+        const row: Record<string, unknown> = {}
+        for (let i = 0; i < cols.length; i++) row[cols[i]] = vals[i]
+        if (existingIdx >= 0) {
+          rows[existingIdx] = { ...rows[existingIdx], ...row }
+        } else {
+          rows.push(row)
+        }
+        return { changes: 1, lastInsertRowid: 0 }
+      }
+    }
+
+    if (sqlLower.startsWith("update")) {
       return { changes: 0, lastInsertRowid: 0 }
     }
 
     return { changes: 0, lastInsertRowid: 0 }
   }
 
-  prepare(sql: string) {
-    const trimmed = sql.trim()
-    const upper = trimmed.toUpperCase()
+  query(sql: string): QueryResult {
+    const sqlLower = sql.trim().toLowerCase()
 
-    if (upper.startsWith("INSERT")) {
-      const columns = parseInsertColumns(trimmed)
-      const tableMatch = trimmed.match(/into\s+(\w+)/i)
-      const table = tableMatch?.[1] ?? ""
+    const selectMatch = sqlLower.match(/select\s+(.+?)\s+from\s+(\w+)/i)
+    let table: string | undefined
+    if (selectMatch) table = selectMatch[2]
 
+    if (table && sqlLower.includes("sqlite_master")) {
       return {
-        run: (...params: unknown[]) => {
-          const rows = ensureTable(table)
-          const row: Row = {}
-          if (columns) {
-            for (let i = 0; i < columns.length; i++) {
-              row[columns[i]] = params[i] ?? null
-            }
+        all: (..._params: unknown[]) => {
+          const result: Record<string, unknown>[] = []
+          for (const [name] of tables) {
+            result.push({ type: "table", name })
           }
-          // INSERT OR REPLACE: remove existing row with same PK (first column)
-          if (columns && columns.length > 0) {
-            const pkCol = columns[0]
-            const idx = rows.findIndex((r) => r[pkCol] === row[pkCol])
-            if (idx >= 0) rows.splice(idx, 1)
-          }
-          rows.push(row)
-          return { changes: 1, lastInsertRowid: rows.length }
+          return result
         },
-        all: () => [],
-        get: () => undefined,
+        values: (..._params: unknown[]) => [],
+        get: (..._params: unknown[]) => undefined,
       }
     }
 
-    if (upper.startsWith("UPDATE")) {
-      const parsed = parseUpdateTableAndSets(trimmed)
-      return {
-        run: (...params: unknown[]) => {
-          if (!parsed) return { changes: 0, lastInsertRowid: 0 }
-          const rows = ensureTable(parsed.table)
-          const whereCol = parseWhereColumn(trimmed)
-          const whereVal = params[params.length - 1] // last param is WHERE value
-          const setValues = params.slice(0, -1)
+    if (table && tables.has(table)) {
+      const allRows = tables.get(table)!
 
-          for (const row of rows) {
-            if (whereCol && row[whereCol] === whereVal) {
-              for (let i = 0; i < parsed.sets.length; i++) {
-                const col = parsed.sets[i].split("=")[0].trim()
-                row[col] = setValues[i] ?? null
-              }
-            }
-          }
-          return { changes: 1, lastInsertRowid: 0 }
+      return {
+        all: (..._params: unknown[]) => {
+          return allRows.map((r: Record<string, unknown>) => ({ ...r }))
         },
-        all: () => [],
-        get: () => undefined,
+        values: (..._params: unknown[]) => {
+          return allRows.map((r: Record<string, unknown>) => Object.values(r))
+        },
+        get: (..._params: unknown[]) => {
+          return allRows.length > 0 ? { ...allRows[0] } : undefined
+        },
       }
     }
 
-    // Default
     return {
-      run: () => ({ changes: 0, lastInsertRowid: 0 }),
-      all: () => [],
-      get: () => undefined,
+      all: (..._params: unknown[]) => [],
+      values: (..._params: unknown[]) => [],
+      get: (..._params: unknown[]) => undefined,
     }
   }
 
-  query(sql: string) {
-    const trimmed = sql.trim()
-    const table = parseSelectFrom(trimmed)
-    parseSelectColumns(trimmed)
-    const whereCol = parseWhereColumn(trimmed)
-
+  prepare(_sql: string) {
     return {
-      all: () => {
-        const rows = ensureTable(table)
-        if (trimmed.toUpperCase().includes("ORDER BY")) {
-          return [...rows] as Row[]
-        }
-        return rows as Row[]
-      },
-      get: (...params: unknown[]) => {
-        const rows = ensureTable(table)
-        if (whereCol && params.length > 0) {
-          return rows.find((r) => r[whereCol] === params[0]) as Row | undefined
-        }
-        return rows[0] as Row | undefined
-      },
+      run: (..._params: unknown[]) => this.run(_sql, ..._params),
+      all: (..._params: unknown[]) => this.query(_sql).all(..._params),
+      get: (..._params: unknown[]) => this.query(_sql).get(..._params),
+      values: (..._params: unknown[]) => this.query(_sql).values(..._params),
     }
   }
 
+  close() {}
+  serialize(): Uint8Array {
+    return new Uint8Array()
+  }
+  loadExtension(_path: string) {}
   transaction(fn: () => void): () => void {
-    // Return fn so caller can invoke it (e.g. `const runAll = db.transaction(...); runAll()`)
     return fn
   }
 }
 
-// Reset all tables — called in beforeEach
-export function resetMockDb(): void {
+export function resetMockDb() {
   tables.clear()
 }
+
+export { Database }

@@ -1,60 +1,65 @@
 import { Effect, Layer } from "effect"
-import { Database } from "bun:sqlite"
+import { SqlClient } from "@effect/sql"
+import { SqliteClient } from "@effect/sql-sqlite-bun"
 import { join } from "node:path"
 import { homedir } from "node:os"
 import { mkdirSync } from "node:fs"
 
+import migration_0001 from "./migrations/0001_initial"
+
 const CONFIG_DIR = join(homedir(), ".inkpipe")
-const DB_PATH = join(CONFIG_DIR, "inkpipe.db")
+export const DB_PATH = join(CONFIG_DIR, "inkpipe.db")
 
-let _db: Database | null = null
+mkdirSync(CONFIG_DIR, { recursive: true })
 
-export function getDb(): Database {
-  if (_db) return _db
-  mkdirSync(CONFIG_DIR, { recursive: true })
-  _db = new Database(DB_PATH, { create: true })
-  _db.run("PRAGMA journal_mode=WAL")
-  _db.run(
-    "CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)",
-  )
-  _db.run(
-    `CREATE TABLE IF NOT EXISTS watches (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      enabled INTEGER NOT NULL DEFAULT 1,
-      query TEXT NOT NULL,
-      interval_seconds INTEGER NOT NULL,
-      filter_groups TEXT NOT NULL
-    )`,
-  )
-  _db.run(
-    `CREATE TABLE IF NOT EXISTS watch_alerts (
-      id TEXT PRIMARY KEY,
-      watch_id TEXT NOT NULL,
-      guid TEXT NOT NULL,
-      title TEXT NOT NULL,
-      magnet_url TEXT,
-      size INTEGER NOT NULL DEFAULT 0,
-      seeders INTEGER NOT NULL DEFAULT 0,
-      indexer TEXT NOT NULL DEFAULT '',
-      matched_at INTEGER NOT NULL,
-      acknowledged INTEGER NOT NULL DEFAULT 0,
-      UNIQUE(watch_id, guid)
-    )`,
-  )
-  _db.run(
-    `CREATE TABLE IF NOT EXISTS jobs (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      stage TEXT NOT NULL DEFAULT 'UPLOADING',
-      progress INTEGER NOT NULL DEFAULT 0,
-      error TEXT,
-      startedAt INTEGER NOT NULL
-    )`,
-  )
-  return _db
+function toSnakeCase(str: string): string {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
 }
 
-export class DbService extends Effect.Tag("DbService")<DbService, { readonly db: Database }>() {}
+function toCamelCase(str: string): string {
+  return str.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())
+}
 
-export const DbServiceLive = Layer.effect(DbService, Effect.sync(() => ({ db: getDb() })))
+export const DbLayer = SqliteClient.layer({
+  filename: DB_PATH,
+  disableWAL: false,
+  transformQueryNames: toSnakeCase,
+  transformResultNames: toCamelCase,
+})
+
+export const runMigrations = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient
+
+  yield* sql`
+    CREATE TABLE IF NOT EXISTS effect_sql_migrations (
+      migration_id INTEGER PRIMARY KEY NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      name TEXT NOT NULL
+    )
+  `
+
+  const applied = yield* sql<{ migration_id: number }>`
+    SELECT migration_id FROM effect_sql_migrations ORDER BY migration_id
+  `
+  const appliedIds = new Set(applied.map((r: { migration_id: number }) => r.migration_id))
+
+  const migrations: Array<{ id: number; name: string; effect: typeof migration_0001 }> = [
+    { id: 1, name: "0001_initial", effect: migration_0001 },
+  ]
+
+  for (const migration of migrations) {
+    if (!appliedIds.has(migration.id)) {
+      yield* sql.withTransaction(
+        Effect.gen(function* () {
+          yield* migration.effect
+          yield* sql`INSERT OR IGNORE INTO effect_sql_migrations (migration_id, name) VALUES (${migration.id}, ${migration.name})`
+        }),
+      )
+    }
+  }
+})
+
+export const DbMigratedLayer = Layer.mergeAll(
+  DbLayer,
+  Layer.effectDiscard(runMigrations).pipe(Layer.provide(DbLayer)),
+)

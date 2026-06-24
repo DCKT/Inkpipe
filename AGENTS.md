@@ -16,7 +16,7 @@
                     ▼
 ┌─────────────────────────────────────────────┐
 │            PERSISTENCE (packages/db)          │
-│  bun:sqlite at ~/.inkpipe/inkpipe.db          │
+│  @effect/sql-sqlite-bun at ~/.inkpipe/inkpipe.db │
 │  WAL mode — allows concurrent readers        │
 └─────────────────────────────────────────────┘
            ▲                    ▲

@@ -2,13 +2,8 @@ import { Effect } from "effect"
 import { WatchStoreService } from "../layers/WatchStore"
 import { ProwlarrService } from "../layers/Prowlarr"
 import { PushService } from "../layers/Push"
-import { matchesFilter } from "@inkpipe/shared"
-import type { WatchAlert } from "@inkpipe/shared"
-import {
-  type CreateWatchRequest,
-  type UpdateWatchRequest,
-  type Watch,
-} from "@inkpipe/shared"
+import { matchesFilter, WatchId, WatchAlertId } from "@inkpipe/shared"
+import type { CreateWatchRequest, UpdateWatchRequest, Watch } from "@inkpipe/shared"
 
 export const listWatchesHandler = Effect.gen(function* () {
   const store = yield* WatchStoreService
@@ -23,8 +18,8 @@ export const listWatchesHandler = Effect.gen(function* () {
 export const getWatchHandler = (id: string) =>
   Effect.gen(function* () {
     const store = yield* WatchStoreService
-    const watch = yield* store.getWatch(id)
-    return Response.json(watch satisfies Watch)
+    const watch = yield* store.getWatch(WatchId.make(Number(id)))
+    return Response.json(watch)
   }).pipe(
     Effect.catchAll((e: { message: string }) =>
       Effect.succeed(Response.json({ error: e.message }, { status: 404 })),
@@ -47,7 +42,7 @@ export const createWatchHandler = (body: CreateWatchRequest) =>
       intervalSeconds: body.intervalSeconds,
       filterGroups: body.filterGroups ?? [],
     })
-    return Response.json(watch satisfies Watch, { status: 201 })
+    return Response.json(watch, { status: 201 })
   }).pipe(
     Effect.catchAll((e: { message: string }) =>
       Effect.succeed(Response.json({ error: e.message }, { status: 500 })),
@@ -60,8 +55,8 @@ export const updateWatchHandler = (id: string, body: UpdateWatchRequest) =>
       return Response.json({ error: "intervalSeconds must be at least 300" }, { status: 400 })
     }
     const store = yield* WatchStoreService
-    const watch = yield* store.updateWatch(id, body)
-    return Response.json(watch satisfies Watch)
+    const watch = yield* store.updateWatch(WatchId.make(Number(id)), body as Partial<{ name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"] }>)
+    return Response.json(watch)
   }).pipe(
     Effect.catchAll((e: { message: string }) =>
       Effect.succeed(Response.json({ error: e.message }, { status: 404 })),
@@ -71,7 +66,7 @@ export const updateWatchHandler = (id: string, body: UpdateWatchRequest) =>
 export const deleteWatchHandler = (id: string) =>
   Effect.gen(function* () {
     const store = yield* WatchStoreService
-    yield* store.deleteWatch(id)
+    yield* store.deleteWatch(WatchId.make(Number(id)))
     return Response.json({ success: true })
   }).pipe(
     Effect.catchAll((e: { message: string }) =>
@@ -82,8 +77,9 @@ export const deleteWatchHandler = (id: string) =>
 export const listAlertsHandler = (watchId: string) =>
   Effect.gen(function* () {
     const store = yield* WatchStoreService
-    yield* store.getWatch(watchId)
-    const alerts = yield* store.listAlerts(watchId)
+    const wid = WatchId.make(Number(watchId))
+    yield* store.getWatch(wid)
+    const alerts = yield* store.listAlerts(wid)
     return Response.json({ alerts })
   }).pipe(
     Effect.catchAll((e: { message: string }) =>
@@ -94,7 +90,7 @@ export const listAlertsHandler = (watchId: string) =>
 export const acknowledgeAlertHandler = (watchId: string, alertId: string) =>
   Effect.gen(function* () {
     const store = yield* WatchStoreService
-    yield* store.acknowledgeAlert(watchId, alertId)
+    yield* store.acknowledgeAlert(WatchId.make(Number(watchId)), WatchAlertId.make(Number(alertId)))
     return Response.json({ success: true })
   }).pipe(
     Effect.catchAll((e: { message: string }) =>
@@ -105,7 +101,7 @@ export const acknowledgeAlertHandler = (watchId: string, alertId: string) =>
 export const acknowledgeAllAlertsHandler = (watchId: string) =>
   Effect.gen(function* () {
     const store = yield* WatchStoreService
-    yield* store.acknowledgeAllAlerts(watchId)
+    yield* store.acknowledgeAllAlerts(WatchId.make(Number(watchId)))
     return Response.json({ success: true })
   }).pipe(
     Effect.catchAll((e: { message: string }) =>
@@ -119,14 +115,13 @@ export const triggerWatchHandler = (id: string) =>
     const prowlarr = yield* ProwlarrService
     const push = yield* PushService
 
-    const watch = yield* store.getWatch(id)
+    const watch = yield* store.getWatch(WatchId.make(Number(id)))
 
     const results = yield* prowlarr.search(watch.query).pipe(
       Effect.catchAll(() => Effect.succeed([])),
     )
 
     let newAlerts = 0
-    let alertIdCounter = Date.now()
 
     for (const result of results) {
       if (watch.filterGroups.length > 0 && !matchesFilter(result.title, watch.filterGroups)) continue
@@ -134,8 +129,7 @@ export const triggerWatchHandler = (id: string) =>
       const exists = yield* store.hasAlertForGuid(watch.id, result.guid)
       if (exists) continue
 
-      const alert: WatchAlert = {
-        id: String(alertIdCounter++),
+      yield* store.insertAlert({
         watchId: watch.id,
         guid: result.guid,
         title: result.title,
@@ -145,8 +139,7 @@ export const triggerWatchHandler = (id: string) =>
         indexer: result.indexer,
         matchedAt: Date.now(),
         acknowledged: false,
-      }
-      yield* store.insertAlert(alert)
+      })
       newAlerts++
     }
 

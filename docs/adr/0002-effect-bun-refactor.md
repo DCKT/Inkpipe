@@ -46,4 +46,4 @@ Three-package monorepo:
 
 ## Status
 
-Accepted (2026-06-13)
+Accepted (2026-06-13). The SQL alternative (raw `bun:sqlite`) was later superseded by [ADR 0007](./0007-effect-sql-migration.md) (2026-06-24), which migrated to `@effect/sql` + `@effect/sql-sqlite-bun`.

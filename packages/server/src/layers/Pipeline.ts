@@ -48,7 +48,7 @@ export const PipelineServiceLive = Layer.effect(
         }
 
         const job = yield* jobStore.createJob(result.title)
-        const jl = log.withJob(job.id)
+        const jl = log.withJob(String(job.id))
         yield* jl.info("jobs", "Created job")
 
         let magnetId: number | null = null
@@ -99,7 +99,7 @@ export const PipelineServiceLive = Layer.effect(
           // Stage 3: Download
           yield* jl.info("pipeline", "Stage: DOWNLOADING (" + debridFiles.length + " files)")
           yield* jobStore.updateJob(job.id, { stage: "DOWNLOADING" })
-          const jobDir = yield* fileManager.ensureJobDir(job.id)
+          const jobDir = yield* fileManager.ensureJobDir(String(job.id))
           yield* jl.info("pipeline", "Job dir:", jobDir)
 
           for (let i = 0; i < debridFiles.length; i++) {
@@ -188,7 +188,7 @@ export const PipelineServiceLive = Layer.effect(
         const cleanup = Effect.gen(function* () {
           yield* jl.info("pipeline", "Cleaning up")
           yield* Effect.catchAll(
-            fileManager.cleanupJobDir(job.id),
+            fileManager.cleanupJobDir(String(job.id)),
             () => Effect.void,
           )
           if (magnetId !== null) {

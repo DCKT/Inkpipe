@@ -19,8 +19,8 @@ Manga/comic pipeline: search for content via Prowlarr, download torrents via All
 
 Monorepo with five packages:
 - `packages/shared` — Effect Schema domain types, API contracts, error types, utility functions
-- `packages/db` — SQLite database connection factory, shared by server and watcher
-- `packages/server` — Bun HTTP server with Effect TS. Bun SQLite for persistence. All IO via Effect services.
+- `packages/db` — SQLite database connection factory via `@effect/sql-sqlite-bun`, versioned migrations, shared by server and watcher
+- `packages/server` — Bun HTTP server with Effect TS. `@effect/sql` (`@effect/sql-sqlite-bun`) for persistence. All IO via Effect services.
 - `packages/watcher` — Effect-based scheduled process. Reuses server layer services (ConfigService, ProwlarrService, WatchStoreService) for Watch scheduling and alert generation. Runs as a separate Bun process for fault isolation.
 - `packages/web` — React SPA with React Router v7, TanStack React Query, Tailwind CSS v4. Communicates with server via REST API.
 

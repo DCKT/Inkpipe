@@ -1,8 +1,7 @@
 import { Layer, ManagedRuntime } from "effect"
 import { existsSync } from "node:fs"
 import { resolve } from "node:path"
-import { DbServiceLive } from "@inkpipe/db"
-import type { DbService } from "@inkpipe/db"
+import { DbMigratedLayer } from "@inkpipe/db"
 import { ConfigServiceLive } from "./layers/Config"
 import type { ConfigService } from "./layers/Config"
 import { JobStoreServiceLive } from "./layers/JobStore"
@@ -55,18 +54,18 @@ import {
 import { getVapidPublicKeyHandler, subscribeHandler, unsubscribeHandler } from "./routes/push"
 import type { AppConfig, ProwlarrResult, CreateWatchRequest, UpdateWatchRequest, PushSubscriptionRequest } from "@inkpipe/shared"
 
-type AllServices = DbService | PushService | LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService
+type AllServices = PushService | LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService
 
 // Base layer — services with no dependencies of their own.
 // PushServiceLive requires LogService; use provideMerge to satisfy it
 // while keeping LogService available for other layers.
 const BaseLayer = Layer.mergeAll(
-  DbServiceLive,
+  DbMigratedLayer,
   Layer.provideMerge(PushServiceLive, LogServiceLive),
   FileManagerServiceLive,
 )
 
-// Config + JobStore depend on DbService (in BaseLayer)
+// Config + JobStore depend on SqlClient (in BaseLayer)
 const ConfigLayer = Layer.provide(ConfigServiceLive, BaseLayer)
 const JobStoreLayer = Layer.provide(JobStoreServiceLive, BaseLayer)
 

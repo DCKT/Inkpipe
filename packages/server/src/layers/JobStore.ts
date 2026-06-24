@@ -1,103 +1,91 @@
 import { Effect, Layer, Option } from "effect"
-import { type Job, type JobStage } from "@inkpipe/shared"
-import { DbService } from "@inkpipe/db"
+import { SqlClient } from "@effect/sql"
+import type { Job, JobStage } from "@inkpipe/shared"
+import { JobId } from "@inkpipe/shared"
 
 export class JobStoreService extends Effect.Tag("JobStoreService")<
   JobStoreService,
   {
     readonly createJob: (title: string) => Effect.Effect<Job>
-    readonly updateJob: (id: string, update: Partial<Omit<Job, "id">>) => Effect.Effect<void>
-    readonly getJob: (id: string) => Effect.Effect<Option.Option<Job>>
+    readonly updateJob: (id: JobId, update: Partial<Omit<Job, "id">>) => Effect.Effect<void>
+    readonly getJob: (id: JobId) => Effect.Effect<Option.Option<Job>>
     readonly getAllJobs: Effect.Effect<Job[]>
     readonly deleteCompletedJobs: Effect.Effect<number>
   }
 >() {}
 
-let nextId = 1
+interface JobRow {
+  id: number
+  title: string
+  stage: string
+  progress: number
+  error: string | null
+  startedAt: number
+  createdAt: string
+  updatedAt: string
+}
+
+function toJob(row: JobRow): Job {
+  return {
+    id: JobId.make(row.id),
+    title: row.title,
+    stage: row.stage as JobStage,
+    progress: row.progress,
+    error: row.error ?? undefined,
+    startedAt: row.startedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }
+}
 
 export const JobStoreServiceLive = Layer.effect(
   JobStoreService,
   Effect.gen(function* () {
-    const { db } = yield* DbService
+    const sql = yield* SqlClient.SqlClient
 
-    const createJob = (title: string) =>
+    const createJob = (title: string): Effect.Effect<Job> =>
       Effect.gen(function* () {
-        return yield* Effect.sync(() => {
-          const id = String(nextId++)
-          const job: Job = {
-            id,
-            title,
-            stage: "UPLOADING" as JobStage,
-            progress: 0,
-            startedAt: Date.now(),
-          }
-          const stmt = db.prepare(
-            "INSERT INTO jobs (id, title, stage, progress, startedAt) VALUES (?, ?, ?, ?, ?)",
-          )
-          stmt.run(job.id, job.title, job.stage, job.progress, job.startedAt)
-          return job
-        })
-      })
+        const rows = yield* sql<JobRow>`INSERT INTO jobs ${sql.insert({
+          title,
+          stage: "UPLOADING",
+          progress: 0,
+          startedAt: Date.now(),
+        }).returning("*")}`
+        return toJob(rows[0])
+      }).pipe(Effect.orDie)
 
-    const updateJob = (id: string, update: Partial<Omit<Job, "id">>) =>
-      Effect.sync(() => {
-        const sets: string[] = []
-        const params: unknown[] = []
-        if (update.stage !== undefined) {
-          sets.push("stage = ?")
-          params.push(update.stage)
+    const updateJob = (id: JobId, update: Partial<Omit<Job, "id">>): Effect.Effect<void> =>
+      Effect.gen(function* () {
+        const dbUpdate: Record<string, unknown> = {}
+        if (update.stage !== undefined) dbUpdate.stage = update.stage
+        if (update.progress !== undefined) dbUpdate.progress = update.progress
+        if (update.error !== undefined) dbUpdate.error = update.error
+        if (update.startedAt !== undefined) dbUpdate.startedAt = update.startedAt
+        if (Object.keys(dbUpdate).length > 0) {
+          yield* sql`UPDATE jobs SET ${sql.update(dbUpdate, ["id"])} WHERE id = ${id}`
         }
-        if (update.progress !== undefined) {
-          sets.push("progress = ?")
-          params.push(update.progress)
-        }
-        if (update.error !== undefined) {
-          sets.push("error = ?")
-          params.push(update.error)
-        }
-        if (sets.length > 0) {
-          const stmt = db.prepare(`UPDATE jobs SET ${sets.join(", ")} WHERE id = ?`)
-          params.push(id)
-          stmt.run(...params as any)
-        }
-      })
+      }).pipe(Effect.orDie)
 
-    const getJob = (id: string) =>
-      Effect.sync(() => {
-        const row = db.query("SELECT * FROM jobs WHERE id = ?").get(id) as
-          | Record<string, unknown>
-          | undefined
-        if (!row) return Option.none<Job>()
-        return Option.some({
-          id: String(row.id),
-          title: String(row.title),
-          stage: String(row.stage) as JobStage,
-          progress: Number(row.progress),
-          error: row.error ? String(row.error) : undefined,
-          startedAt: Number(row.startedAt),
-        })
-      })
+    const getJob = (id: JobId): Effect.Effect<Option.Option<Job>> =>
+      Effect.gen(function* () {
+        const rows = yield* sql<JobRow>`SELECT * FROM jobs WHERE id = ${id}`
+        if (rows.length === 0) return Option.none<Job>()
+        return Option.some(toJob(rows[0]))
+      }).pipe(Effect.orDie)
 
-    const getAllJobs = Effect.sync(() => {
-      const rows = db
-        .query("SELECT * FROM jobs ORDER BY startedAt DESC")
-        .all() as Record<string, unknown>[]
-      return rows.map(
-        (row): Job => ({
-          id: String(row.id),
-          title: String(row.title),
-          stage: String(row.stage) as JobStage,
-          progress: Number(row.progress),
-          error: row.error ? String(row.error) : undefined,
-          startedAt: Number(row.startedAt),
-        }),
-      )
-    })
+    const getAllJobs: Effect.Effect<Job[]> = Effect.gen(function* () {
+      const rows = yield* sql<JobRow>`SELECT * FROM jobs ORDER BY started_at DESC`
+      return rows.map(toJob)
+    }).pipe(Effect.orDie)
 
-    const deleteCompletedJobs = Effect.sync(() => {
-      const stmt = db.prepare("DELETE FROM jobs WHERE stage = ? OR stage = ?")
-      return stmt.run("DONE", "FAILED").changes
-    })
+    const deleteCompletedJobs: Effect.Effect<number> = Effect.gen(function* () {
+      const [countRow] = yield* sql<{ count: number }>`SELECT COUNT(*) as count FROM jobs WHERE stage = 'DONE' OR stage = 'FAILED'`
+      const count = countRow?.count ?? 0
+      if (count > 0) {
+        yield* sql`DELETE FROM jobs WHERE stage = 'DONE' OR stage = 'FAILED'`
+      }
+      return count
+    }).pipe(Effect.orDie)
 
     return { createJob, updateJob, getJob, getAllJobs, deleteCompletedJobs }
   }),

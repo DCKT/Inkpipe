@@ -17,7 +17,7 @@ export default function WatchesPage() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`watches/${id}`),
+    mutationFn: (id: number) => api.delete(`watches/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watches"] })
       ToastGroup.create.success("Watch deleted")
@@ -28,7 +28,7 @@ export default function WatchesPage() {
   })
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
       api.put(`watches/${id}`, { json: { enabled } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watches"] })
@@ -36,7 +36,7 @@ export default function WatchesPage() {
   })
 
   const triggerMutation = useMutation({
-    mutationFn: (id: string) => api.post(`watches/${id}/trigger`).json<{ matches: number; error?: string }>(),
+    mutationFn: (id: number) => api.post(`watches/${id}/trigger`).json<{ matches: number; error?: string }>(),
     onSuccess: (data) => {
       if (data.error) {
         ToastGroup.create.error("Trigger failed", data.error)
@@ -55,7 +55,7 @@ export default function WatchesPage() {
   })
 
   const dismissMutation = useMutation({
-    mutationFn: (watchId: string) => api.post(`watches/${watchId}/alerts/acknowledge-all`),
+    mutationFn: (watchId: number) => api.post(`watches/${watchId}/alerts/acknowledge-all`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watches"] })
     },
@@ -133,7 +133,7 @@ export default function WatchesPage() {
             <div
               key={watch.id}
               className="island-shell rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
-              onClick={() => navigate(String(watch.id))}
+              onClick={() => navigate(`/watches/${watch.id}`)}
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">

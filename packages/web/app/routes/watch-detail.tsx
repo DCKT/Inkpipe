@@ -29,7 +29,7 @@ export default function WatchDetailPage() {
   });
 
   const ackMutation = useMutation({
-    mutationFn: (alertId: string) =>
+    mutationFn: (alertId: number) =>
       api.post(`watches/${id}/alerts/${alertId}/acknowledge`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
@@ -51,7 +51,7 @@ export default function WatchDetailPage() {
       items: ProwlarrResult[];
       subfolder?: string;
       newFolder?: boolean;
-      alertId: string;
+      alertId: number;
     }) =>
       api
         .post("download", {

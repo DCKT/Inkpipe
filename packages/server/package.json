@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@effect/platform": "^0.96.0",
+    "@effect/sql": "^0.51.1",
+    "@effect/sql-sqlite-bun": "^0.52.0",
     "@inkpipe/db": "workspace:*",
     "@inkpipe/shared": "workspace:*",
     "effect": "^3.21.3"
