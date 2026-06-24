@@ -2,6 +2,7 @@
 FROM oven/bun:1.3.1-slim AS builder
 WORKDIR /app
 COPY package.json bun.lock ./
+COPY packages/db/package.json packages/db/
 COPY packages/shared/package.json packages/shared/
 COPY packages/server/package.json packages/server/
 COPY packages/web/package.json packages/web/
@@ -14,6 +15,7 @@ RUN bun run build
 FROM oven/bun:1.3.1-slim
 WORKDIR /app
 COPY package.json bun.lock ./
+COPY packages/db/package.json packages/db/
 COPY packages/shared/package.json packages/shared/
 COPY packages/server/package.json packages/server/
 COPY packages/web/package.json packages/web/
