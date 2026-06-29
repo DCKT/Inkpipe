@@ -47,6 +47,8 @@
     "packages/shared": {
       "name": "@inkpipe/shared",
       "dependencies": {
+        "@effect/sql": "^0.51.1",
+        "@effect/sql-sqlite-bun": "^0.52.0",
         "effect": "^3.21.3",
       },
       "devDependencies": {
