@@ -7,7 +7,7 @@ import { mkdirSync } from "node:fs"
 
 import migration_0001 from "./migrations/0001_initial"
 
-const CONFIG_DIR = join(homedir(), ".inkpipe")
+const CONFIG_DIR = process.env.INKPIPE_DATA_DIR ?? join(homedir(), ".inkpipe")
 export const DB_PATH = join(CONFIG_DIR, "inkpipe.db")
 
 mkdirSync(CONFIG_DIR, { recursive: true })

@@ -37,4 +37,5 @@ COPY packages/watcher/src packages/watcher/src
 COPY --from=builder /app/packages/web/dist packages/web/dist
 EXPOSE 3000
 ENV NODE_ENV=production
+ENV INKPIPE_DATA_DIR=/data
 CMD sh -c "bun run packages/watcher/src/index.ts & bun run packages/server/src/main.ts"

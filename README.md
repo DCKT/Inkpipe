@@ -49,9 +49,17 @@ docker compose up -d
 
 Access at `http://localhost:3001` (port mapped from container 3000).
 
+Data (database, settings, push keys) is persisted in the `inkpipe-data` Docker volume. To back up or use a host directory instead:
+
+```yaml
+# In docker-compose.yml, replace the named volume with a bind mount:
+volumes:
+  - ~/.inkpipe:/data
+```
+
 ## Configuration
 
-Settings are persisted to `~/.inkpipe/inkpipe.db` (Bun SQLite). Required:
+Settings are persisted to `~/.inkpipe/inkpipe.db` (Bun SQLite). Set `INKPIPE_DATA_DIR` to override this path (Docker uses `/data` by default). Required:
 
 - **Prowlarr** — URL + API key for torrent search
 - **AllDebrid** — API key for debrid service

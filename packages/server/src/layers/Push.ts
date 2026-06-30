@@ -16,7 +16,7 @@ export class PushService extends Effect.Tag("PushService")<
   }
 >() {}
 
-const CONFIG_DIR = join(homedir(), ".inkpipe")
+const CONFIG_DIR = process.env.INKPIPE_DATA_DIR ?? join(homedir(), ".inkpipe")
 const VAPID_PATH = join(CONFIG_DIR, "vapid.json")
 const SUBS_PATH = join(CONFIG_DIR, "push_subscriptions.json")
 
