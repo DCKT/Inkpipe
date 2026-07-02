@@ -45,6 +45,10 @@ export function WatchFormDialog({
     }) => api.post("watches", { json: body }).json<Watch>(),
     onSuccess: () => {
       ToastGroup.create.success("Watch created");
+      setName("");
+      setQuery("");
+      setIntervalSeconds("3600");
+      setFilterGroups([]);
       setOpen(false);
       onCreated();
     },
@@ -122,6 +126,16 @@ export function WatchFormDialog({
     );
   };
 
+  const handleOpenChange = (details: { open: boolean }) => {
+    if (!details.open && !existing) {
+      setName("");
+      setQuery("");
+      setIntervalSeconds("3600");
+      setFilterGroups([]);
+    }
+    setOpen(details.open);
+  };
+
   const handleSubmit = () => {
     if (!name.trim() || !query.trim()) return;
     const body = {
@@ -152,7 +166,7 @@ export function WatchFormDialog({
       </Button>
       <Dialog.Root
         open={open}
-        onOpenChange={(details: { open: boolean }) => setOpen(details.open)}
+        onOpenChange={handleOpenChange}
       >
         <Dialog.Backdrop />
         <Dialog.Positioner>
