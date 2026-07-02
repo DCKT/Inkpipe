@@ -62,7 +62,10 @@ export default function DownloadModal({
 
   const isValidNewOption = (input: string) => {
     if (input.trim().length === 0) return false;
-    return !folders.some((f) => f.toLowerCase() === input.trim().toLowerCase());
+    const decodedInput = input.trim().toLowerCase();
+    return !folders.some(
+      (f) => decodeURIComponent(f).toLowerCase() === decodedInput,
+    );
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,6 +94,11 @@ export default function DownloadModal({
     if (isNew) {
       remove(NEW_OPTION);
       justCreatedRef.current = true;
+    } else if (values.length > 0 && values[0] !== NEW_OPTION) {
+      const folder = folders.find((f) => f === values[0]);
+      if (folder) {
+        setInputValue(decodeURIComponent(folder));
+      }
     }
   };
 
@@ -124,6 +132,7 @@ export default function DownloadModal({
           allowCustomValue
           selectionBehavior="preserve"
           value={selectedValue}
+          inputValue={inputValue}
           onValueChange={handleValueChange}
           onInputValueChange={handleInputChange}
           closeOnSelect={false}
