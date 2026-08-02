@@ -1,6 +1,6 @@
 import { Effect, Layer } from "effect"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { convertUploadHandler, convertDownloadHandler } from "../routes/convert"
+import { convertStartHandler, convertDownloadHandler } from "../routes/convert"
 import { KccService } from "../layers/Kcc"
 import { FileManagerService } from "../layers/FileManager"
 
@@ -37,12 +37,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe("convertUploadHandler", () => {
+describe("convertStartHandler", () => {
   it("returns 400 when no file provided", async () => {
     const formData = new FormData()
 
     const response = await Effect.runPromise(
-      convertUploadHandler(formData).pipe(Effect.provide(makeLayer())),
+      convertStartHandler(formData).pipe(Effect.provide(makeLayer())),
     )
 
     expect(response.status).toBe(400)
@@ -55,7 +55,7 @@ describe("convertUploadHandler", () => {
     formData.set("file", "not-a-file")
 
     const response = await Effect.runPromise(
-      convertUploadHandler(formData).pipe(Effect.provide(makeLayer())),
+      convertStartHandler(formData).pipe(Effect.provide(makeLayer())),
     )
 
     expect(response.status).toBe(400)
@@ -68,7 +68,7 @@ describe("convertUploadHandler", () => {
     formData.set("file", new Blob(["test"], { type: "application/epub+zip" }), "test.epub")
 
     const response = await Effect.runPromise(
-      convertUploadHandler(formData).pipe(Effect.provide(makeLayer())),
+      convertStartHandler(formData).pipe(Effect.provide(makeLayer())),
     )
 
     expect(response.status).toBe(400)
@@ -76,18 +76,17 @@ describe("convertUploadHandler", () => {
     expect(body.error).toBe("Only .cbz files are accepted")
   })
 
-  it("returns id and filename on successful conversion", async () => {
+  it("returns id immediately on valid .cbz upload", async () => {
     const formData = new FormData()
     formData.set("file", new Blob(["test cbz content"]), "comic.cbz")
 
     const response = await Effect.runPromise(
-      convertUploadHandler(formData).pipe(Effect.provide(makeLayer())),
+      convertStartHandler(formData).pipe(Effect.provide(makeLayer())),
     )
 
     expect(response.status).toBe(200)
     const body = await response.json() as any
     expect(body.id).toBeTypeOf("string")
-    expect(body.filename).toBe("output.epub")
   })
 })
 

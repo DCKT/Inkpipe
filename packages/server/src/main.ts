@@ -31,7 +31,7 @@ import { latestHandler } from "./routes/latest"
 import { downloadHandler } from "./routes/download"
 import { jobsHandler, clearJobsHandler } from "./routes/jobs"
 import { getSettingsHandler, updateSettingsHandler, exportSettingsHandler, importSettingsHandler } from "./routes/settings"
-import { convertUploadHandler, convertDownloadHandler } from "./routes/convert"
+import { convertStartHandler, convertProgressHandler, convertDownloadHandler } from "./routes/convert"
 import {
   komgaLibrariesHandler,
   komgaSeriesHandler,
@@ -208,11 +208,16 @@ const server = Bun.serve({
         const body = await req.json()
         return api(await runtime.runPromise(importSettingsHandler(body)))
       }
-      if (p === "/api/convert" && m === "POST") {
+      if (p === "/api/convert/start" && m === "POST") {
         const fd = await req.formData() as FormData
-        return api(await runtime.runPromise(convertUploadHandler(fd)))
+        return api(await runtime.runPromise(convertStartHandler(fd)))
       }
-      if (p === "/api/convert" && m === "GET") {
+      if (p === "/api/convert/progress" && m === "GET") {
+        const id = url.searchParams.get("id") || ""
+        if (!id) return api(Response.json({ error: "Missing id param" }, { status: 400 }))
+        return corsWrap(convertProgressHandler(id))
+      }
+      if (p === "/api/convert/download" && m === "GET") {
         const id = url.searchParams.get("id") || ""
         if (!id) return api(Response.json({ error: "Missing id param" }, { status: 400 }))
         return api(await runtime.runPromise(convertDownloadHandler(id)))

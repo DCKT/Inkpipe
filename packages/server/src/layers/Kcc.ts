@@ -10,7 +10,7 @@ import { LogService } from "./Log"
 export class KccService extends Effect.Tag("KccService")<
   KccService,
   {
-    readonly convert: (inputPath: string, outputDir: string) => Effect.Effect<string, KccError>
+    readonly convert: (inputPath: string, outputDir: string, onLog?: (line: string) => void) => Effect.Effect<string, KccError>
   }
 >() {}
 
@@ -77,7 +77,7 @@ export const KccServiceLive = Layer.effect(
     const fileManager = yield* FileManagerService
     const log = yield* LogService
 
-    const convert = (inputPath: string, outputDir: string) =>
+    const convert = (inputPath: string, outputDir: string, onLog?: (line: string) => void) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
           Effect.catchAll((e) => Effect.fail(new KccError({ message: e.message }))),
@@ -124,12 +124,16 @@ export const KccServiceLive = Layer.effect(
 
                 proc.stdout.on("data", (data: Buffer) => {
                   stdout += data.toString()
-                  Effect.runSync(log.info("kcc", `stdout: ${data.toString().trim()}`))
+                  const line = data.toString().trim()
+                  Effect.runSync(log.info("kcc", `stdout: ${line}`))
+                  onLog?.(line)
                 })
 
                 proc.stderr.on("data", (data: Buffer) => {
                   stderr += data.toString()
-                  Effect.runSync(log.info("kcc", `stderr: ${data.toString().trim()}`))
+                  const line = data.toString().trim()
+                  Effect.runSync(log.info("kcc", `stderr: ${line}`))
+                  onLog?.(line)
                 })
 
                 proc.on("close", (code: number) => {

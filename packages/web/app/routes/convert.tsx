@@ -33,33 +33,51 @@ export default function ConvertPage() {
     setDownloadUrl(null);
     setDownloadFilename(null);
 
-    const convertingTimer = setTimeout(() => {
-      setSubStage("converting");
-    }, 3000);
-
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      clearTimeout(convertingTimer);
+      const { id } = await api.post("convert/start", { body: formData }).json<{ id: string }>();
 
-      const result = await api.post("convert", { body: formData }).json<{ id: string; filename: string }>();
-      setDownloadUrl(`/api/convert?id=${encodeURIComponent(result.id)}`);
-      setDownloadFilename(result.filename);
+      setSubStage("converting");
 
-      const blobResponse = await api.get("convert", { searchParams: { id: result.id } });
+      const filename = await new Promise<string>((resolve, reject) => {
+        const API_BASE = import.meta.env.DEV ? "http://localhost:3000" : "";
+        const es = new EventSource(`${API_BASE}/api/convert/progress?id=${encodeURIComponent(id)}`);
+
+        es.onerror = () => {
+          es.close();
+          reject(new Error("Connection lost during conversion"));
+        };
+
+        es.addEventListener("done", (e) => {
+          es.close();
+          resolve((JSON.parse(e.data) as { message: string }).message);
+        });
+
+        es.addEventListener("error", (e) => {
+          es.close();
+          reject(new Error((JSON.parse((e as MessageEvent).data) as { message: string }).message));
+        });
+      });
+
+      const dlUrl = `/api/convert/download?id=${encodeURIComponent(id)}`;
+      setDownloadUrl(dlUrl);
+      setDownloadFilename(filename);
+
+      const blobResponse = await api.get("convert/download", { searchParams: { id } });
       const blob = await blobResponse.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = result.filename;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
 
       setStage("done");
-      ToastGroup.create.success("Conversion complete", result.filename);
+      ToastGroup.create.success("Conversion complete", filename);
 
       setTimeout(() => {
         setStage("idle");
@@ -67,7 +85,6 @@ export default function ConvertPage() {
         setDownloadFilename(null);
       }, 3000);
     } catch (err) {
-      clearTimeout(convertingTimer);
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
       setStage("error");

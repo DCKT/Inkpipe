@@ -5,7 +5,24 @@ import { randomUUID } from "node:crypto"
 import { KccService } from "../layers/Kcc"
 import { FileManagerService } from "../layers/FileManager"
 
-export const convertUploadHandler = (formData: FormData) =>
+type ConvertJob = {
+  status: "running" | "done" | "error"
+  filename?: string
+  error?: string
+  logs: string[]
+  subscribers: Set<(line: string, type: "log" | "done" | "error") => void>
+  cleanupTimer?: ReturnType<typeof setTimeout>
+}
+
+const jobs = new Map<string, ConvertJob>()
+
+function scheduleCleanup(id: string, job: ConvertJob) {
+  job.cleanupTimer = setTimeout(() => {
+    jobs.delete(id)
+  }, 10 * 60 * 1000)
+}
+
+export const convertStartHandler = (formData: FormData) =>
   Effect.gen(function* () {
     const file = formData.get("file")
     if (!file || !(file instanceof Blob)) {
@@ -29,16 +46,52 @@ export const convertUploadHandler = (formData: FormData) =>
     const arrayBuffer = yield* Effect.promise(() => file.arrayBuffer())
     yield* Effect.promise(() => writeFile(inputPath, Buffer.from(arrayBuffer)))
 
-    const kcc = yield* KccService
-    yield* kcc.convert(inputPath, workDir)
+    const job: ConvertJob = { status: "running", logs: [], subscribers: new Set() }
+    jobs.set(id, job)
 
-    const files = yield* Effect.promise(() => readdir(workDir))
-    const epubFile = files.find((f) => f.toLowerCase().endsWith(".epub"))
-    if (!epubFile) {
-      return yield* Effect.fail(new Error("KCC did not produce an EPUB file"))
+    const kcc = yield* KccService
+
+    const onLog = (line: string) => {
+      job.logs.push(line)
+      for (const sub of job.subscribers) sub(line, "log")
     }
 
-    return Response.json({ id, filename: epubFile })
+    // forkDaemon inherits the current fiber's service context (KccService, etc.)
+    yield* Effect.forkDaemon(
+      kcc.convert(inputPath, workDir, onLog).pipe(
+        Effect.flatMap(() =>
+          Effect.promise(() => readdir(workDir)).pipe(
+            Effect.flatMap((files) => {
+              const epubFile = files.find((f) => f.toLowerCase().endsWith(".epub"))
+              if (!epubFile) {
+                job.status = "error"
+                job.error = "KCC did not produce an EPUB file"
+                for (const sub of job.subscribers) sub(job.error!, "error")
+                scheduleCleanup(id, job)
+                return Effect.promise(() =>
+                  rm(workDir, { recursive: true, force: true }).catch(() => {}),
+                )
+              }
+              job.status = "done"
+              job.filename = epubFile
+              for (const sub of job.subscribers) sub(epubFile, "done")
+              scheduleCleanup(id, job)
+              return Effect.void
+            }),
+          ),
+        ),
+        Effect.catchAll((e: { message: string }) =>
+          Effect.sync(() => {
+            job.status = "error"
+            job.error = e.message
+            for (const sub of job.subscribers) sub(e.message, "error")
+            scheduleCleanup(id, job)
+          }),
+        ),
+      ),
+    )
+
+    return Response.json({ id })
   }).pipe(
     Effect.catchAll((e: { message: string }) =>
       Effect.succeed(
@@ -47,19 +100,83 @@ export const convertUploadHandler = (formData: FormData) =>
     ),
   )
 
+const encoder = new TextEncoder()
+
+function sseFrame(eventType: string, data: string): Uint8Array {
+  return encoder.encode(`event: ${eventType}\ndata: ${JSON.stringify({ message: data })}\n\n`)
+}
+
+export const convertProgressHandler = (id: string): Response => {
+  const job = jobs.get(id)
+  if (!job) {
+    return Response.json({ error: "Job not found" }, { status: 404 })
+  }
+
+  let activeSubscriber: ((line: string, type: "log" | "done" | "error") => void) | null = null
+
+  const stream = new ReadableStream({
+    start(controller) {
+      for (const line of job.logs) {
+        controller.enqueue(sseFrame("progress", line))
+      }
+
+      if (job.status === "done") {
+        controller.enqueue(sseFrame("done", job.filename!))
+        controller.close()
+        return
+      }
+      if (job.status === "error") {
+        controller.enqueue(sseFrame("error", job.error!))
+        controller.close()
+        return
+      }
+
+      activeSubscriber = (line, type) => {
+        if (type === "log") {
+          controller.enqueue(sseFrame("progress", line))
+        } else {
+          controller.enqueue(sseFrame(type, line))
+          job.subscribers.delete(activeSubscriber!)
+          activeSubscriber = null
+          controller.close()
+        }
+      }
+      job.subscribers.add(activeSubscriber)
+    },
+    cancel() {
+      if (activeSubscriber) {
+        job.subscribers.delete(activeSubscriber)
+        activeSubscriber = null
+      }
+    },
+  })
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  })
+}
+
 export const convertDownloadHandler = (id: string) =>
   Effect.gen(function* () {
+    const job = jobs.get(id)
+    if (job && job.status !== "done") {
+      return yield* Effect.fail(new Error("Conversion not yet complete"))
+    }
+
     const fileManager = yield* FileManagerService
     const tempBase = yield* fileManager.getTempBase
     const workDir = join(tempBase, `convert-${id}`)
 
-    let epubFile: string | undefined
     const files = yield* Effect.promise(() =>
       readdir(workDir).catch(() => {
         throw new Error("Conversion not found")
       }),
     )
-    epubFile = files.find((f) => f.toLowerCase().endsWith(".epub"))
+    const epubFile = files.find((f) => f.toLowerCase().endsWith(".epub"))
 
     if (!epubFile) {
       yield* Effect.promise(() =>
@@ -74,6 +191,9 @@ export const convertDownloadHandler = (id: string) =>
     yield* Effect.promise(() =>
       rm(workDir, { recursive: true, force: true }).catch(() => {}),
     )
+
+    if (job?.cleanupTimer) clearTimeout(job.cleanupTimer)
+    jobs.delete(id)
 
     return new Response(fileBuffer, {
       headers: {
