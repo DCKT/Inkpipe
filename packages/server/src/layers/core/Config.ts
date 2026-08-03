@@ -1,18 +1,18 @@
-import { Effect, Layer } from "effect"
-import { SqlClient } from "@effect/sql"
+import { Context, Effect, Layer } from "effect"
+import { SqlClient } from "effect/unstable/sql"
 import {
   type AppConfig,
   ConfigLoadError,
   ConfigSaveError,
 } from "@inkpipe/shared"
 
-export class ConfigService extends Effect.Tag("ConfigService")<
+export class ConfigService extends Context.Service<
   ConfigService,
   {
     readonly loadConfig: Effect.Effect<AppConfig, ConfigLoadError>
     readonly saveConfig: (config: AppConfig) => Effect.Effect<void, ConfigSaveError>
   }
->() {}
+>()("ConfigService") {}
 
 interface ProwlarrRow {
   url: string
@@ -77,7 +77,7 @@ export const ConfigServiceLive = Layer.effect(
           sql<KccRow>`SELECT * FROM kcc_config WHERE id = 1`,
           sql<CopypartyRow>`SELECT url, upload_path, password FROM copyparty_config WHERE id = 1`,
           sql<KomgaRow>`SELECT url, api_key, default_library_id FROM komga_config WHERE id = 1`,
-        ], { concurrency: "inherit" })
+        ], { concurrency: "unbounded" })
 
       const prowlarr = prowlarrRows[0]
       const alldebrid = alldebridRows[0]

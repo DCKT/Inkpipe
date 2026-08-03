@@ -11,16 +11,15 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@effect/platform": "^0.96.0",
-    "@effect/sql": "^0.51.1",
-    "@effect/sql-sqlite-bun": "^0.52.0",
+    "@effect/sql-sqlite-bun": "4.0.0-beta.102",
     "@inkpipe/db": "workspace:*",
     "@inkpipe/shared": "workspace:*",
-    "effect": "^3.21.3"
+    "effect": "4.0.0-beta.102"
   },
   "devDependencies": {
+    "@effect/vitest": "4.0.0-beta.102",
     "@types/bun": "latest",
-    "typescript": "^5.7.2",
+    "typescript": "^7.0.2",
     "vitest": "^3.0.5"
   }
 }

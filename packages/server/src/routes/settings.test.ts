@@ -1,8 +1,8 @@
 import { Effect, Layer } from "effect"
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi } from "@effect/vitest"
 import type { AppConfig } from "@inkpipe/shared"
 import { getSettingsHandler, updateSettingsHandler } from "../routes/settings"
-import { ConfigService } from "../layers/Config"
+import { ConfigService } from "../layers/core/Config"
 
 const mockConfig: AppConfig = {
   prowlarr: { url: "http://p:9696", apiKey: "pk" },
@@ -22,66 +22,62 @@ const mockConfig: AppConfig = {
 }
 
 describe("getSettingsHandler", () => {
-  it("returns config as JSON", async () => {
-    const layer = Layer.succeed(ConfigService, {
-      loadConfig: Effect.succeed(mockConfig),
-      saveConfig: () => Effect.void,
-    } as any)
+  it.effect("returns config as JSON", () =>
+    Effect.gen(function*() {
+      const layer = Layer.succeed(ConfigService, {
+        loadConfig: Effect.succeed(mockConfig),
+        saveConfig: () => Effect.void,
+      } as any)
 
-    const response = await Effect.runPromise(
-      getSettingsHandler.pipe(Effect.provide(layer)),
-    )
+      const response = yield* getSettingsHandler.pipe(Effect.provide(layer))
 
-    expect(response.status).toBe(200)
-    const body = await response.json() as any
-    expect(body.prowlarr.url).toBe("http://p:9696")
-  })
+      expect(response.status).toBe(200)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body.prowlarr.url).toBe("http://p:9696")
+    }))
 
-  it("returns 500 with error message on failure", async () => {
-    const layer = Layer.succeed(ConfigService, {
-      loadConfig: Effect.fail({ message: "Failed to load config" } as any),
-      saveConfig: () => Effect.void,
-    } as any)
+  it.effect("returns 500 with error message on failure", () =>
+    Effect.gen(function*() {
+      const layer = Layer.succeed(ConfigService, {
+        loadConfig: Effect.fail({ message: "Failed to load config" } as any),
+        saveConfig: () => Effect.void,
+      } as any)
 
-    const response = await Effect.runPromise(
-      getSettingsHandler.pipe(Effect.provide(layer)),
-    )
+      const response = yield* getSettingsHandler.pipe(Effect.provide(layer))
 
-    expect(response.status).toBe(500)
-    const body = await response.json() as any
-    expect(body.error).toBe("Failed to load config")
-  })
+      expect(response.status).toBe(500)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body.error).toBe("Failed to load config")
+    }))
 })
 
 describe("updateSettingsHandler", () => {
-  it("saves config and returns success", async () => {
-    const saveConfigSpy = vi.fn(() => Effect.void)
-    const layer = Layer.succeed(ConfigService, {
-      loadConfig: Effect.succeed(mockConfig),
-      saveConfig: saveConfigSpy,
-    } as any)
+  it.effect("saves config and returns success", () =>
+    Effect.gen(function*() {
+      const saveConfigSpy = vi.fn(() => Effect.void)
+      const layer = Layer.succeed(ConfigService, {
+        loadConfig: Effect.succeed(mockConfig),
+        saveConfig: saveConfigSpy,
+      } as any)
 
-    const response = await Effect.runPromise(
-      updateSettingsHandler(mockConfig).pipe(Effect.provide(layer)),
-    )
+      const response = yield* updateSettingsHandler(mockConfig).pipe(Effect.provide(layer))
 
-    expect(response.status).toBe(200)
-    const body = await response.json() as any
-    expect(body.success).toBe(true)
-  })
+      expect(response.status).toBe(200)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body.success).toBe(true)
+    }))
 
-  it("returns 500 with error message on failure", async () => {
-    const layer = Layer.succeed(ConfigService, {
-      loadConfig: Effect.succeed(mockConfig),
-      saveConfig: () => Effect.fail({ message: "Save failed" } as any),
-    } as any)
+  it.effect("returns 500 with error message on failure", () =>
+    Effect.gen(function*() {
+      const layer = Layer.succeed(ConfigService, {
+        loadConfig: Effect.succeed(mockConfig),
+        saveConfig: () => Effect.fail({ message: "Save failed" } as any),
+      } as any)
 
-    const response = await Effect.runPromise(
-      updateSettingsHandler(mockConfig).pipe(Effect.provide(layer)),
-    )
+      const response = yield* updateSettingsHandler(mockConfig).pipe(Effect.provide(layer))
 
-    expect(response.status).toBe(500)
-    const body = await response.json() as any
-    expect(body.error).toBe("Save failed")
-  })
+      expect(response.status).toBe(500)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body.error).toBe("Save failed")
+    }))
 })

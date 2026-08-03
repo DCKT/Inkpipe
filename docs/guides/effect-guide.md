@@ -9,9 +9,9 @@ This is the consolidated guide for using Effect in the Accountability project. I
 1. [Critical Rules](#critical-rules)
 2. [Schema Patterns](#schema-patterns)
 3. [Error Handling](#error-handling)
-4. [Service Pattern (Context.Tag + Layer)](#service-pattern-contexttag--layer)
+4. [Service Pattern (Context.Service + Layer)](#service-pattern-contextservice--layer)
 5. [Layer Memoization & Composition](#layer-memoization--composition)
-6. [SQL Patterns (@effect/sql)](#sql-patterns-effectsql)
+6. [SQL Patterns (effect/unstable/sql)](#sql-patterns-effectunstablesql)
 7. [Testing Patterns (@effect/vitest)](#testing-patterns-effectvitest)
 
 ---
@@ -85,8 +85,8 @@ infallibleEffect;
 // WRONG - global Error breaks Effect's typed error handling
 const bad: Effect.Effect<Result, Error> = Effect.fail(new Error("failed"));
 
-// CORRECT - use Schema.TaggedError for all domain errors
-export class ValidationError extends Schema.TaggedError<ValidationError>()(
+// CORRECT - use Schema.TaggedErrorClass for all domain errors
+export class ValidationError extends Schema.TaggedErrorClass<ValidationError>()(
   "ValidationError",
   { message: Schema.String },
 ) {}
@@ -119,16 +119,16 @@ const mapAccounts = (rows: Row[]): Account[] => rows.map(toAccount);
 const parsed = Effect.try(() => JSON.parse(jsonString));
 ```
 
-### 6. NEVER Use `Effect.catchAllCause` to Wrap Errors
+### 6. NEVER Use `Effect.catchCause` to Wrap Errors
 
 ```typescript
-// WRONG - catchAllCause catches BOTH errors AND defects (bugs)
+// WRONG - catchCause catches BOTH errors AND defects (bugs)
 const wrapSqlError =
   (operation: string) =>
   <A, E, R>(
     effect: Effect.Effect<A, E, R>,
   ): Effect.Effect<A, PersistenceError, R> =>
-    Effect.catchAllCause(effect, (cause) =>
+    Effect.catchCause(effect, (cause) =>
       Effect.fail(
         new PersistenceError({ operation, cause: Cause.squash(cause) }),
       ),
@@ -187,7 +187,7 @@ const result =
 
 - `local/no-silent-error-swallow` - Bans `() => Effect.void` in catch handlers
 - `local/no-effect-ignore` - Bans `Effect.ignore`
-- `local/no-effect-catchallcause` - Bans `Effect.catchAllCause`
+- `local/no-effect-catchcause` - Bans `Effect.catchCause`
 
 ---
 
@@ -253,10 +253,10 @@ export type AccountId = typeof AccountId.Type;
 const id = AccountId.make("acc_123"); // Creates branded AccountId
 ```
 
-### Schema.TaggedError for Domain Errors
+### Schema.TaggedErrorClass for Domain Errors
 
 ```typescript
-export class AccountNotFound extends Schema.TaggedError<AccountNotFound>()(
+export class AccountNotFound extends Schema.TaggedErrorClass<AccountNotFound>()(
   "AccountNotFound",
   { accountId: AccountId },
 ) {
@@ -364,24 +364,25 @@ const handleError = Match.type<AccountError>().pipe(
 
 ---
 
-## Service Pattern (Context.Tag + Layer)
+## Service Pattern (Context.Service + Layer)
 
 ```typescript
-// Service interface
-export interface AccountService {
-  readonly findById: (id: AccountId) => Effect.Effect<Account, AccountNotFound>;
-  readonly findAll: () => Effect.Effect<ReadonlyArray<Account>>;
-  readonly create: (
-    account: Account,
-  ) => Effect.Effect<Account, PersistenceError>;
-}
-
-// Service tag
-export class AccountService extends Context.Tag("AccountService")<
+// Service tag + shape in one declaration. Note the argument order: the
+// type parameters (Self, Shape) come first via Context.Service<...>(),
+// and the identifier string is passed to the returned constructor.
+export class AccountService extends Context.Service<
   AccountService,
-  AccountService
->() {}
+  {
+    readonly findById: (id: AccountId) => Effect.Effect<Account, AccountNotFound>;
+    readonly findAll: () => Effect.Effect<ReadonlyArray<Account>>;
+    readonly create: (
+      account: Account,
+    ) => Effect.Effect<Account, PersistenceError>;
+  }
+>()("AccountService") {}
 ```
+
+**Accessing services:** prefer `yield* AccountService` inside `Effect.gen` over the `Service.use`/`useSync` helpers — `yield*` keeps dependencies visible at the call site. `use`/`useSync` exist for one-off, non-generator access but are easy to overuse into hidden dependencies.
 
 ### Creating Layers
 
@@ -513,7 +514,9 @@ const createTestLayer = () => {
 
 ---
 
-## SQL Patterns (@effect/sql)
+## SQL Patterns (effect/unstable/sql)
+
+Import `SqlClient`, `SqlSchema`, `Migrator`, etc. from `effect/unstable/sql` (the `@effect/sql` package merged into `effect` core in v4 under the `unstable` namespace). Driver packages like `@effect/sql-sqlite-bun` remain separate and are versioned alongside `effect`.
 
 ### Use Schema to Decode SQL Results
 
@@ -646,7 +649,7 @@ const createAccountWithAudit = (account: Account) =>
 ```typescript
 it.effect("processes after delay", () =>
   Effect.gen(function* () {
-    const fiber = yield* Effect.fork(
+    const fiber = yield* Effect.forkChild(
       Effect.sleep(Duration.minutes(5)).pipe(Effect.map(() => "done")),
     );
 
@@ -702,7 +705,7 @@ it.effect.prop(
 #### Per-Block Container (Simple Setup)
 
 ```typescript
-export class PgContainer extends Effect.Service<PgContainer>()(
+export class PgContainer extends Context.Service<PgContainer, StartedPostgreSqlContainer>()(
   "test/PgContainer",
   {
     scoped: Effect.acquireRelease(
@@ -714,6 +717,7 @@ export class PgContainer extends Effect.Service<PgContainer>()(
     ),
   },
 ) {
+  static readonly layer = Layer.scoped(this, this.scoped)
   static ClientLive = Layer.unwrapEffect(
     Effect.gen(function* () {
       const container = yield* PgContainer;
@@ -721,7 +725,7 @@ export class PgContainer extends Effect.Service<PgContainer>()(
         url: Redacted.make(container.getConnectionUri()),
       });
     }),
-  ).pipe(Layer.provide(this.Default));
+  ).pipe(Layer.provide(this.layer));
 }
 
 // In tests

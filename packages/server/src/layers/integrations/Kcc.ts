@@ -1,18 +1,18 @@
-import { Effect, Layer } from "effect"
+import { Context, Effect, Layer } from "effect"
 import { spawn } from "node:child_process"
 import { basename, parse, relative } from "node:path"
 import type { AppConfig } from "@inkpipe/shared"
 import { KccError } from "@inkpipe/shared"
-import { ConfigService } from "./Config"
-import { FileManagerService } from "./FileManager"
-import { LogService } from "./Log"
+import { ConfigService } from "../core/Config"
+import { FileManagerService } from "../pipeline/FileManager"
+import { LogService } from "../core/Log"
 
-export class KccService extends Effect.Tag("KccService")<
+export class KccService extends Context.Service<
   KccService,
   {
     readonly convert: (inputPath: string, outputDir: string, onLog?: (line: string) => void) => Effect.Effect<string, KccError>
   }
->() {}
+>()("KccService") {}
 
 const KCC_CONTAINER_NAME = "inkpipe-kcc"
 const KCC_DATA_DIR = "/data"
@@ -80,7 +80,7 @@ export const KccServiceLive = Layer.effect(
     const convert = (inputPath: string, outputDir: string, onLog?: (line: string) => void) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catchAll((e) => Effect.fail(new KccError({ message: e.message }))),
+          Effect.catch((e) => Effect.fail(new KccError({ message: e.message }))),
         )
         const inputFilename = basename(inputPath)
         const kccArgs = buildKccArgs(inputFilename, config)

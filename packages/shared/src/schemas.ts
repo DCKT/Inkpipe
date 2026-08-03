@@ -1,8 +1,8 @@
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 
 // --- Primitives ---
 
-export const JobStageSchema = Schema.Literal(
+export const JobStageSchema = Schema.Literals([
   "UPLOADING",
   "DEBRID_PROCESSING",
   "DOWNLOADING",
@@ -10,7 +10,7 @@ export const JobStageSchema = Schema.Literal(
   "UPLOADING_COPYPARTY",
   "DONE",
   "FAILED",
-)
+])
 export type JobStage = typeof JobStageSchema.Type
 
 // --- Branded IDs ---
@@ -26,7 +26,7 @@ export type JobId = typeof JobId.Type
 
 // --- Watch ---
 
-export const FilterGroupModeSchema = Schema.Literal("AND", "OR")
+export const FilterGroupModeSchema = Schema.Literals(["AND", "OR"])
 export type FilterGroupMode = typeof FilterGroupModeSchema.Type
 
 export const FilterGroupSchema = Schema.Struct({
@@ -100,68 +100,68 @@ export type ProwlarrResult = typeof ProwlarrResultSchema.Type
 // --- AppConfig sub-schemas ---
 
 export const ProwlarrConfigSchema = Schema.Struct({
-  url: Schema.optionalWith(Schema.String, { default: () => "" }),
-  apiKey: Schema.optionalWith(Schema.String, { default: () => "" }),
+  url: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
+  apiKey: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
 })
 export type ProwlarrConfig = typeof ProwlarrConfigSchema.Type
 
 export const AlldebridConfigSchema = Schema.Struct({
-  apiKey: Schema.optionalWith(Schema.String, { default: () => "" }),
+  apiKey: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
 })
 export type AlldebridConfig = typeof AlldebridConfigSchema.Type
 
 export const KccConfigSchema = Schema.Struct({
-  dockerImage: Schema.optionalWith(Schema.String, { default: () => "ghcr.io/ciromattia/kcc:latest" }),
-  profile: Schema.optionalWith(Schema.String, { default: () => "KoBO" }),
-  format: Schema.optionalWith(Schema.Literal("Auto", "MOBI", "EPUB", "CBZ", "KFX", "PDF"), { default: () => "Auto" as const }),
-  mangaStyle: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-  webtoon: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-  twoPanel: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-  upscale: Schema.optionalWith(Schema.Boolean, { default: () => true }),
-  stretch: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-  hq: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-  gamma: Schema.optionalWith(Schema.Number, { default: () => 1.0 }),
-  cropping: Schema.optionalWith(Schema.Literal("0", "1", "2"), { default: () => "1" as const }),
-  croppingPower: Schema.optionalWith(Schema.Number, { default: () => 1.0 }),
-  forceColor: Schema.optionalWith(Schema.Boolean, { default: () => true }),
-  forcePng: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-  noAutoContrast: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-  blackBorders: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-  whiteBorders: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-  splitter: Schema.optionalWith(Schema.Literal("0", "1", "2"), { default: () => "0" as const }),
-  noProcessing: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-  eraseRainbow: Schema.optionalWith(Schema.Boolean, { default: () => true }),
-  coverFill: Schema.optionalWith(Schema.Boolean, { default: () => false }),
-  batchSplit: Schema.optionalWith(Schema.Literal("0", "1", "2"), { default: () => "0" as const }),
-  targetSize: Schema.optionalWith(Schema.Number, { default: () => 0 }),
-  customWidth: Schema.optionalWith(Schema.Number, { default: () => 0 }),
-  customHeight: Schema.optionalWith(Schema.Number, { default: () => 0 }),
-  noKepub: Schema.optionalWith(Schema.Boolean, { default: () => false }),
+  dockerImage: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed("ghcr.io/ciromattia/kcc:latest"))),
+  profile: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed("KoBO"))),
+  format: Schema.Literals(["Auto", "MOBI", "EPUB", "CBZ", "KFX", "PDF"]).pipe(Schema.withDecodingDefaultType(Effect.succeed("Auto" as const))),
+  mangaStyle: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
+  webtoon: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
+  twoPanel: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
+  upscale: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(true))),
+  stretch: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
+  hq: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
+  gamma: Schema.Number.pipe(Schema.withDecodingDefaultType(Effect.succeed(1.0))),
+  cropping: Schema.Literals(["0", "1", "2"]).pipe(Schema.withDecodingDefaultType(Effect.succeed("1" as const))),
+  croppingPower: Schema.Number.pipe(Schema.withDecodingDefaultType(Effect.succeed(1.0))),
+  forceColor: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(true))),
+  forcePng: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
+  noAutoContrast: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
+  blackBorders: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
+  whiteBorders: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
+  splitter: Schema.Literals(["0", "1", "2"]).pipe(Schema.withDecodingDefaultType(Effect.succeed("0" as const))),
+  noProcessing: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
+  eraseRainbow: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(true))),
+  coverFill: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
+  batchSplit: Schema.Literals(["0", "1", "2"]).pipe(Schema.withDecodingDefaultType(Effect.succeed("0" as const))),
+  targetSize: Schema.Number.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
+  customWidth: Schema.Number.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
+  customHeight: Schema.Number.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
+  noKepub: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
 })
 export type KccConfig = typeof KccConfigSchema.Type
 
 const KccConfigDefaults = Schema.decodeUnknownSync(KccConfigSchema)({})
 
 export const CopypartyConfigSchema = Schema.Struct({
-  url: Schema.optionalWith(Schema.String, { default: () => "" }),
-  uploadPath: Schema.optionalWith(Schema.String, { default: () => "/" }),
-  password: Schema.optionalWith(Schema.String, { default: () => "" }),
+  url: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
+  uploadPath: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed("/"))),
+  password: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
 })
 export type CopypartyConfig = typeof CopypartyConfigSchema.Type
 
 export const KomgaConfigSchema = Schema.Struct({
-  url: Schema.optionalWith(Schema.String, { default: () => "" }),
-  apiKey: Schema.optionalWith(Schema.String, { default: () => "" }),
-  defaultLibraryId: Schema.optionalWith(Schema.String, { default: () => "" }),
+  url: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
+  apiKey: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
+  defaultLibraryId: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
 })
 export type KomgaConfig = typeof KomgaConfigSchema.Type
 
 export const AppConfigSchema = Schema.Struct({
-  prowlarr: Schema.optionalWith(ProwlarrConfigSchema, { default: () => ({ url: "", apiKey: "" }) }),
-  alldebrid: Schema.optionalWith(AlldebridConfigSchema, { default: () => ({ apiKey: "" }) }),
-  kcc: Schema.optionalWith(KccConfigSchema, { default: () => KccConfigDefaults }),
-  copyparty: Schema.optionalWith(CopypartyConfigSchema, { default: () => ({ url: "", uploadPath: "/", password: "" }) }),
-  komga: Schema.optionalWith(KomgaConfigSchema, { default: () => ({ url: "", apiKey: "", defaultLibraryId: "" }) }),
+  prowlarr: ProwlarrConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ url: "", apiKey: "" }))),
+  alldebrid: AlldebridConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ apiKey: "" }))),
+  kcc: KccConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed(KccConfigDefaults))),
+  copyparty: CopypartyConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ url: "", uploadPath: "/", password: "" }))),
+  komga: KomgaConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ url: "", apiKey: "", defaultLibraryId: "" }))),
 })
 export type AppConfig = typeof AppConfigSchema.Type
 

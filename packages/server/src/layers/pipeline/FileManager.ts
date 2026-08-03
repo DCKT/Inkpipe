@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect"
+import { Context, Effect, Layer } from "effect"
 import { readdir, mkdir, rm } from "node:fs/promises"
 import { existsSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -6,7 +6,7 @@ import { join, parse } from "node:path"
 import { spawn } from "node:child_process"
 import { FileManagerError } from "@inkpipe/shared"
 
-export class FileManagerService extends Effect.Tag("FileManagerService")<
+export class FileManagerService extends Context.Service<
   FileManagerService,
   {
     readonly getTempBase: Effect.Effect<string>
@@ -17,7 +17,7 @@ export class FileManagerService extends Effect.Tag("FileManagerService")<
     readonly findAllFilesByExtension: (dir: string, extensions: string[]) => Effect.Effect<string[], FileManagerError>
     readonly extractRarArchive: (filePath: string) => Effect.Effect<string, FileManagerError>
   }
->() {}
+>()("FileManagerService") {}
 
 const DOCKER_TEMP_DIR = "/tmp/inkpipe"
 

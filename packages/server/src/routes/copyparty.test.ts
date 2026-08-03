@@ -1,11 +1,11 @@
 import { Effect, Layer } from "effect"
-import { describe, it, expect } from "vitest"
+import { describe, it, expect } from "@effect/vitest"
 import {
   copypartyFoldersHandler,
   createFolderHandler,
   deleteFolderHandler,
 } from "../routes/copyparty"
-import { CopypartyService } from "../layers/Copyparty"
+import { CopypartyService } from "../layers/integrations/Copyparty"
 
 function makeLayer(opts: {
   folders?: string[]
@@ -23,76 +23,74 @@ function makeLayer(opts: {
 }
 
 describe("copypartyFoldersHandler", () => {
-  it("returns folders as JSON", async () => {
-    const response = await Effect.runPromise(
-      copypartyFoldersHandler.pipe(Effect.provide(makeLayer())),
-    )
+  it.effect("returns folders as JSON", () =>
+    Effect.gen(function* () {
+      const response = yield* copypartyFoldersHandler.pipe(Effect.provide(makeLayer()))
 
-    expect(response.status).toBe(200)
-    const body = await response.json() as any
-    expect(body.folders).toEqual(["Manga", "Comics"])
-  })
+      expect(response.status).toBe(200)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body.folders).toEqual(["Manga", "Comics"])
+    }))
 
-  it("returns 502 on error", async () => {
-    const layer = Layer.succeed(CopypartyService, {
-      listFolders: Effect.fail({ message: "Error" } as any),
-      uploadFile: () => Effect.void,
-      createFolder: () => Effect.void,
-      deleteFolder: () => Effect.void,
-    } as any)
+  it.effect("returns 502 on error", () =>
+    Effect.gen(function* () {
+      const layer = Layer.succeed(CopypartyService, {
+        listFolders: Effect.fail({ message: "Error" } as any),
+        uploadFile: () => Effect.void,
+        createFolder: () => Effect.void,
+        deleteFolder: () => Effect.void,
+      } as any)
 
-    const response = await Effect.runPromise(
-      copypartyFoldersHandler.pipe(Effect.provide(layer)),
-    )
+      const response = yield* copypartyFoldersHandler.pipe(Effect.provide(layer))
 
-    expect(response.status).toBe(502)
-  })
+      expect(response.status).toBe(502)
+    }))
 })
 
 describe("createFolderHandler", () => {
-  it("creates folder and returns name", async () => {
-    const response = await Effect.runPromise(
-      createFolderHandler({ name: "NewSeries" }).pipe(Effect.provide(makeLayer())),
-    )
+  it.effect("creates folder and returns name", () =>
+    Effect.gen(function* () {
+      const response = yield* createFolderHandler({ name: "NewSeries" }).pipe(
+        Effect.provide(makeLayer()),
+      )
 
-    expect(response.status).toBe(200)
-    const body = await response.json() as any
-    expect(body.name).toBe("NewSeries")
-  })
+      expect(response.status).toBe(200)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body.name).toBe("NewSeries")
+    }))
 
-  it("returns 502 on error", async () => {
-    const response = await Effect.runPromise(
-      createFolderHandler({ name: "Bad" }).pipe(
+  it.effect("returns 502 on error", () =>
+    Effect.gen(function* () {
+      const response = yield* createFolderHandler({ name: "Bad" }).pipe(
         Effect.provide(makeLayer({ createOk: false })),
-      ),
-    )
+      )
 
-    expect(response.status).toBe(502)
-    const body = await response.json() as any
-    expect(body.error).toBe("Create failed")
-  })
+      expect(response.status).toBe(502)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body.error).toBe("Create failed")
+    }))
 })
 
 describe("deleteFolderHandler", () => {
-  it("deletes folder and returns name", async () => {
-    const response = await Effect.runPromise(
-      deleteFolderHandler({ name: "OldSeries" }).pipe(Effect.provide(makeLayer())),
-    )
+  it.effect("deletes folder and returns name", () =>
+    Effect.gen(function* () {
+      const response = yield* deleteFolderHandler({ name: "OldSeries" }).pipe(
+        Effect.provide(makeLayer()),
+      )
 
-    expect(response.status).toBe(200)
-    const body = await response.json() as any
-    expect(body.name).toBe("OldSeries")
-  })
+      expect(response.status).toBe(200)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body.name).toBe("OldSeries")
+    }))
 
-  it("returns 502 on error", async () => {
-    const response = await Effect.runPromise(
-      deleteFolderHandler({ name: "Bad" }).pipe(
+  it.effect("returns 502 on error", () =>
+    Effect.gen(function* () {
+      const response = yield* deleteFolderHandler({ name: "Bad" }).pipe(
         Effect.provide(makeLayer({ deleteOk: false })),
-      ),
-    )
+      )
 
-    expect(response.status).toBe(502)
-    const body = await response.json() as any
-    expect(body.error).toBe("Delete failed")
-  })
+      expect(response.status).toBe(502)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body.error).toBe("Delete failed")
+    }))
 })

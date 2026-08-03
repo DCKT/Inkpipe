@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect } from "@effect/vitest"
 import type { AppConfig } from "@inkpipe/shared"
 import { buildKccArgs } from "./Kcc"
 

@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect"
+import { Context, Effect, Layer } from "effect"
 import {
   type ProwlarrResult,
   ProwlarrNotConfigured,
@@ -7,16 +7,16 @@ import {
   sortProwlarrResults,
   buildProwlarrSearchParams,
 } from "@inkpipe/shared"
-import { ConfigService } from "./Config"
-import { LogService } from "./Log"
+import { ConfigService } from "../core/Config"
+import { LogService } from "../core/Log"
 
-export class ProwlarrService extends Effect.Tag("ProwlarrService")<
+export class ProwlarrService extends Context.Service<
   ProwlarrService,
   {
     readonly search: (query: string) => Effect.Effect<ProwlarrResult[], ProwlarrNotConfigured | ProwlarrHttpError>
     readonly getLatest: Effect.Effect<ProwlarrResult[], ProwlarrNotConfigured | ProwlarrHttpError>
   }
->() {}
+>()("ProwlarrService") {}
 
 export const ProwlarrServiceLive = Layer.effect(
   ProwlarrService,
@@ -27,7 +27,7 @@ export const ProwlarrServiceLive = Layer.effect(
     const search = (query: string) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catchAll((e) => Effect.fail(new ProwlarrNotConfigured({ message: e.message }))),
+          Effect.catch((e) => Effect.fail(new ProwlarrNotConfigured({ message: e.message }))),
         )
         const { url, apiKey } = config.prowlarr
         if (!url || !apiKey) {
@@ -48,7 +48,7 @@ export const ProwlarrServiceLive = Layer.effect(
 
     const getLatest = Effect.gen(function* () {
       const config = yield* configService.loadConfig.pipe(
-        Effect.catchAll((e) => Effect.fail(new ProwlarrNotConfigured({ message: e.message }))),
+        Effect.catch((e) => Effect.fail(new ProwlarrNotConfigured({ message: e.message }))),
       )
       const { url, apiKey } = config.prowlarr
       if (!url || !apiKey) {

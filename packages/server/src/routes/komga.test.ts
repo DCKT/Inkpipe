@@ -1,5 +1,5 @@
 import { Effect, Layer } from "effect"
-import { describe, it, expect } from "vitest"
+import { describe, it, expect } from "@effect/vitest"
 import type { KomgaLibrary, KomgaSeries, KomgaBook } from "@inkpipe/shared"
 import {
   komgaLibrariesHandler,
@@ -7,7 +7,7 @@ import {
   komgaThumbnailHandler,
   komgaBooksHandler,
 } from "../routes/komga"
-import { KomgaService } from "../layers/Komga"
+import { KomgaService } from "../layers/integrations/Komga"
 
 const mockLibraries: KomgaLibrary[] = [
   { id: "lib-1", name: "Manga" },
@@ -31,97 +31,89 @@ function makeKomgaLayer() {
 }
 
 describe("komgaLibrariesHandler", () => {
-  it("returns libraries as JSON", async () => {
-    const response = await Effect.runPromise(
-      komgaLibrariesHandler.pipe(Effect.provide(makeKomgaLayer())),
-    )
-    expect(response.status).toBe(200)
-    const body = await response.json() as any
-    expect(body).toEqual(mockLibraries)
-  })
+  it.effect("returns libraries as JSON", () =>
+    Effect.gen(function*() {
+      const response = yield* komgaLibrariesHandler.pipe(Effect.provide(makeKomgaLayer()))
+      expect(response.status).toBe(200)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body).toEqual(mockLibraries)
+    }))
 
-  it("returns 502 on error", async () => {
-    const layer = Layer.succeed(KomgaService, {
-      listLibraries: Effect.fail({ message: "Error" } as any),
-      listAllSeries: () => Effect.succeed([]),
-      getSeriesThumbnail: () => Effect.succeed(""),
-      getBooksForSeries: () => Effect.succeed([]),
-    } as any)
-    const response = await Effect.runPromise(
-      komgaLibrariesHandler.pipe(Effect.provide(layer)),
-    )
-    expect(response.status).toBe(502)
-  })
+  it.effect("returns 502 on error", () =>
+    Effect.gen(function*() {
+      const layer = Layer.succeed(KomgaService, {
+        listLibraries: Effect.fail({ message: "Error" } as any),
+        listAllSeries: () => Effect.succeed([]),
+        getSeriesThumbnail: () => Effect.succeed(""),
+        getBooksForSeries: () => Effect.succeed([]),
+      } as any)
+      const response = yield* komgaLibrariesHandler.pipe(Effect.provide(layer))
+      expect(response.status).toBe(502)
+    }))
 })
 
 describe("komgaSeriesHandler", () => {
-  it("returns series as JSON", async () => {
-    const response = await Effect.runPromise(
-      komgaSeriesHandler("lib-1").pipe(Effect.provide(makeKomgaLayer())),
-    )
-    expect(response.status).toBe(200)
-    const body = await response.json() as any
-    expect(body).toEqual(mockSeries)
-  })
+  it.effect("returns series as JSON", () =>
+    Effect.gen(function*() {
+      const response = yield* komgaSeriesHandler("lib-1").pipe(Effect.provide(makeKomgaLayer()))
+      expect(response.status).toBe(200)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body).toEqual(mockSeries)
+    }))
 
-  it("returns 502 on error", async () => {
-    const layer = Layer.succeed(KomgaService, {
-      listLibraries: Effect.succeed([]),
-      listAllSeries: () => Effect.fail({ message: "Error" } as any),
-      getSeriesThumbnail: () => Effect.succeed(""),
-      getBooksForSeries: () => Effect.succeed([]),
-    } as any)
-    const response = await Effect.runPromise(
-      komgaSeriesHandler().pipe(Effect.provide(layer)),
-    )
-    expect(response.status).toBe(502)
-  })
+  it.effect("returns 502 on error", () =>
+    Effect.gen(function*() {
+      const layer = Layer.succeed(KomgaService, {
+        listLibraries: Effect.succeed([]),
+        listAllSeries: () => Effect.fail({ message: "Error" } as any),
+        getSeriesThumbnail: () => Effect.succeed(""),
+        getBooksForSeries: () => Effect.succeed([]),
+      } as any)
+      const response = yield* komgaSeriesHandler().pipe(Effect.provide(layer))
+      expect(response.status).toBe(502)
+    }))
 })
 
 describe("komgaThumbnailHandler", () => {
-  it("returns thumbnail as JSON", async () => {
-    const response = await Effect.runPromise(
-      komgaThumbnailHandler("s1").pipe(Effect.provide(makeKomgaLayer())),
-    )
-    expect(response.status).toBe(200)
-    const body = await response.json() as any
-    expect(body.thumbnail).toBe("data:image/jpeg;base64,/9j/")
-  })
+  it.effect("returns thumbnail as JSON", () =>
+    Effect.gen(function*() {
+      const response = yield* komgaThumbnailHandler("s1").pipe(Effect.provide(makeKomgaLayer()))
+      expect(response.status).toBe(200)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body.thumbnail).toBe("data:image/jpeg;base64,/9j/")
+    }))
 
-  it("returns 502 on error", async () => {
-    const layer = Layer.succeed(KomgaService, {
-      listLibraries: Effect.succeed([]),
-      listAllSeries: () => Effect.succeed([]),
-      getSeriesThumbnail: () => Effect.fail({ message: "Error" } as any),
-      getBooksForSeries: () => Effect.succeed([]),
-    } as any)
-    const response = await Effect.runPromise(
-      komgaThumbnailHandler("s1").pipe(Effect.provide(layer)),
-    )
-    expect(response.status).toBe(502)
-  })
+  it.effect("returns 502 on error", () =>
+    Effect.gen(function*() {
+      const layer = Layer.succeed(KomgaService, {
+        listLibraries: Effect.succeed([]),
+        listAllSeries: () => Effect.succeed([]),
+        getSeriesThumbnail: () => Effect.fail({ message: "Error" } as any),
+        getBooksForSeries: () => Effect.succeed([]),
+      } as any)
+      const response = yield* komgaThumbnailHandler("s1").pipe(Effect.provide(layer))
+      expect(response.status).toBe(502)
+    }))
 })
 
 describe("komgaBooksHandler", () => {
-  it("returns books as JSON", async () => {
-    const response = await Effect.runPromise(
-      komgaBooksHandler("s1").pipe(Effect.provide(makeKomgaLayer())),
-    )
-    expect(response.status).toBe(200)
-    const body = await response.json() as any
-    expect(body).toEqual(mockBooks)
-  })
+  it.effect("returns books as JSON", () =>
+    Effect.gen(function*() {
+      const response = yield* komgaBooksHandler("s1").pipe(Effect.provide(makeKomgaLayer()))
+      expect(response.status).toBe(200)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body).toEqual(mockBooks)
+    }))
 
-  it("returns 502 on error", async () => {
-    const layer = Layer.succeed(KomgaService, {
-      listLibraries: Effect.succeed([]),
-      listAllSeries: () => Effect.succeed([]),
-      getSeriesThumbnail: () => Effect.succeed(""),
-      getBooksForSeries: () => Effect.fail({ message: "Error" } as any),
-    } as any)
-    const response = await Effect.runPromise(
-      komgaBooksHandler("s1").pipe(Effect.provide(layer)),
-    )
-    expect(response.status).toBe(502)
-  })
+  it.effect("returns 502 on error", () =>
+    Effect.gen(function*() {
+      const layer = Layer.succeed(KomgaService, {
+        listLibraries: Effect.succeed([]),
+        listAllSeries: () => Effect.succeed([]),
+        getSeriesThumbnail: () => Effect.succeed(""),
+        getBooksForSeries: () => Effect.fail({ message: "Error" } as any),
+      } as any)
+      const response = yield* komgaBooksHandler("s1").pipe(Effect.provide(layer))
+      expect(response.status).toBe(502)
+    }))
 })

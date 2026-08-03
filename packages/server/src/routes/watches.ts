@@ -1,7 +1,7 @@
 import { Effect } from "effect"
-import { WatchStoreService } from "../layers/WatchStore"
-import { ProwlarrService } from "../layers/Prowlarr"
-import { PushService } from "../layers/Push"
+import { WatchStoreService } from "../layers/storage/WatchStore"
+import { ProwlarrService } from "../layers/integrations/Prowlarr"
+import { PushService } from "../layers/pipeline/Push"
 import { matchesFilter, WatchId, WatchAlertId } from "@inkpipe/shared"
 import type { CreateWatchRequest, UpdateWatchRequest, Watch } from "@inkpipe/shared"
 
@@ -10,7 +10,7 @@ export const listWatchesHandler = Effect.gen(function* () {
   const watches = yield* store.listWatches
   return Response.json({ watches })
 }).pipe(
-  Effect.catchAll((e: { message: string }) =>
+  Effect.catch((e: { message: string }) =>
     Effect.succeed(Response.json({ error: e.message }, { status: 500 })),
   ),
 )
@@ -21,7 +21,7 @@ export const getWatchHandler = (id: string) =>
     const watch = yield* store.getWatch(WatchId.make(Number(id)))
     return Response.json(watch)
   }).pipe(
-    Effect.catchAll((e: { message: string }) =>
+    Effect.catch((e: { message: string }) =>
       Effect.succeed(Response.json({ error: e.message }, { status: 404 })),
     ),
   )
@@ -44,7 +44,7 @@ export const createWatchHandler = (body: CreateWatchRequest) =>
     })
     return Response.json(watch, { status: 201 })
   }).pipe(
-    Effect.catchAll((e: { message: string }) =>
+    Effect.catch((e: { message: string }) =>
       Effect.succeed(Response.json({ error: e.message }, { status: 500 })),
     ),
   )
@@ -58,7 +58,7 @@ export const updateWatchHandler = (id: string, body: UpdateWatchRequest) =>
     const watch = yield* store.updateWatch(WatchId.make(Number(id)), body as Partial<{ name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"] }>)
     return Response.json(watch)
   }).pipe(
-    Effect.catchAll((e: { message: string }) =>
+    Effect.catch((e: { message: string }) =>
       Effect.succeed(Response.json({ error: e.message }, { status: 404 })),
     ),
   )
@@ -69,7 +69,7 @@ export const deleteWatchHandler = (id: string) =>
     yield* store.deleteWatch(WatchId.make(Number(id)))
     return Response.json({ success: true })
   }).pipe(
-    Effect.catchAll((e: { message: string }) =>
+    Effect.catch((e: { message: string }) =>
       Effect.succeed(Response.json({ error: e.message }, { status: 404 })),
     ),
   )
@@ -82,7 +82,7 @@ export const listAlertsHandler = (watchId: string) =>
     const alerts = yield* store.listAlerts(wid)
     return Response.json({ alerts })
   }).pipe(
-    Effect.catchAll((e: { message: string }) =>
+    Effect.catch((e: { message: string }) =>
       Effect.succeed(Response.json({ error: e.message }, { status: 404 })),
     ),
   )
@@ -93,7 +93,7 @@ export const acknowledgeAlertHandler = (watchId: string, alertId: string) =>
     yield* store.acknowledgeAlert(WatchId.make(Number(watchId)), WatchAlertId.make(Number(alertId)))
     return Response.json({ success: true })
   }).pipe(
-    Effect.catchAll((e: { message: string }) =>
+    Effect.catch((e: { message: string }) =>
       Effect.succeed(Response.json({ error: e.message }, { status: 404 })),
     ),
   )
@@ -104,7 +104,7 @@ export const acknowledgeAllAlertsHandler = (watchId: string) =>
     yield* store.acknowledgeAllAlerts(WatchId.make(Number(watchId)))
     return Response.json({ success: true })
   }).pipe(
-    Effect.catchAll((e: { message: string }) =>
+    Effect.catch((e: { message: string }) =>
       Effect.succeed(Response.json({ error: e.message }, { status: 500 })),
     ),
   )
@@ -118,7 +118,7 @@ export const triggerWatchHandler = (id: string) =>
     const watch = yield* store.getWatch(WatchId.make(Number(id)))
 
     const results = yield* prowlarr.search(watch.query).pipe(
-      Effect.catchAll(() => Effect.succeed([])),
+      Effect.orElseSucceed(() => []),
     )
 
     let newAlerts = 0
@@ -153,7 +153,7 @@ export const triggerWatchHandler = (id: string) =>
 
     return Response.json({ matches: newAlerts })
   }).pipe(
-    Effect.catchAll((e: { message: string }) =>
+    Effect.catch((e: { message: string }) =>
       Effect.succeed(Response.json({ error: e.message }, { status: 404 })),
     ),
   )
@@ -163,7 +163,7 @@ export const unreadCountHandler = Effect.gen(function* () {
   const count = yield* store.getUnreadCount
   return Response.json({ count })
 }).pipe(
-  Effect.catchAll((e: { message: string }) =>
+  Effect.catch((e: { message: string }) =>
     Effect.succeed(Response.json({ error: e.message }, { status: 500 })),
   ),
 )

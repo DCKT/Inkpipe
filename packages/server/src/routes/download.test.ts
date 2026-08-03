@@ -1,9 +1,9 @@
 import { Effect, Layer } from "effect"
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "@effect/vitest"
 import type { ProwlarrResult } from "@inkpipe/shared"
 import { downloadHandler } from "../routes/download"
-import { PipelineService } from "../layers/Pipeline"
-import { CopypartyService } from "../layers/Copyparty"
+import { PipelineService } from "../layers/pipeline/Pipeline"
+import { CopypartyService } from "../layers/integrations/Copyparty"
 
 const mockItems: ProwlarrResult[] = [
   {
@@ -45,94 +45,91 @@ afterEach(() => {
 })
 
 describe("downloadHandler", () => {
-  it("returns started count", async () => {
-    const response = await Effect.runPromise(
-      downloadHandler({ items: mockItems }).pipe(Effect.provide(makeLayer())),
-    )
+  it.effect("returns started count", () =>
+    Effect.gen(function* () {
+      const response = yield* downloadHandler({ items: mockItems }).pipe(
+        Effect.provide(makeLayer()),
+      )
 
-    expect(response.status).toBe(200)
-    const body = await response.json() as any
-    expect(body.started).toBe(2)
-  })
+      expect(response.status).toBe(200)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body.started).toBe(2)
+    }))
 
-  it("creates folder when subfolder is provided and newFolder is true", async () => {
-    const createFolderSpy = vi.fn(() => Effect.void)
-    const layer = Layer.mergeAll(
-      Layer.succeed(PipelineService, {
-        runPipeline: () => Effect.void,
-      } as any),
-      Layer.succeed(CopypartyService, {
-        listFolders: Effect.succeed([]),
-        uploadFile: () => Effect.void,
-        createFolder: createFolderSpy,
-        deleteFolder: () => Effect.void,
-      } as any),
-    )
+  it.effect("creates folder when subfolder is provided and newFolder is true", () =>
+    Effect.gen(function* () {
+      const createFolderSpy = vi.fn(() => Effect.void)
+      const layer = Layer.mergeAll(
+        Layer.succeed(PipelineService, {
+          runPipeline: () => Effect.void,
+        } as any),
+        Layer.succeed(CopypartyService, {
+          listFolders: Effect.succeed([]),
+          uploadFile: () => Effect.void,
+          createFolder: createFolderSpy,
+          deleteFolder: () => Effect.void,
+        } as any),
+      )
 
-    await Effect.runPromise(
-      downloadHandler({ items: mockItems, subfolder: "Manga/New", newFolder: true }).pipe(
+      yield* downloadHandler({ items: mockItems, subfolder: "Manga/New", newFolder: true }).pipe(
         Effect.provide(layer),
-      ),
-    )
+      )
 
-    expect(createFolderSpy).toHaveBeenCalledWith("Manga/New")
-  })
+      expect(createFolderSpy).toHaveBeenCalledWith("Manga/New")
+    }))
 
-  it("does NOT create folder when subfolder is provided but newFolder is false", async () => {
-    const createFolderSpy = vi.fn(() => Effect.void)
-    const layer = Layer.mergeAll(
-      Layer.succeed(PipelineService, {
-        runPipeline: () => Effect.void,
-      } as any),
-      Layer.succeed(CopypartyService, {
-        listFolders: Effect.succeed([]),
-        uploadFile: () => Effect.void,
-        createFolder: createFolderSpy,
-        deleteFolder: () => Effect.void,
-      } as any),
-    )
+  it.effect("does NOT create folder when subfolder is provided but newFolder is false", () =>
+    Effect.gen(function* () {
+      const createFolderSpy = vi.fn(() => Effect.void)
+      const layer = Layer.mergeAll(
+        Layer.succeed(PipelineService, {
+          runPipeline: () => Effect.void,
+        } as any),
+        Layer.succeed(CopypartyService, {
+          listFolders: Effect.succeed([]),
+          uploadFile: () => Effect.void,
+          createFolder: createFolderSpy,
+          deleteFolder: () => Effect.void,
+        } as any),
+      )
 
-    await Effect.runPromise(
-      downloadHandler({ items: mockItems, subfolder: "ExistingFolder", newFolder: false }).pipe(
+      yield* downloadHandler({ items: mockItems, subfolder: "ExistingFolder", newFolder: false }).pipe(
         Effect.provide(layer),
-      ),
-    )
+      )
 
-    expect(createFolderSpy).not.toHaveBeenCalled()
-  })
+      expect(createFolderSpy).not.toHaveBeenCalled()
+    }))
 
-  it("does NOT create folder when subfolder is provided and newFolder is undefined", async () => {
-    const createFolderSpy = vi.fn(() => Effect.void)
-    const layer = Layer.mergeAll(
-      Layer.succeed(PipelineService, {
-        runPipeline: () => Effect.void,
-      } as any),
-      Layer.succeed(CopypartyService, {
-        listFolders: Effect.succeed([]),
-        uploadFile: () => Effect.void,
-        createFolder: createFolderSpy,
-        deleteFolder: () => Effect.void,
-      } as any),
-    )
+  it.effect("does NOT create folder when subfolder is provided and newFolder is undefined", () =>
+    Effect.gen(function* () {
+      const createFolderSpy = vi.fn(() => Effect.void)
+      const layer = Layer.mergeAll(
+        Layer.succeed(PipelineService, {
+          runPipeline: () => Effect.void,
+        } as any),
+        Layer.succeed(CopypartyService, {
+          listFolders: Effect.succeed([]),
+          uploadFile: () => Effect.void,
+          createFolder: createFolderSpy,
+          deleteFolder: () => Effect.void,
+        } as any),
+      )
 
-    await Effect.runPromise(
-      downloadHandler({ items: mockItems, subfolder: "Something" }).pipe(
+      yield* downloadHandler({ items: mockItems, subfolder: "Something" }).pipe(
         Effect.provide(layer),
-      ),
-    )
+      )
 
-    expect(createFolderSpy).not.toHaveBeenCalled()
-  })
+      expect(createFolderSpy).not.toHaveBeenCalled()
+    }))
 
-  it("returns 502 on folder creation error", async () => {
-    const response = await Effect.runPromise(
-      downloadHandler({ items: mockItems, subfolder: "Bad", newFolder: true }).pipe(
+  it.effect("returns 502 on folder creation error", () =>
+    Effect.gen(function* () {
+      const response = yield* downloadHandler({ items: mockItems, subfolder: "Bad", newFolder: true }).pipe(
         Effect.provide(makeLayer({ createFolderOk: false })),
-      ),
-    )
+      )
 
-    expect(response.status).toBe(502)
-    const body = await response.json() as any
-    expect(body.error).toBe("Folder creation failed")
-  })
+      expect(response.status).toBe(502)
+      const body = (yield* Effect.promise(() => response.json())) as any
+      expect(body.error).toBe("Folder creation failed")
+    }))
 })

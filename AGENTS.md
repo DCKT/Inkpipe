@@ -47,7 +47,7 @@ inkpipe/
 │   │       ├── main.ts          # Entry point
 │   │       ├── layers/          # Effect services (business logic + data access)
 │   │       └── routes/          # HTTP route handlers
-│   ├── watcher/         # Standalone Bun process, no Effect          ← WATCHER
+│   ├── watcher/         # Standalone Bun process, Effect-based (reuses server layers) ← WATCHER
 │   │   └── src/
 │   │       ├── index.ts         # Entry point — loads watches, runs scheduler
 │   │       ├── config.ts        # Prowlarr config from shared SQLite
@@ -116,14 +116,14 @@ inkpipe/
 **Read `docs/guides/effect-guide.md` and `docs/guides/api-guide.md` first.** Key rules:
 
 1. **NEVER use `any` or type casts** — use `Schema.decodeUnknown`, `identity`
-2. **NEVER use global `Error`** — use `Schema.TaggedError` for all domain errors
-3. **NEVER use `catchAllCause`** — it catches defects (bugs); use `catchAll` or `mapError`
+2. **NEVER use global `Error`** — use `Schema.TaggedErrorClass` for all domain errors
+3. **NEVER use `catchCause`** — it catches defects (bugs); use `catch` or `mapError`
 4. **NEVER use `disableValidation: true`** — banned by lint rule
 5. **NEVER use `*FromSelf` schemas** — use standard variants (`Schema.Option`, not `OptionFromSelf`)
 6. **NEVER use Sync variants** — use `Schema.decodeUnknown` not `decodeUnknownSync`
 7. **Flat modules, no barrel files** — `ProwlarrService.ts`, not `services/prowlarr/index.ts`
 8. **Prefer `Schema.Class` over `Schema.Struct`** — classes give constructor, `Equal`, `Hash`
-9. **Use `Schema.TaggedError`** for domain errors — `Schema.is()` for type guards
+9. **Use `Schema.TaggedErrorClass`** for domain errors — `Schema.is()` for type guards
 10. **Use branded types** for IDs where appropriate
 11. **Use `Layer.effect` or `Layer.scoped`** — avoid `Layer.succeed` and `Tag.of`
 12. **ALWAYS use precise domain schemas** — never lose type precision by using primitives when a richer domain type exists
@@ -161,7 +161,7 @@ bun run typecheck     # TypeScript type checking
 **Guidelines:**
 
 1. **Define schemas first** — domain types in `packages/shared/src/schemas.ts`, API contracts in `packages/shared/src/api.ts`
-2. **Errors in `packages/shared/src/errors.ts`** — use `Schema.TaggedError` for all domain errors
+2. **Errors in `packages/shared/src/errors.ts`** — use `Schema.TaggedErrorClass` for all domain errors
 3. **Services as Effect layers** — each `.ts` file in `server/src/layers/` exports a service class and its live implementation
 4. **Routes call services** — route handlers in `server/src/routes/` import and call layer services, never access SQLite directly
 5. **Layers compose in `main.ts`** — service dependencies are wired via `Layer.provide`

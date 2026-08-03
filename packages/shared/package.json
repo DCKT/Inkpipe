@@ -16,12 +16,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@effect/sql": "^0.51.1",
-    "@effect/sql-sqlite-bun": "^0.52.0",
-    "effect": "^3.21.3"
+    "effect": "4.0.0-beta.102"
   },
   "devDependencies": {
-    "typescript": "^5.7.2",
+    "typescript": "^7.0.2",
     "vitest": "^3.0.5"
   }
 }

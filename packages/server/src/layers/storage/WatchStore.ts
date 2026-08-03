@@ -1,11 +1,11 @@
-import { Effect, Layer } from "effect"
-import { SqlClient } from "@effect/sql"
+import { Context, Effect, Layer } from "effect"
+import { SqlClient } from "effect/unstable/sql"
 import { type Watch, type WatchAlert, type WatchWithUnread, WatchStoreError, WatchNotFoundError } from "@inkpipe/shared"
 import { WatchId, WatchAlertId } from "@inkpipe/shared"
 
 export type { WatchWithUnread }
 
-export class WatchStoreService extends Effect.Tag("WatchStoreService")<
+export class WatchStoreService extends Context.Service<
   WatchStoreService,
   {
     readonly listWatches: Effect.Effect<WatchWithUnread[], WatchStoreError>
@@ -22,7 +22,7 @@ export class WatchStoreService extends Effect.Tag("WatchStoreService")<
     readonly hasAlertForGuid: (watchId: WatchId, guid: string) => Effect.Effect<boolean, WatchStoreError>
     readonly getUnreadCount: Effect.Effect<number, WatchStoreError>
   }
->() {}
+>()("WatchStoreService") {}
 
 interface WatchRow {
   id: number

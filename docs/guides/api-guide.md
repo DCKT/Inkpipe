@@ -187,13 +187,13 @@ export class AccountListResponse extends Schema.Class<AccountListResponse>(
 Annotate error schemas with HTTP status codes:
 
 ```typescript
-class NotFoundError extends Schema.TaggedError<NotFoundError>()(
+class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()(
   "NotFoundError",
   { resource: Schema.String, id: Schema.String },
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-class ValidationError extends Schema.TaggedError<ValidationError>()(
+class ValidationError extends Schema.TaggedErrorClass<ValidationError>()(
   "ValidationError",
   { errors: Schema.Array(Schema.String) },
   HttpApiSchema.annotations({ status: 422 }),

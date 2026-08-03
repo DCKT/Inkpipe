@@ -1,21 +1,21 @@
-import { Effect, Layer, Cause } from "effect"
+import { Context, Effect, Layer, Cause } from "effect"
 import { join } from "node:path"
 import type { ProwlarrResult } from "@inkpipe/shared"
 import { PipelineError } from "@inkpipe/shared"
-import { JobStoreService } from "./JobStore"
-import { AllDebridService } from "./AllDebrid"
-import { KccService } from "./Kcc"
-import { CopypartyService } from "./Copyparty"
+import { JobStoreService } from "../storage/JobStore"
+import { AllDebridService } from "../integrations/AllDebrid"
+import { KccService } from "../integrations/Kcc"
+import { CopypartyService } from "../integrations/Copyparty"
 import { FileManagerService } from "./FileManager"
-import { ConfigService } from "./Config"
-import { LogService } from "./Log"
+import { ConfigService } from "../core/Config"
+import { LogService } from "../core/Log"
 
-export class PipelineService extends Effect.Tag("PipelineService")<
+export class PipelineService extends Context.Service<
   PipelineService,
   {
     readonly runPipeline: (result: ProwlarrResult, subfolder?: string, createdFolder?: boolean) => Effect.Effect<void, PipelineError>
   }
->() {}
+>()("PipelineService") {}
 
 const POLL_INTERVAL = 3000
 
@@ -187,12 +187,12 @@ export const PipelineServiceLive = Layer.effect(
 
         const cleanup = Effect.gen(function* () {
           yield* jl.info("pipeline", "Cleaning up")
-          yield* Effect.catchAll(
+          yield* Effect.catch(
             fileManager.cleanupJobDir(String(job.id)),
             () => Effect.void,
           )
           if (magnetId !== null) {
-            yield* Effect.catchAll(
+            yield* Effect.catch(
               alldebrid.deleteMagnet(magnetId),
               () => Effect.void,
             )
@@ -200,7 +200,7 @@ export const PipelineServiceLive = Layer.effect(
         })
 
         yield* pipelineBody.pipe(
-          Effect.catchAllCause((cause) => {
+          Effect.catchCause((cause) => {
             const e = Cause.squash(cause)
             const message = e instanceof Error ? e.message : String(e)
             return Effect.gen(function* () {
@@ -210,7 +210,7 @@ export const PipelineServiceLive = Layer.effect(
               }
               yield* jobStore.updateJob(job.id, { stage: "FAILED", error: message })
               if (createdFolder && subfolder) {
-                yield* Effect.catchAll(
+                yield* Effect.catch(
                   copyparty.deleteFolder(subfolder),
                   () => Effect.void,
                 )

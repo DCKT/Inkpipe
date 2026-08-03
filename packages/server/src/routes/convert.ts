@@ -2,8 +2,9 @@ import { Effect } from "effect"
 import { writeFile, readdir, mkdir, readFile, rm } from "node:fs/promises"
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
-import { KccService } from "../layers/Kcc"
-import { FileManagerService } from "../layers/FileManager"
+import { ConvertError } from "@inkpipe/shared"
+import { KccService } from "../layers/integrations/Kcc"
+import { FileManagerService } from "../layers/pipeline/FileManager"
 
 type ConvertJob = {
   status: "running" | "done" | "error"
@@ -26,13 +27,13 @@ export const convertStartHandler = (formData: FormData) =>
   Effect.gen(function* () {
     const file = formData.get("file")
     if (!file || !(file instanceof Blob)) {
-      return yield* Effect.fail(new Error("No file provided"))
+      return yield* Effect.fail(new ConvertError({ message: "No file provided" }))
     }
 
     const filename = file.name || "unknown"
     const ext = filename.toLowerCase().split(".").pop()
     if (ext !== "cbz") {
-      return yield* Effect.fail(new Error("Only .cbz files are accepted"))
+      return yield* Effect.fail(new ConvertError({ message: "Only .cbz files are accepted" }))
     }
 
     const id = randomUUID()
@@ -56,8 +57,8 @@ export const convertStartHandler = (formData: FormData) =>
       for (const sub of job.subscribers) sub(line, "log")
     }
 
-    // forkDaemon inherits the current fiber's service context (KccService, etc.)
-    yield* Effect.forkDaemon(
+    // forkDetach inherits the current fiber's service context (KccService, etc.)
+    yield* Effect.forkDetach(
       kcc.convert(inputPath, workDir, onLog).pipe(
         Effect.flatMap(() =>
           Effect.promise(() => readdir(workDir)).pipe(
@@ -80,7 +81,7 @@ export const convertStartHandler = (formData: FormData) =>
             }),
           ),
         ),
-        Effect.catchAll((e: { message: string }) =>
+        Effect.catch((e: { message: string }) =>
           Effect.sync(() => {
             job.status = "error"
             job.error = e.message
@@ -93,7 +94,7 @@ export const convertStartHandler = (formData: FormData) =>
 
     return Response.json({ id })
   }).pipe(
-    Effect.catchAll((e: { message: string }) =>
+    Effect.catch((e: { message: string }) =>
       Effect.succeed(
         Response.json({ error: e.message }, { status: 400 }),
       ),
@@ -173,7 +174,7 @@ export const convertDownloadHandler = (id: string) =>
   Effect.gen(function* () {
     const job = jobs.get(id)
     if (job && job.status !== "done") {
-      return yield* Effect.fail(new Error("Conversion not yet complete"))
+      return yield* Effect.fail(new ConvertError({ message: "Conversion not yet complete" }))
     }
 
     const fileManager = yield* FileManagerService
@@ -182,7 +183,7 @@ export const convertDownloadHandler = (id: string) =>
 
     const files = yield* Effect.promise(() =>
       readdir(workDir).catch(() => {
-        throw new Error("Conversion not found")
+        throw new ConvertError({ message: "Conversion not found" })
       }),
     )
     const epubFile = files.find((f) => f.toLowerCase().endsWith(".epub"))
@@ -191,7 +192,7 @@ export const convertDownloadHandler = (id: string) =>
       yield* Effect.promise(() =>
         rm(workDir, { recursive: true, force: true }).catch(() => {}),
       )
-      return yield* Effect.fail(new Error("EPUB not found"))
+      return yield* Effect.fail(new ConvertError({ message: "EPUB not found" }))
     }
 
     const filePath = join(workDir, epubFile)
@@ -212,7 +213,7 @@ export const convertDownloadHandler = (id: string) =>
       },
     })
   }).pipe(
-    Effect.catchAll((e: { message: string }) =>
+    Effect.catch((e: { message: string }) =>
       Effect.succeed(
         Response.json({ error: e.message }, { status: 404 }),
       ),

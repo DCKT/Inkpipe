@@ -1,12 +1,12 @@
-import { Effect, Layer } from "effect"
+import { Context, Effect, Layer } from "effect"
 import { join } from "node:path"
 import { homedir } from "node:os"
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs"
 import webpush from "web-push"
 import type { PushSubscriptionRequest } from "@inkpipe/shared"
-import { LogService } from "./Log"
+import { LogService } from "../core/Log"
 
-export class PushService extends Effect.Tag("PushService")<
+export class PushService extends Context.Service<
   PushService,
   {
     readonly getVapidPublicKey: Effect.Effect<string>
@@ -14,7 +14,7 @@ export class PushService extends Effect.Tag("PushService")<
     readonly removeSubscription: (endpoint: string) => Effect.Effect<void>
     readonly sendNotification: (payload: { title: string; body: string; tag?: string }) => Effect.Effect<void>
   }
->() {}
+>()("PushService") {}
 
 const CONFIG_DIR = process.env.INKPIPE_DATA_DIR ?? join(homedir(), ".inkpipe")
 const VAPID_PATH = join(CONFIG_DIR, "vapid.json")

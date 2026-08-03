@@ -108,7 +108,7 @@ export const CreateWatchRequestSchema = Schema.Struct({
   query: Schema.String,
   intervalSeconds: Schema.Number,
   filterGroups: Schema.Array(Schema.Struct({
-    mode: Schema.Literal("AND", "OR"),
+    mode: Schema.Literals(["AND", "OR"]),
     substrings: Schema.Array(Schema.String),
   })),
 })
@@ -120,7 +120,7 @@ export const UpdateWatchRequestSchema = Schema.Struct({
   query: Schema.optional(Schema.String),
   intervalSeconds: Schema.optional(Schema.Number),
   filterGroups: Schema.optional(Schema.Array(Schema.Struct({
-    mode: Schema.Literal("AND", "OR"),
+    mode: Schema.Literals(["AND", "OR"]),
     substrings: Schema.Array(Schema.String),
   }))),
 })

@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect"
+import { Context, Effect, Layer } from "effect"
 import {
   type DebridFile,
   type UploadResult,
@@ -7,8 +7,8 @@ import {
   MagnetUploadError,
   MagnetStatusError,
 } from "@inkpipe/shared"
-import { ConfigService } from "./Config"
-import { LogService } from "./Log"
+import { ConfigService } from "../core/Config"
+import { LogService } from "../core/Log"
 
 interface Logger {
   info: (namespace: string, ...message: unknown[]) => Effect.Effect<void>
@@ -16,7 +16,7 @@ interface Logger {
   warn: (namespace: string, ...message: unknown[]) => Effect.Effect<void>
 }
 
-export class AllDebridService extends Effect.Tag("AllDebridService")<
+export class AllDebridService extends Context.Service<
   AllDebridService,
   {
     readonly uploadMagnet: (magnetOrUrl: string) => Effect.Effect<UploadResult, AllDebridNotConfigured | MagnetUploadError | AllDebridHttpError>
@@ -26,7 +26,7 @@ export class AllDebridService extends Effect.Tag("AllDebridService")<
     readonly deleteMagnet: (magnetId: number) => Effect.Effect<void, AllDebridNotConfigured>
     readonly downloadFile: (url: string, destPath: string, onProgress?: (received: number, total: number) => void) => Effect.Effect<void, AllDebridNotConfigured | AllDebridHttpError>
   }
->() {}
+>()("AllDebridService") {}
 
 const AGENT = "inkpipe"
 const BASE_URL = "https://api.alldebrid.com"
@@ -161,7 +161,7 @@ export const AllDebridServiceLive = Layer.effect(
     const uploadMagnet = (magnetOrUrl: string) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catchAll((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
+          Effect.catch((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
         )
         const apiKey = config.alldebrid.apiKey
         if (!apiKey) {
@@ -191,7 +191,7 @@ export const AllDebridServiceLive = Layer.effect(
     const getMagnetStatus = (magnetId: number) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catchAll((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
+          Effect.catch((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
         )
         const apiKey = config.alldebrid.apiKey
         if (!apiKey) {
@@ -231,7 +231,7 @@ export const AllDebridServiceLive = Layer.effect(
     const getMagnetFiles = (magnetId: number) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catchAll((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
+          Effect.catch((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
         )
         const apiKey = config.alldebrid.apiKey
         if (!apiKey) {
@@ -271,7 +271,7 @@ export const AllDebridServiceLive = Layer.effect(
     const unlockLink = (link: string) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catchAll((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
+          Effect.catch((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
         )
         const apiKey = config.alldebrid.apiKey
         if (!apiKey) {
@@ -314,7 +314,7 @@ export const AllDebridServiceLive = Layer.effect(
     const deleteMagnet = (magnetId: number) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catchAll((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
+          Effect.catch((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
         )
         const apiKey = config.alldebrid.apiKey
         if (!apiKey) {

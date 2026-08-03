@@ -46,4 +46,4 @@ Three-package monorepo:
 
 ## Status
 
-Accepted (2026-06-13). The SQL alternative (raw `bun:sqlite`) was later superseded by [ADR 0007](./0007-effect-sql-migration.md) (2026-06-24), which migrated to `@effect/sql` + `@effect/sql-sqlite-bun`.
+Accepted (2026-06-13). The SQL alternative (raw `bun:sqlite`) was later superseded by [ADR 0007](./0007-effect-sql-migration.md) (2026-06-24), which migrated to `@effect/sql` + `@effect/sql-sqlite-bun`. The `Effect.Tag` service pattern referenced above was itself superseded by `Context.Service` in the Effect v4 migration (2026-08-03); see the addendum on ADR 0007.

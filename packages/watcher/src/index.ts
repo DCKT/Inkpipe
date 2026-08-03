@@ -1,16 +1,16 @@
 import { Effect, Layer, ManagedRuntime, Schedule } from "effect"
 import { DbMigratedLayer } from "@inkpipe/db"
-import { LogService, LogServiceLive } from "@inkpipe/server/layers/Log"
-import { ConfigServiceLive } from "@inkpipe/server/layers/Config"
+import { LogService, LogServiceLive } from "@inkpipe/server/layers/core/Log"
+import { ConfigServiceLive } from "@inkpipe/server/layers/core/Config"
 import {
   ProwlarrServiceLive,
   ProwlarrService,
-} from "@inkpipe/server/layers/Prowlarr"
+} from "@inkpipe/server/layers/integrations/Prowlarr"
 import {
   WatchStoreServiceLive,
   WatchStoreService,
-} from "@inkpipe/server/layers/WatchStore"
-import { PushServiceLive, PushService } from "@inkpipe/server/layers/Push"
+} from "@inkpipe/server/layers/storage/WatchStore"
+import { PushServiceLive, PushService } from "@inkpipe/server/layers/pipeline/Push"
 import { matchesFilter, type Watch } from "@inkpipe/shared"
 
 const BaseLayer = Layer.mergeAll(
@@ -38,15 +38,15 @@ function runWatch(watch: Watch) {
     const push = yield* PushService
     const log = yield* LogService
 
-    let results
-    try {
-      results = yield* prowlarr
-        .search(watch.query)
-        .pipe(Effect.catchAll(() => Effect.succeed([] as any[])))
-    } catch {
-      log.error("watcher", `"${watch.name}": search failed`)
-      return
-    }
+    const results = yield* prowlarr
+      .search(watch.query)
+      .pipe(
+        Effect.catch((e) =>
+          log.error("watcher", `"${watch.name}": search failed`, e).pipe(
+            Effect.as([] as any[]),
+          ),
+        ),
+      )
 
     let newAlerts = 0
 
@@ -72,7 +72,7 @@ function runWatch(watch: Watch) {
         acknowledged: false,
       })
       newAlerts++
-      log.info(`[watcher]`, `"${watch.name}": new match "${result.title}"`)
+      yield* log.info(`[watcher]`, `"${watch.name}": new match "${result.title}"`)
     }
 
     if (newAlerts > 0) {
@@ -91,31 +91,31 @@ const app = Effect.gen(function* () {
   const log = yield* LogService
 
   if (watches.length === 0) {
-    log.info("[watcher]", "No enabled watches found")
+    yield* log.info("[watcher]", "No enabled watches found")
     return
   }
 
-  log.info(`[watcher]`, `Starting ${watches.length} watches`)
+  yield* log.info(`[watcher]`, `Starting ${watches.length} watches`)
 
-  yield* Effect.forEach(watches, (watch) => {
-    const intervalMs = Math.max(watch.intervalSeconds * 1000, 300_000)
-    log.info(
-      `[watcher]`,
-      `"${watch.name}" scheduled every ${watch.intervalSeconds}s`,
-    )
-    return Effect.repeat(
-      runWatch(watch).pipe(
-        Effect.catchAll((e) =>
-          Effect.sync(() => {
-            log.error(`[watcher]`, `"${watch.name}": runtime error:`, e)
-          }),
+  yield* Effect.forEach(watches, (watch) =>
+    Effect.gen(function* () {
+      const intervalMs = Math.max(watch.intervalSeconds * 1000, 300_000)
+      yield* log.info(
+        `[watcher]`,
+        `"${watch.name}" scheduled every ${watch.intervalSeconds}s`,
+      )
+      yield* Effect.repeat(
+        runWatch(watch).pipe(
+          Effect.catch((e) =>
+            log.error(`[watcher]`, `"${watch.name}": runtime error:`, e),
+          ),
         ),
-      ),
-      Schedule.spaced(intervalMs),
-    ).pipe(Effect.fork)
-  })
+        Schedule.spaced(intervalMs),
+      ).pipe(Effect.forkChild)
+    }),
+  )
 
-  yield* Effect.never
+  return yield* Effect.never
 })
 
 const runtime = ManagedRuntime.make(WatcherLayer)

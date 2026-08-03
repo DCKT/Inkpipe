@@ -1,9 +1,9 @@
-import { Effect, Layer, Option } from "effect"
-import { SqlClient } from "@effect/sql"
+import { Context, Effect, Layer, Option } from "effect"
+import { SqlClient } from "effect/unstable/sql"
 import type { Job, JobStage } from "@inkpipe/shared"
 import { JobId } from "@inkpipe/shared"
 
-export class JobStoreService extends Effect.Tag("JobStoreService")<
+export class JobStoreService extends Context.Service<
   JobStoreService,
   {
     readonly createJob: (title: string) => Effect.Effect<Job>
@@ -12,7 +12,7 @@ export class JobStoreService extends Effect.Tag("JobStoreService")<
     readonly getAllJobs: Effect.Effect<Job[]>
     readonly deleteCompletedJobs: Effect.Effect<number>
   }
->() {}
+>()("JobStoreService") {}
 
 interface JobRow {
   id: number

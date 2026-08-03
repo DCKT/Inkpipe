@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect"
+import { Context, Effect, Layer } from "effect"
 
 // ---------------------------------------------------------------------------
 // ANSI helpers (zero-dependency)
@@ -44,7 +44,7 @@ const NAMESPACE_COLORS: Record<string, (s: string) => string> = {
 // Service tag
 // ---------------------------------------------------------------------------
 
-export class LogService extends Effect.Tag("LogService")<
+export class LogService extends Context.Service<
   LogService,
   {
     readonly info: (namespace: string, ...message: unknown[]) => Effect.Effect<void>
@@ -57,7 +57,7 @@ export class LogService extends Effect.Tag("LogService")<
       error: (namespace: string, ...message: unknown[]) => Effect.Effect<void>
     }
   }
->() {}
+>()("LogService") {}
 
 // ---------------------------------------------------------------------------
 // Formatting helpers

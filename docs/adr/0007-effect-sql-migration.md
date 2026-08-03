@@ -31,3 +31,9 @@ Migrate from raw `bun:sqlite` to `@effect/sql` + `@effect/sql-sqlite-bun`:
 ## Status
 
 Accepted (2026-06-24)
+
+## Addendum: Effect v4 migration (2026-08-03)
+
+`effect`, `@effect/sql-sqlite-bun`, and `@effect/vitest` were bumped to the `4.0.0-beta.102` beta line. `@effect/sql` itself was dropped as a separate dependency — its core (`SqlClient`, `SqlSchema`, `Migrator`, `Statement`, etc.) merged into `effect` under `effect/unstable/sql`, so `import { SqlClient } from "@effect/sql"` became `import { SqlClient } from "effect/unstable/sql"`. `@effect/sql-sqlite-bun` kept its own package name and import path; its `SqliteClient` service is now backed by `Context.Service` instead of `Context.Tag`, transparent to call sites.
+
+`transformQueryNames`/`transformResultNames`, the versioned-migration setup, and the per-section config table structure are all unchanged by this migration — only the import path and package boundary moved. `Model.Class` remains deliberately unadopted (see Alternatives above); this migration did not revisit that decision.

@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect"
+import { Context, Effect, Layer } from "effect"
 import {
   type KomgaLibrary,
   type KomgaSeries,
@@ -6,10 +6,10 @@ import {
   KomgaNotConfigured,
   KomgaHttpError,
 } from "@inkpipe/shared"
-import { ConfigService } from "./Config"
-import { LogService } from "./Log"
+import { ConfigService } from "../core/Config"
+import { LogService } from "../core/Log"
 
-export class KomgaService extends Effect.Tag("KomgaService")<
+export class KomgaService extends Context.Service<
   KomgaService,
   {
     readonly listLibraries: Effect.Effect<KomgaLibrary[], KomgaNotConfigured | KomgaHttpError>
@@ -17,7 +17,7 @@ export class KomgaService extends Effect.Tag("KomgaService")<
     readonly getSeriesThumbnail: (seriesId: string) => Effect.Effect<string, KomgaNotConfigured | KomgaHttpError>
     readonly getBooksForSeries: (seriesId: string) => Effect.Effect<KomgaBook[], KomgaNotConfigured | KomgaHttpError>
   }
->() {}
+>()("KomgaService") {}
 
 interface KomgaPage<T> {
   content: T[]
@@ -35,7 +35,7 @@ export const KomgaServiceLive = Layer.effect(
     const getApiInfo = () =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catchAll((e) => Effect.fail(new KomgaNotConfigured({ message: e.message }))),
+          Effect.catch((e) => Effect.fail(new KomgaNotConfigured({ message: e.message }))),
         )
         const { url, apiKey } = config.komga
         if (!url || !apiKey) {

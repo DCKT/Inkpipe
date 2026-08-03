@@ -1,13 +1,13 @@
-import { Effect, Layer } from "effect";
+import { Context, Effect, Layer } from "effect";
 import {
   CopypartyNotConfigured,
   CopypartyHttpError,
   CopypartyFolderError,
 } from "@inkpipe/shared";
-import { ConfigService } from "./Config";
-import { LogService } from "./Log";
+import { ConfigService } from "../core/Config";
+import { LogService } from "../core/Log";
 
-export class CopypartyService extends Effect.Tag("CopypartyService")<
+export class CopypartyService extends Context.Service<
   CopypartyService,
   {
     readonly listFolders: Effect.Effect<
@@ -31,7 +31,7 @@ export class CopypartyService extends Effect.Tag("CopypartyService")<
       CopypartyNotConfigured | CopypartyHttpError | CopypartyFolderError
     >;
   }
->() {}
+>()("CopypartyService") {}
 
 export const CopypartyServiceLive = Layer.effect(
   CopypartyService,
@@ -41,7 +41,7 @@ export const CopypartyServiceLive = Layer.effect(
 
     const listFolders = Effect.gen(function* () {
       const configOpt = yield* configService.loadConfig.pipe(
-        Effect.catchAll(() => Effect.succeed(undefined)),
+        Effect.catch(() => Effect.succeed(undefined)),
       );
       if (!configOpt) return [];
       const { url, uploadPath, password } = configOpt.copyparty;
@@ -85,7 +85,7 @@ export const CopypartyServiceLive = Layer.effect(
     const uploadFile = (filePath: string, subfolder?: string) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catchAll((e) =>
+          Effect.catch((e) =>
             Effect.fail(new CopypartyNotConfigured({ message: e.message })),
           ),
         );
@@ -143,7 +143,7 @@ export const CopypartyServiceLive = Layer.effect(
     const createFolder = (folderName: string) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catchAll((e) =>
+          Effect.catch((e) =>
             Effect.fail(new CopypartyNotConfigured({ message: e.message })),
           ),
         );
@@ -217,7 +217,7 @@ export const CopypartyServiceLive = Layer.effect(
     const deleteFolder = (folderName: string) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catchAll((e) =>
+          Effect.catch((e) =>
             Effect.fail(new CopypartyNotConfigured({ message: e.message })),
           ),
         );
