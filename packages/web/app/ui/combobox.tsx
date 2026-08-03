@@ -10,16 +10,16 @@ import type {
 } from "@ark-ui/react/combobox";
 
 const controlClass =
-  "flex items-center gap-1 w-full rounded-xl border border-border bg-surface px-4 py-2.5 focus-within:border-accent";
+  "flex items-center gap-1 w-full rounded-[3px] border border-border bg-surface px-4 py-2.5 focus-within:border-accent";
 
 const inputClass =
   "min-w-0 flex-1 text-sm text-primary placeholder:text-secondary outline-none bg-transparent border-none";
 
 const contentClass =
-  "z-50 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-border bg-surface shadow-lg backdrop-blur-sm p-1";
+  "z-50 mt-1 max-h-48 w-full overflow-auto rounded-[3px] border border-border bg-surface shadow-lg p-1";
 
 const itemClass =
-  "rounded-lg px-3 py-2 text-left text-sm text-primary cursor-pointer data-[highlighted]:bg-accent/10 data-[highlighted]:text-accent-hover";
+  "rounded-[2px] px-3 py-2 text-left text-sm text-primary cursor-pointer data-[highlighted]:bg-accent-tint data-[highlighted]:text-accent-hover";
 
 const triggerClass =
   "inline-flex items-center justify-center rounded-lg size-5 text-primary/50 hover:text-primary data-[state=open]:text-accent cursor-pointer transition-colors";

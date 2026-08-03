@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../hooks/useApiClient";
 import { usePushSubscription } from "../hooks/usePushSubscription";
+import { PageHeader } from "../components/PageHeader";
 
 interface EndpointDef {
   group: string;
@@ -155,9 +156,7 @@ export default function DebugPage() {
   if (import.meta.env.PROD) {
     return (
       <main className="page-wrap px-4 pb-8 pt-8">
-        <h1 className="display-title mb-6 text-3xl font-bold text-primary">
-          Debug
-        </h1>
+        <PageHeader eyebrow="— — DEBUG (APPENDIX)" title="Debug" />
         <p className="text-sm text-primary/60">
           The debug page is only available in development mode.
         </p>
@@ -276,9 +275,7 @@ export default function DebugPage() {
 
   return (
     <main className="page-wrap px-4 pb-8 pt-8">
-      <h1 className="display-title mb-6 text-3xl font-bold text-primary">
-        Debug — API Explorer
-      </h1>
+      <PageHeader eyebrow="— — DEBUG (APPENDIX)" title="Debug — API Explorer" />
 
       <div className="flex gap-6 h-[calc(100vh-12rem)]">
         {/* Sidebar */}
@@ -352,7 +349,7 @@ export default function DebugPage() {
                       value={queryValue}
                       onChange={(e) => setQueryValue(e.target.value)}
                       placeholder={`Enter ${selected.queryKey}...`}
-                      className="w-full rounded-lg border border-[rgba(114,135,253,0.3)] bg-white/20 px-3 py-2 text-sm text-primary placeholder-primary/40 outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                      className="w-full rounded-[3px] border border-border bg-surface px-3 py-2 text-sm text-primary placeholder-primary/40 outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                     />
                   </div>
                 )}
@@ -366,7 +363,7 @@ export default function DebugPage() {
                       value={bodyValue}
                       onChange={(e) => setBodyValue(e.target.value)}
                       rows={6}
-                      className="w-full rounded-lg border border-[rgba(114,135,253,0.3)] bg-white/20 px-3 py-2 text-sm font-mono text-primary placeholder-primary/40 outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                      className="w-full rounded-[3px] border border-border bg-surface px-3 py-2 text-sm font-mono text-primary placeholder-primary/40 outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                       spellCheck={false}
                     />
                   </div>
@@ -382,10 +379,10 @@ export default function DebugPage() {
                   type="button"
                   onClick={handleSend}
                   disabled={loading}
-                  className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-[3px] px-5 py-2 text-sm font-semibold transition-colors ${
                     loading
                       ? "bg-accent/30 text-primary/40 cursor-not-allowed"
-                      : "bg-accent text-white hover:bg-accent/90"
+                      : "bg-accent text-on-accent hover:bg-accent-hover"
                   }`}
                 >
                   {loading ? "Sending..." : "Send"}
@@ -473,7 +470,7 @@ export default function DebugPage() {
                 <button
                   type="button"
                   onClick={() => push.subscribe()}
-                  className="rounded-full px-4 py-1.5 text-xs font-medium bg-accent text-white hover:bg-accent/90 transition-colors"
+                  className="rounded-full px-4 py-1.5 text-xs font-medium bg-accent text-on-accent hover:bg-accent-hover transition-colors"
                 >
                   Subscribe
                 </button>
@@ -508,7 +505,7 @@ export default function DebugPage() {
                       setTimeout(() => setPushTestResult(null), 3000)
                     })
                   }}
-                  className="rounded-full px-4 py-1.5 text-xs font-medium border border-border text-primary hover:bg-surface-hover transition-colors"
+                  className="rounded-[3px] px-4 py-1.5 text-xs font-semibold border border-border text-primary hover:bg-surface-2 transition-colors"
                 >
                   Send Test Notification
                 </button>

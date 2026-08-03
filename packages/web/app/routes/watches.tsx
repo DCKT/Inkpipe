@@ -3,6 +3,7 @@ import { api } from "../hooks/useApiClient"
 import type { Watch } from "../lib/types"
 import { ToastGroup } from "../ui/toast"
 import { WatchFormDialog } from "../components/WatchForm"
+import { PageHeader } from "../components/PageHeader"
 import { useNavigate } from "react-router-dom"
 import { usePushSubscription } from "../hooks/usePushSubscription"
 
@@ -68,10 +69,18 @@ export default function WatchesPage() {
 
   return (
     <main className="page-wrap px-4 pb-8 pt-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="display-title text-3xl font-bold text-primary">
-          Watches
-        </h1>
+      <PageHeader
+        numeral="V"
+        label="Watches"
+        title="Watches"
+        meta={
+          watchesQuery.data
+            ? `${watchesQuery.data.watches.length} watch${watchesQuery.data.watches.length !== 1 ? "es" : ""}`
+            : undefined
+        }
+      />
+
+      <div className="mb-6 flex items-center justify-end">
         <WatchFormDialog
           onCreated={() => {
             queryClient.invalidateQueries({ queryKey: ["watches"] })
@@ -95,7 +104,7 @@ export default function WatchesPage() {
         <div className="island-shell mb-4 rounded-2xl border-border p-3 text-sm flex items-center justify-between">
           <span className="text-secondary">Get notified when new matches are found</span>
           <button
-            className="rounded-full px-4 py-1.5 text-xs font-medium bg-accent text-white hover:bg-accent/90 transition-colors"
+            className="rounded-[3px] px-4 py-1.5 text-xs font-semibold bg-accent text-on-accent hover:bg-accent-hover transition-colors"
             onClick={() => push.subscribe()}
           >
             Enable alerts
@@ -120,9 +129,11 @@ export default function WatchesPage() {
       )}
 
       {watchesQuery.data && watchesQuery.data.watches.length === 0 && (
-        <div className="island-shell rounded-2xl p-8 text-center">
+        <div className="blank-page flex flex-col items-center gap-3 p-8 text-center">
+          <div className="blank-page-icon" />
+          <p className="font-display text-lg italic text-primary">No watches yet</p>
           <p className="text-sm text-secondary">
-            No watches configured yet. Create one to monitor Prowlarr for new content.
+            Create one to monitor Prowlarr for new content.
           </p>
         </div>
       )}

@@ -70,7 +70,7 @@ export default function KomgaBooksModal({ series, onClose }: KomgaBooksModalProp
                   key={book.id}
                   className="flex items-center gap-4 rounded-xl border border-border bg-surface px-4 py-3"
                 >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[rgba(136,57,239,0.12)] text-accent">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[3px] bg-accent-tint text-accent">
                     <BookOpen size={15} />
                   </div>
                   <div className="min-w-0 flex-1">

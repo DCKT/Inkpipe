@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowDown } from "lucide-react";
 import SearchBar from "../components/SearchBar";
 import ResultsTable from "../components/ResultsTable";
 import DownloadModal from "../components/DownloadModal";
+import { PageHeader } from "../components/PageHeader";
 import { api } from "../hooks/useApiClient";
 import type { ProwlarrResult } from "../lib/types";
-import { Button } from "../ui/button";
 import { ToastGroup } from "../ui/toast";
 
 export default function HomePage() {
@@ -71,10 +72,14 @@ export default function HomePage() {
 
   return (
     <main className="page-wrap px-4 pb-8 pt-8 flex flex-col gap-6">
+      <PageHeader
+        numeral="I"
+        label="Search"
+        title="Search"
+        meta={query ? `${results.length} results` : undefined}
+      />
+
       <section className="">
-        <h1 className="display-title mb-4 text-3xl font-bold text-primary">
-          Search
-        </h1>
         <SearchBar onSearch={handleSearch} isLoading={searchQuery.isFetching} />
       </section>
 
@@ -93,15 +98,19 @@ export default function HomePage() {
 
       {selected.size > 0 && (
         <div className="sticky bottom-4 flex justify-center">
-          <Button
-            variant="floating"
+          <button
+            type="button"
             onClick={handleDownloadClick}
             disabled={downloadMutation.isPending}
+            className="flex items-center gap-2 rounded-[3px] border border-accent bg-surface px-4 py-2 font-mono text-xs font-semibold text-accent shadow-lg transition hover:bg-accent-tint disabled:opacity-50"
           >
+            <span className="flex h-5 w-5 items-center justify-center rounded-[2px] border border-accent">
+              <ArrowDown size={12} />
+            </span>
             {downloadMutation.isPending
               ? "Starting..."
               : `Download ${selected.size} selected`}
-          </Button>
+          </button>
         </div>
       )}
 

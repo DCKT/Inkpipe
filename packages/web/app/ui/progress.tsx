@@ -9,7 +9,7 @@ const trackClass =
 const rangeClass =
   "h-full rounded-full bg-accent transition-all duration-300";
 
-const valueTextClass = "text-xs text-secondary";
+const valueTextClass = "font-mono text-xs text-secondary";
 
 export const Progress = {
   Root: ({ className, ...props }: ProgressRootProps) => (

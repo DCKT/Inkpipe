@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import SettingsForm from "../components/SettingsForm";
+import { PageHeader } from "../components/PageHeader";
 import { api } from "../hooks/useApiClient";
 import type { AppConfig } from "../lib/types";
 import { Button } from "../ui/button";
@@ -78,10 +79,9 @@ export default function SettingsPage() {
 
   return (
     <main className="page-wrap px-4 pb-8 pt-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="display-title text-3xl font-bold text-primary">
-          Settings
-        </h1>
+      <PageHeader numeral="VII" label="Settings" title="Settings" />
+
+      <div className="mb-6 flex items-center justify-end">
         <div className="flex gap-2">
           <Button type="button" variant="secondary" onClick={handleExport}>
             Export Settings

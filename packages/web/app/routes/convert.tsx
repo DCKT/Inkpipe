@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowDown, RefreshCw } from "lucide-react";
 import { api } from "../hooks/useApiClient";
 import FileDrop from "../components/FileDrop";
+import { PageHeader } from "../components/PageHeader";
 import type { AppConfig } from "../lib/types";
 import { Button } from "../ui/button";
 import { ToastGroup } from "../ui/toast";
@@ -94,9 +95,7 @@ export default function ConvertPage() {
 
   return (
     <main className="page-wrap px-4 pb-8 pt-8">
-      <h1 className="display-title mb-6 text-3xl font-bold text-primary">
-        Convert CBZ to EPUB
-      </h1>
+      <PageHeader numeral="VI" label="Convert" title="Convert CBZ to EPUB" />
 
       {stage === "idle" && (
         <FileDrop onFile={handleFile} disabled={stage !== "idle"} />
@@ -118,7 +117,7 @@ export default function ConvertPage() {
 
       {stage === "done" && (
         <div className="island-shell rounded-2xl border-success p-8 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(23,146,153,0.12)]">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-success/15">
             <ArrowDown size={20} className="text-success" />
           </div>
           <p className="text-sm font-semibold text-primary">

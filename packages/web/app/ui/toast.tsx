@@ -14,7 +14,7 @@ export const ToastGroup = {
     <Toaster toaster={toaster}>
       {(toast) => (
         <Toast.Root key={toast.id}>
-          <div className="island-shell flex items-start gap-3 rounded-xl px-4 py-3 shadow-lg min-w-72">
+          <div className="island-shell flex items-start gap-3 rounded-sm border-l-[3px] border-l-accent px-4 py-3 shadow-lg min-w-72">
             <div className="flex-1 min-w-0">
               {toast.title && (
                 <Toast.Title className="text-sm font-semibold text-primary">

@@ -1,25 +1,27 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Newsreader", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-primary: #cdd6f4;
-  --color-secondary: #a6adc8;
-  --color-accent: #cba6f7;
-  --color-accent-hover: #b4befe;
-  --color-success: #94e2d5;
-  --color-border: rgba(180, 190, 254, 0.18);
-  --color-surface: rgba(30, 30, 46, 0.92);
-  --color-surface-hover: rgba(30, 30, 46, 0.8);
-  --color-background: #11111b;
-
-  --color-sand: #181825;
-  --color-foam: #1e1e2e;
-  --color-inset-glint: rgba(205, 214, 244, 0.06);
-  --color-hero-a: rgba(203, 166, 247, 0.1);
-  --color-hero-b: rgba(180, 190, 254, 0.06);
+  /* Ink (dark) is the default palette — see body[data-theme="light"] override below */
+  --color-bg: #14120f;
+  --color-background: #14120f;
+  --color-surface: #1b1815;
+  --color-surface-2: #241f1a;
+  --color-surface-hover: #241f1a;
+  --color-border: #332c24;
+  --color-primary: #efe7d8;
+  --color-secondary: #b7ab93;
+  --color-accent: #e0503f;
+  --color-accent-hover: #f06b58;
+  --color-accent-tint: #3a2420;
+  --color-on-accent: #1b1815;
+  --color-success: #6fa98c;
+  --color-warning: #d9a54b;
 }
 
 * {
@@ -36,68 +38,31 @@ body {
   margin: 0;
   color: var(--color-primary);
   font-family: var(--font-sans);
-  background-color: var(--color-background);
-  background:
-    radial-gradient(1100px 620px at -8% -10%, var(--color-hero-a), transparent 58%),
-    radial-gradient(1050px 620px at 112% -12%, var(--color-hero-b), transparent 62%),
-    radial-gradient(
-      720px 380px at 50% 115%,
-      rgba(136, 57, 239, 0.05),
-      transparent 68%
-    ),
-    linear-gradient(
-      180deg,
-      color-mix(in oklab, var(--color-sand) 68%, white) 0%,
-      var(--color-foam) 44%,
-      var(--color-background) 100%
-    );
+  background-color: var(--color-bg);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  opacity: 0.28;
-  background:
-    radial-gradient(
-      circle at 20% 15%,
-      rgba(255, 255, 255, 0.8),
-      transparent 34%
-    ),
-    radial-gradient(
-      circle at 78% 26%,
-      rgba(136, 57, 239, 0.08),
-      transparent 42%
-    ),
-    radial-gradient(
-      circle at 42% 82%,
-      rgba(23, 146, 153, 0.07),
-      transparent 36%
-    );
-}
-
+/* subtle halftone screentone texture instead of glow/blur */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.14;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: radial-gradient(circle at 50% 30%, black, transparent 78%);
+  opacity: 0.5;
+  background-image: radial-gradient(
+    color-mix(in oklab, var(--color-primary) 10%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 5px 5px;
+  mask-image: radial-gradient(circle at 50% 0%, black, transparent 75%);
 }
 
 a {
   color: var(--color-accent-hover);
-  text-decoration-color: rgba(203, 166, 247, 0.25);
+  text-decoration-color: color-mix(in oklab, var(--color-accent) 35%, transparent);
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
@@ -107,10 +72,11 @@ a:hover {
 }
 
 code {
-  font-size: 0.9em;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
   border: 1px solid var(--color-border);
-  background: color-mix(in oklab, var(--color-surface) 82%, white 18%);
-  border-radius: 7px;
+  background: var(--color-surface-2);
+  border-radius: 3px;
   padding: 2px 7px;
 }
 
@@ -128,35 +94,31 @@ pre code {
   margin-inline: auto;
 }
 
+/* Chapter-heading display type */
 .display-title {
-  font-family: "Fraunces", Georgia, serif;
+  font-family: var(--font-display);
+  font-weight: 500;
 }
 
+/* Paper card: thin rule + modest shadow, no blur/glass */
 .island-shell {
   border: 1px solid var(--color-border);
-  background: linear-gradient(165deg, var(--color-surface), var(--color-surface-hover));
-  box-shadow:
-    0 1px 0 var(--color-inset-glint) inset,
-    0 22px 44px rgba(136, 57, 239, 0.05),
-    0 6px 18px rgba(76, 79, 105, 0.04);
-  backdrop-filter: blur(4px);
+  background: var(--color-surface);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
 }
 
 .feature-card {
-  background: linear-gradient(
-    165deg,
-    color-mix(in oklab, var(--color-surface) 93%, white 7%),
-    var(--color-surface-hover)
-  );
-  box-shadow:
-    0 1px 0 var(--color-inset-glint) inset,
-    0 18px 34px rgba(136, 57, 239, 0.05),
-    0 4px 14px rgba(76, 79, 105, 0.03);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease;
 }
 
 .feature-card:hover {
   transform: translateY(-2px);
-  border-color: color-mix(in oklab, var(--color-accent-hover) 35%, var(--color-border));
+  border-color: color-mix(in oklab, var(--color-accent) 40%, var(--color-border));
 }
 
 button,
@@ -169,56 +131,128 @@ a {
     transform 180ms ease;
 }
 
+/* Stamped label chip — used for fieldset legends etc. */
 .island-kicker {
-  letter-spacing: 0.16em;
+  font-family: var(--font-mono);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  font-weight: 700;
-  font-size: 1rem;
-  color: var(--color-sand);
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--color-on-accent);
   background: var(--color-accent);
+  padding: 0.15rem 0.5rem;
   border-radius: 2px;
 }
 
+/* Spine-style nav: 3px accent rule on the left + accent-tint fill when active */
 .nav-link {
   position: relative;
   display: inline-flex;
   align-items: center;
+  gap: 0.35rem;
   text-decoration: none;
   color: var(--color-secondary);
+  padding: 0.35rem 0.65rem 0.35rem 0.6rem;
+  border-left: 3px solid transparent;
+  border-radius: 2px;
+  transition:
+    color 170ms ease,
+    background-color 170ms ease,
+    border-color 170ms ease;
 }
 
-.nav-link::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: -6px;
-  width: 100%;
-  height: 2px;
-  transform: scaleX(0);
-  transform-origin: left;
-  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-hover));
-  transition: transform 170ms ease;
-}
-
-.nav-link:hover,
-.nav-link.is-active {
+.nav-link:hover {
   color: var(--color-primary);
 }
 
-.nav-link:hover::after,
-.nav-link.is-active::after {
-  transform: scaleX(1);
+.nav-link.is-active {
+  color: var(--color-primary);
+  border-left-color: var(--color-accent);
+  background: var(--color-accent-tint);
 }
 
-@media (max-width: 640px) {
-  .nav-link::after {
-    bottom: -4px;
-  }
+/* Spine sidebar: vertical "table of contents" nav-link variant */
+.spine-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: var(--color-secondary);
+  padding: 0.5rem 0.75rem 0.5rem 0.65rem;
+  border-left: 3px solid transparent;
+  border-radius: 2px;
+  font-size: 0.875rem;
+  transition:
+    color 170ms ease,
+    background-color 170ms ease,
+    border-color 170ms ease;
+}
+
+.spine-link:hover {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.spine-link.is-active {
+  color: var(--color-primary);
+  border-left-color: var(--color-accent);
+  background: var(--color-accent-tint);
+}
+
+.spine-link.is-active-quiet {
+  color: var(--color-primary);
+}
+
+.spine-numeral {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-secondary);
+  width: 1.4rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.spine-link.is-active .spine-numeral {
+  color: var(--color-accent);
+}
+
+.spine-link-dev {
+  opacity: 0.65;
+  font-size: 0.8rem;
+}
+
+/* Small bordered mono filter chip */
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--color-border);
+  color: var(--color-secondary);
+  background: transparent;
+  padding: 0.3rem 0.65rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition:
+    border-color 170ms ease,
+    color 170ms ease;
+}
+
+.chip:hover {
+  color: var(--color-primary);
+}
+
+.chip.chip-active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .site-footer {
   border-top: 1px solid var(--color-border);
-  background: color-mix(in oklab, var(--color-surface) 84%, transparent 16%);
+  background: var(--color-surface);
 }
 
 .rise-in {
@@ -235,3 +269,118 @@ a {
     transform: translateY(0);
   }
 }
+
+/* Chapter-marker divider: "CH. NN" mono label + thin rule */
+.chapter-marker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-secondary);
+}
+
+.chapter-marker::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.chapter-marker-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+/* Bookshelf cover grid */
+.cover-shell {
+  position: relative;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.cover-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: rgba(0, 0, 0, 0.32);
+  z-index: 1;
+}
+
+.cover-new-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  z-index: 2;
+  transform: rotate(3deg);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: 2px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Blank-page empty state */
+.blank-page {
+  position: relative;
+  border: 1px dashed var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+}
+
+.blank-page-icon {
+  position: relative;
+  width: 2.75rem;
+  height: 3.5rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 2px;
+  background: var(--color-surface-2);
+}
+
+.blank-page-icon::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0.65rem;
+  height: 0.65rem;
+  background: var(--color-bg);
+  border-left: 1.5px solid var(--color-border);
+  border-bottom: 1.5px solid var(--color-border);
+  border-bottom-left-radius: 2px;
+}
+
+/* Status pill */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-secondary);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+/*
+ * Ink-only retheme: the app has no existing light/dark toggle infrastructure,
+ * so this restyle ships the dark "Ink" palette as the single theme (matching
+ * how the previous Catppuccin-Mocha theme was also dark-only). The "Paper"
+ * light palette from the design spec is left here as a reference in case a
+ * mode switcher is added later:
+ *   bg #F5F1E8  surface #EDE6D6  surface-2 #E0D5BC  border #D8CBAE
+ *   text #1C1A17  text-secondary #6B655A  accent #C13B2E  accent-hover #A32F24
+ *   accent-tint #F3DAD4  on-accent #F3EEE0  success #3F6B57  warning #B8862E
+ */

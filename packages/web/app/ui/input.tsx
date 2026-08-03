@@ -1,7 +1,7 @@
 import { forwardRef } from "react";
 
 const baseClass =
-  "w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-primary placeholder:text-secondary focus:border-accent focus:outline-none";
+  "w-full rounded-[3px] border border-border bg-surface px-4 py-2.5 text-sm text-primary placeholder:text-secondary focus:border-accent focus:outline-none";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 

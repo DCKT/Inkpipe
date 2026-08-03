@@ -2,17 +2,17 @@ import * as ArkDialog from "@ark-ui/react/dialog";
 import type { DialogContentProps, DialogTitleProps, DialogDescriptionProps, DialogCloseTriggerProps, DialogBackdropProps } from "@ark-ui/react/dialog";
 import { X } from "lucide-react";
 
-const backdropClass = "fixed inset-0 z-50 bg-black/40 backdrop-blur-sm";
+const backdropClass = "fixed inset-0 z-50 bg-black/50";
 
 const contentClass =
-  "island-shell fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 rounded-2xl shadow-2xl";
+  "island-shell fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 rounded-sm shadow-2xl";
 
-const titleClass = "text-lg font-semibold text-primary";
+const titleClass = "font-display text-xl italic text-primary";
 
 const descriptionClass = "text-sm text-secondary";
 
 const closeTriggerClass =
-  "rounded-lg p-1.5 text-secondary transition hover:bg-surface-hover hover:text-primary";
+  "rounded-[3px] p-1.5 text-secondary transition hover:bg-surface-2 hover:text-primary";
 
 export const Dialog = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

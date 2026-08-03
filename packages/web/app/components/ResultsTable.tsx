@@ -66,10 +66,10 @@ export default function ResultsTable({
   const someSelected = selected.size > 0 && !allSelected;
 
   return (
-    <div className="island-shell overflow-hidden rounded-2xl">
+    <div className="overflow-hidden rounded-sm border border-border">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-secondary">
+          <tr className="border-b-2 border-primary/60 text-left font-mono text-[11px] font-semibold uppercase tracking-wider text-secondary">
             <th className="p-3">
               <Checkbox.Root
                 checked={someSelected ? "indeterminate" : allSelected}
@@ -86,7 +86,7 @@ export default function ResultsTable({
           </tr>
         </thead>
         <tbody>
-          {results.map((result) => {
+          {results.map((result, index) => {
             const match = komgaSeries.length > 0
               ? findBestMatch(result.title, komgaSeries)
               : null;
@@ -94,7 +94,9 @@ export default function ResultsTable({
             return (
               <tr
                 key={result.guid}
-                className="border-b border-border last:border-0 hover:bg-surface-hover"
+                className={`cursor-pointer border-b border-border last:border-0 hover:bg-surface-hover ${
+                  index % 2 === 1 ? "bg-surface" : ""
+                }`}
                 onClick={() => onToggle(result.guid)}
               >
                 <td className="p-3">
@@ -106,17 +108,19 @@ export default function ResultsTable({
                   </Checkbox.Root>
                 </td>
                 <td className="max-w-md p-3 text-primary">
-                  <span className="block truncate">{result.title}</span>
+                  <span className="block truncate font-display italic">
+                    {result.title}
+                  </span>
                   {match && (
                     <span
                       title={`Komga match score: ${(match.score * 100).toFixed(0)}%`}
-                      className="mt-1 inline-flex items-center gap-1 rounded-md border border-[rgba(114,135,253,0.3)] bg-[rgba(136,57,239,0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-accent-hover"
+                      className="status-pill mt-1 font-mono text-[10px] text-accent-hover"
                     >
                       In Komga · {match.seriesName} · {match.booksCount} {match.booksCount === 1 ? "book" : "books"}
                     </span>
                   )}
                 </td>
-                <td className="p-3 text-secondary">
+                <td className="p-3 font-mono text-xs text-secondary">
                   {(() => {
                     const ft = formatRelativeTime(result.publishDate ?? null);
                     return ft ? (
@@ -126,13 +130,13 @@ export default function ResultsTable({
                     );
                   })()}
                 </td>
-                <td className="p-3 text-secondary">
+                <td className="p-3 font-mono text-xs text-secondary">
                   {formatSize(result.size)}
                 </td>
-                <td className="p-3 text-secondary">
+                <td className="p-3 font-mono text-xs text-secondary">
                   {result.seeders}
                 </td>
-                <td className="p-3 text-secondary">
+                <td className="p-3 font-mono text-xs text-secondary">
                   {result.indexer}
                 </td>
               </tr>

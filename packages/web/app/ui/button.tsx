@@ -1,18 +1,21 @@
 import { forwardRef } from "react";
 
 const variants = {
+  // Primary: solid accent stamp
   primary:
-    "rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:opacity-50",
+    "rounded-[3px] bg-accent px-6 py-2.5 text-sm font-semibold text-on-accent transition hover:bg-accent-hover disabled:opacity-50",
+  // Secondary: 1.5px solid text-primary border, transparent bg
   secondary:
-    "rounded-full border border-[rgba(114,135,253,0.3)] px-5 py-2 text-sm font-medium text-primary transition hover:bg-accent/10",
+    "rounded-[3px] border-[1.5px] border-primary px-5 py-2 text-sm font-semibold text-primary transition hover:bg-surface-2 disabled:opacity-50",
+  // Ghost: transparent, underlined, text-secondary
   ghost:
-    "rounded-lg p-1.5 text-secondary transition hover:bg-surface-hover hover:text-primary",
+    "rounded-[3px] p-1.5 text-secondary underline underline-offset-2 transition hover:text-primary",
   submit:
-    "w-full rounded-xl border border-[rgba(114,135,253,0.3)] bg-[rgba(136,57,239,0.14)] px-6 py-3 text-sm font-semibold text-accent-hover transition hover:-translate-y-0.5 hover:bg-[rgba(136,57,239,0.24)] disabled:opacity-50",
+    "w-full rounded-[3px] border-[1.5px] border-accent bg-accent-tint px-6 py-3 text-sm font-semibold text-accent-hover transition hover:bg-accent/20 disabled:opacity-50",
   refresh:
-    "rounded-lg border border-border px-4 py-2 text-sm font-medium text-secondary transition hover:bg-surface-hover disabled:opacity-50",
+    "rounded-[3px] border border-border px-4 py-2 text-sm font-semibold text-secondary transition hover:bg-surface-2 disabled:opacity-50",
   floating:
-    "rounded-full border border-[rgba(114,135,253,0.3)] bg-accent px-8 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-accent-hover disabled:opacity-50",
+    "rounded-[3px] border border-accent bg-accent px-8 py-3 text-sm font-semibold text-on-accent shadow-lg transition hover:-translate-y-0.5 hover:bg-accent-hover disabled:opacity-50",
 } as const;
 
 type Variant = keyof typeof variants;

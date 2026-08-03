@@ -6,6 +6,7 @@ import type { Watch, WatchAlert, ProwlarrResult } from "../lib/types";
 import { ToastGroup } from "../ui/toast";
 import { WatchFormDialog } from "../components/WatchForm";
 import DownloadModal from "../components/DownloadModal";
+import { PageHeader } from "../components/PageHeader";
 
 export default function WatchDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -108,6 +109,13 @@ export default function WatchDetailPage() {
 
   return (
     <main className="page-wrap px-4 pb-8 pt-8">
+      <PageHeader
+        numeral="V"
+        label="Watches"
+        title={watchQuery.data?.name ?? "Watch"}
+        meta={alertsQuery.data ? `${alerts.length} alerts` : undefined}
+      />
+
       <div className="mb-6 flex items-center gap-3">
         <button
           className="text-sm text-secondary hover:text-primary"
@@ -131,9 +139,6 @@ export default function WatchDetailPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="display-title text-4xl font-bold text-primary">
-                {watchQuery.data.name}
-              </h1>
               <p className="text-sm text-secondary mt-1">
                 Query:{" "}
                 <code className="text-xs bg-surface px-1.5 py-0.5 rounded">
@@ -203,10 +208,11 @@ export default function WatchDetailPage() {
       )}
 
       {alerts.length === 0 && (
-        <div className="island-shell rounded-2xl p-8 text-center">
+        <div className="blank-page flex flex-col items-center gap-3 p-8 text-center">
+          <div className="blank-page-icon" />
+          <p className="font-display text-lg italic text-primary">No alerts yet</p>
           <p className="text-sm text-secondary">
-            No alerts yet. Alerts appear here when new Prowlarr results match
-            your filters.
+            Alerts appear here when new Prowlarr results match your filters.
           </p>
         </div>
       )}

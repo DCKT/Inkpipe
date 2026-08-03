@@ -5,9 +5,9 @@ import { Search, Library } from "lucide-react";
 import { api } from "../hooks/useApiClient";
 import type { KomgaSeries, KomgaLibrary, AppConfig } from "../lib/types";
 import KomgaBooksModal from "../components/KomgaBooksModal";
+import { PageHeader } from "../components/PageHeader";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { ToggleGroup } from "../ui/toggle-group";
 
 const STATUS_COLORS: Record<string, string> = {
   ONGOING: "text-emerald-600 bg-emerald-50 border-emerald-200",
@@ -59,9 +59,9 @@ function SeriesCard({
     <button
       ref={ref}
       onClick={onClick}
-      className="island-shell group flex flex-col gap-0 rounded-2xl overflow-hidden text-left transition hover:-translate-y-0.5 hover:shadow-md"
+      className="group flex flex-col gap-0 rounded-sm text-left transition hover:-translate-y-0.5"
     >
-      <div className="aspect-[2/3] min-w-64 w-full bg-surface relative overflow-hidden">
+      <div className="cover-shell aspect-[2/3] min-w-64 w-full bg-surface relative">
         {!thumbnailQuery.data && (
           <div className="absolute inset-0 animate-pulse bg-surface" />
         )}
@@ -171,17 +171,14 @@ export default function KomgaPage() {
 
   return (
     <main className="page-wrap px-4 pb-8 pt-8 flex flex-col gap-6">
-      <section className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="display-title text-3xl font-bold text-primary">
-            Komga Library
-          </h1>
-          {seriesQuery.data && (
-            <p className="mt-1 text-sm text-secondary">
-              {series.length} series
-            </p>
-          )}
-        </div>
+      <PageHeader
+        numeral="III"
+        label="Komga"
+        title="Library"
+        meta={seriesQuery.data ? `${series.length} series` : undefined}
+      />
+
+      <section className="flex items-center justify-end">
         <Button
           variant="refresh"
           onClick={async () => {
@@ -203,19 +200,25 @@ export default function KomgaPage() {
       )}
 
       {libraries.length > 0 && (
-        <ToggleGroup.Root
-          value={[activeLibraryId]}
-          onValueChange={(details) =>
-            setSelectedLibraryId(details.value[0] ?? "")
-          }
-        >
-          <ToggleGroup.Item value="">All</ToggleGroup.Item>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setSelectedLibraryId("")}
+            className={`chip ${activeLibraryId === "" ? "chip-active" : ""}`}
+          >
+            All
+          </button>
           {libraries.map((lib) => (
-            <ToggleGroup.Item key={lib.id} value={lib.id}>
+            <button
+              key={lib.id}
+              type="button"
+              onClick={() => setSelectedLibraryId(lib.id)}
+              className={`chip ${activeLibraryId === lib.id ? "chip-active" : ""}`}
+            >
               {lib.name}
-            </ToggleGroup.Item>
+            </button>
           ))}
-        </ToggleGroup.Root>
+        </div>
       )}
 
       <div className="relative">
@@ -248,10 +251,16 @@ export default function KomgaPage() {
         !seriesQuery.isLoading &&
         !seriesQuery.isError &&
         selectedLibraryId !== null && (
-          <div className="py-24 text-center text-sm text-secondary">
-            {search
-              ? "No series match your search."
-              : "No series found in Komga."}
+          <div className="blank-page flex flex-col items-center gap-3 p-8 text-center">
+            <div className="blank-page-icon" />
+            <p className="font-display text-lg italic text-primary">
+              {search ? "No matches" : "Nothing on the shelf"}
+            </p>
+            <p className="text-sm text-secondary">
+              {search
+                ? "No series match your search."
+                : "No series found in Komga."}
+            </p>
           </div>
         )}
 

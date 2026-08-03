@@ -2,10 +2,10 @@ import * as ArkField from "@ark-ui/react/field";
 import type { FieldRootProps, FieldLabelProps, FieldInputProps, FieldSelectProps, FieldHelperTextProps, FieldErrorTextProps } from "@ark-ui/react/field";
 
 const labelClass =
-  "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-secondary";
+  "mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-accent";
 
 const inputClass =
-  "w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-primary placeholder:text-secondary focus:border-accent focus:outline-none";
+  "w-full rounded-[3px] border border-border bg-surface px-4 py-2.5 text-sm text-primary placeholder:text-secondary focus:border-accent focus:outline-none";
 
 const helperTextClass = "mt-1 text-xs text-secondary";
 
