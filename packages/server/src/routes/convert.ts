@@ -113,6 +113,9 @@ export const convertProgressHandler = (id: string): Response => {
   }
 
   let activeSubscriber: ((line: string, type: "log" | "done" | "error") => void) | null = null
+  let keepaliveTimer: ReturnType<typeof setInterval> | null = null
+
+  const ping = encoder.encode(": ping\n\n")
 
   const stream = new ReadableStream({
     start(controller) {
@@ -131,10 +134,15 @@ export const convertProgressHandler = (id: string): Response => {
         return
       }
 
+      keepaliveTimer = setInterval(() => {
+        controller.enqueue(ping)
+      }, 5000)
+
       activeSubscriber = (line, type) => {
         if (type === "log") {
           controller.enqueue(sseFrame("progress", line))
         } else {
+          if (keepaliveTimer) { clearInterval(keepaliveTimer); keepaliveTimer = null }
           controller.enqueue(sseFrame(type, line))
           job.subscribers.delete(activeSubscriber!)
           activeSubscriber = null
@@ -144,6 +152,7 @@ export const convertProgressHandler = (id: string): Response => {
       job.subscribers.add(activeSubscriber)
     },
     cancel() {
+      if (keepaliveTimer) { clearInterval(keepaliveTimer); keepaliveTimer = null }
       if (activeSubscriber) {
         job.subscribers.delete(activeSubscriber)
         activeSubscriber = null
