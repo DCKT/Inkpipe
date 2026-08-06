@@ -1,8 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { CloudDownload, Check, X, Loader2 } from "lucide-react";
 import type { ProwlarrResult, KomgaSeries } from "../lib/types";
 import { api } from "../hooks/useApiClient";
 import { findBestMatch } from "@inkpipe/shared";
 import { Checkbox } from "../ui/checkbox";
+import { Tooltip } from "../ui/tooltip";
 
 function formatSize(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -83,6 +85,7 @@ export default function ResultsTable({
             <th className="p-3">Size</th>
             <th className="p-3">Seeders</th>
             <th className="p-3">Indexer</th>
+            <th className="p-3">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -139,11 +142,57 @@ export default function ResultsTable({
                 <td className="p-3 font-mono text-xs text-secondary">
                   {result.indexer}
                 </td>
+                <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                  <SaveToAllDebridButton result={result} />
+                </td>
               </tr>
             );
           })}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function SaveToAllDebridButton({ result }: { result: ProwlarrResult }) {
+  const mutation = useMutation({
+    mutationFn: () =>
+      api
+        .post("alldebrid/save-magnet", {
+          json: { magnetUrl: result.magnetUrl, downloadUrl: result.downloadUrl },
+        })
+        .json<{ id: number; ready: boolean }>(),
+  });
+
+  const tooltipLabel = mutation.isError
+    ? mutation.error instanceof Error
+      ? mutation.error.message
+      : "Failed to save to AllDebrid"
+    : mutation.isSuccess
+      ? "Saved to AllDebrid"
+      : "Save to AllDebrid";
+
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        <button
+          type="button"
+          disabled={mutation.isPending}
+          onClick={() => mutation.mutate()}
+          className="flex h-6 w-6 items-center justify-center rounded-[2px] text-secondary transition hover:bg-surface-hover hover:text-primary disabled:cursor-not-allowed"
+        >
+          {mutation.isPending ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : mutation.isSuccess ? (
+            <Check size={14} className="text-accent-hover" />
+          ) : mutation.isError ? (
+            <X size={14} className="text-red-500" />
+          ) : (
+            <CloudDownload size={14} />
+          )}
+        </button>
+      </Tooltip.Trigger>
+      <Tooltip.Content>{tooltipLabel}</Tooltip.Content>
+    </Tooltip.Root>
   );
 }

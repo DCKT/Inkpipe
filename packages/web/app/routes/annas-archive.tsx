@@ -2,29 +2,32 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown } from "lucide-react";
 import SearchBar from "../components/SearchBar";
-import ResultsTable from "../components/ResultsTable";
+import AnnasArchiveResultsList from "../components/AnnasArchiveResultsList";
 import DownloadModal from "../components/DownloadModal";
 import { PageHeader } from "../components/PageHeader";
 import { api } from "../hooks/useApiClient";
-import type { ProwlarrResult } from "../lib/types";
+import type { AnnasArchiveResult } from "../lib/types";
 import { ToastGroup } from "../ui/toast";
 
-export default function HomePage() {
+export default function AnnasArchivePage() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [modalItems, setModalItems] = useState<ProwlarrResult[] | null>(null);
+  const [modalItems, setModalItems] = useState<AnnasArchiveResult[] | null>(null);
 
   const searchQuery = useQuery({
-    queryKey: ["search", query],
-    queryFn: () => api.get("search", { searchParams: { q: query } }).json<ProwlarrResult[]>(),
+    queryKey: ["annas-archive-search", query],
+    queryFn: () =>
+      api
+        .get("annas-archive/search", { searchParams: { q: query } })
+        .json<AnnasArchiveResult[]>(),
     enabled: query.length > 0,
   });
 
   const queryClient = useQueryClient();
 
   const downloadMutation = useMutation({
-    mutationFn: ({ items, subfolder, newFolder }: { items: ProwlarrResult[]; subfolder?: string; newFolder?: boolean }) =>
-      api.post("download", { json: { items, subfolder, newFolder } }).json<{ started: number }>(),
+    mutationFn: ({ items, subfolder, newFolder }: { items: AnnasArchiveResult[]; subfolder?: string; newFolder?: boolean }) =>
+      api.post("annas-archive/download", { json: { items, subfolder, newFolder } }).json<{ started: number }>(),
     onSuccess: (data) => {
       setSelected(new Set());
       queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] });
@@ -42,31 +45,31 @@ export default function HomePage() {
     setSelected(new Set());
   };
 
-  const handleToggle = (guid: string) => {
+  const handleToggle = (md5: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(guid)) next.delete(guid);
-      else next.add(guid);
+      if (next.has(md5)) next.delete(md5);
+      else next.add(md5);
       return next;
     });
   };
 
   const handleToggleAll = () => {
-    if (results.every((r) => selected.has(r.guid))) {
+    if (results.every((r) => selected.has(r.md5))) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(results.map((r) => r.guid)));
+      setSelected(new Set(results.map((r) => r.md5)));
     }
   };
 
   const handleDownloadClick = () => {
-    const items = results.filter((r) => selected.has(r.guid));
+    const items = results.filter((r) => selected.has(r.md5));
     if (items.length > 0) {
       setModalItems(items);
     }
   };
 
-  const handleModalConfirm = (items: ProwlarrResult[], subfolder?: string, newFolder?: boolean) => {
+  const handleModalConfirm = (items: AnnasArchiveResult[], subfolder?: string, newFolder?: boolean) => {
     downloadMutation.mutate({ items, subfolder, newFolder });
   };
 
@@ -74,8 +77,8 @@ export default function HomePage() {
     <main className="page-wrap px-4 pb-8 pt-8 flex flex-col gap-6">
       <PageHeader
         numeral="I"
-        label="Prowlarr"
-        title="Search"
+        label="Anna's Archive"
+        title="Books"
         meta={query ? `${results.length} results` : undefined}
       />
 
@@ -89,7 +92,7 @@ export default function HomePage() {
         </div>
       )}
 
-      <ResultsTable
+      <AnnasArchiveResultsList
         results={results}
         selected={selected}
         onToggle={handleToggle}

@@ -20,6 +20,7 @@ const testConfig: AppConfig = {
   },
   copyparty: { url: "http://cp:3923", uploadPath: "/comics", password: "" },
   komga: { url: "", apiKey: "", defaultLibraryId: "" },
+  annasArchive: { apiKey: "", baseUrl: "https://annas-archive.org" },
 }
 
 function makeLayer(config?: Partial<AppConfig>) {
@@ -36,17 +37,17 @@ function makeProgram<T, E>(prog: (svc: Context.Service.Shape<typeof CopypartySer
   }).pipe(Effect.provide(Layer.provide(CopypartyServiceLive, Layer.merge(LogServiceLive, makeLayer()))))
 }
 
+const originalBunFile = Bun.file
+
 beforeEach(() => {
   vi.spyOn(console, "log").mockImplementation(() => {}) as any
   ;(globalThis as any).fetch = vi.fn()
-  ;(globalThis as any).Bun = {
-    file: vi.fn(() => ({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) })),
-  }
+  Bun.file = vi.fn(() => ({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) })) as any
 })
 
 afterEach(() => {
   vi.restoreAllMocks()
-  delete (globalThis as any).Bun
+  Bun.file = originalBunFile
 })
 
 describe("CopypartyService", () => {

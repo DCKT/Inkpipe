@@ -223,6 +223,24 @@ a {
   font-size: 0.8rem;
 }
 
+.spine-link-section {
+  cursor: default;
+  font-weight: 500;
+}
+
+.spine-link-section:hover {
+  color: var(--color-secondary);
+}
+
+.spine-link-section.is-active {
+  color: var(--color-primary);
+}
+
+.spine-link-sub {
+  padding-left: 2.05rem;
+  font-size: 0.8rem;
+}
+
 /* Small bordered mono filter chip */
 .chip {
   font-family: var(--font-mono);
@@ -367,11 +385,19 @@ a {
   gap: 0.35rem;
   font-family: var(--font-mono);
   font-size: 0.7rem;
+  font-weight: 600;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-secondary);
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
+}
+
+/* Accent variant — used where the pill's value should stand out (e.g. language) */
+.status-pill.status-pill-accent {
+  border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  background: var(--color-accent-tint);
+  color: var(--color-accent);
 }
 
 /*

@@ -1,9 +1,26 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { UnreadBadge } from "./UnreadBadge";
-import { NAV_ITEMS, SETTINGS_NAV_ITEM } from "../lib/nav";
+import { NAV_ITEMS, SETTINGS_NAV_ITEM, type NavSubLink } from "../lib/nav";
+import { api } from "../hooks/useApiClient";
+import type { AppConfig } from "../lib/types";
+
+function isSubLinkActive(pathname: string, item: NavSubLink): boolean {
+  if (item.end) return pathname === item.path;
+  return pathname === item.path || pathname.startsWith(`${item.path}/`);
+}
 
 function SidebarContent() {
+  const location = useLocation();
+
+  const configQuery = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.get("settings").json<AppConfig>(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const copypartyUrl = configQuery.data?.copyparty.url;
+
   return (
     <>
       <div className="border-b border-border px-5 py-4">
@@ -16,25 +33,71 @@ function SidebarContent() {
       </div>
 
       <nav className="flex flex-col gap-0.5 px-2 py-3">
-        {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.end}
-            title={item.label}
-            className={({ isActive }) =>
-              `spine-link ${isActive ? "is-active" : ""}`
-            }
-          >
-            <span className="spine-numeral">{item.numeral}</span>
-            <span className="spine-label hidden lg:inline">{item.label}</span>
-            {item.path === "/watches" && (
-              <span className="ml-auto hidden lg:inline-flex">
-                <UnreadBadge />
-              </span>
-            )}
-          </NavLink>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          if (item.type === "link") {
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.end}
+                title={item.label}
+                className={({ isActive }) =>
+                  `spine-link ${isActive ? "is-active" : ""}`
+                }
+              >
+                <span className="spine-numeral">{item.numeral}</span>
+                <span className="spine-label hidden lg:inline">{item.label}</span>
+                {item.path === "/watches" && (
+                  <span className="ml-auto hidden lg:inline-flex">
+                    <UnreadBadge />
+                  </span>
+                )}
+              </NavLink>
+            );
+          }
+
+          const sectionActive = item.children.some((child) =>
+            isSubLinkActive(location.pathname, child),
+          );
+
+          return (
+            <div key={item.label} className="flex flex-col gap-0.5">
+              <div
+                className={`spine-link spine-link-section ${sectionActive ? "is-active" : ""}`}
+                title={item.label}
+              >
+                <span className="spine-numeral">{item.numeral}</span>
+                <span className="spine-label hidden lg:inline">{item.label}</span>
+              </div>
+              {item.children.map((child) => (
+                <NavLink
+                  key={child.path}
+                  to={child.path}
+                  end={child.end}
+                  title={child.label}
+                  className={({ isActive }) =>
+                    `spine-link spine-link-sub ${isActive ? "is-active" : ""}`
+                  }
+                >
+                  <span className="spine-label hidden lg:inline">{child.label}</span>
+                  <span className="lg:hidden">{child.label[0]}</span>
+                </NavLink>
+              ))}
+              {item.label === "Utils" && copypartyUrl && (
+                <a
+                  href={copypartyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Copyparty"
+                  className="spine-link spine-link-sub"
+                >
+                  <span className="spine-label hidden lg:inline">Copyparty</span>
+                  <span className="lg:hidden">C</span>
+                </a>
+              )}
+            </div>
+          );
+        })}
       </nav>
 
       <div className="mt-auto border-t border-border px-2 py-3">

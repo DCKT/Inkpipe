@@ -19,6 +19,7 @@ const mockConfig: AppConfig = {
   },
   copyparty: { url: "http://cp:3923", uploadPath: "/comics", password: "" },
   komga: { url: "http://k:8080", apiKey: "kk", defaultLibraryId: "lib-1" },
+  annasArchive: { apiKey: "", baseUrl: "https://annas-archive.org" },
 }
 
 describe("getSettingsHandler", () => {

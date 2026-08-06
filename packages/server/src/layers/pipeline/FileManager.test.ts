@@ -40,11 +40,6 @@ layer(FileManagerServiceLive)("FileManagerService", (it) => {
 
   it.effect("returns os.tmpdir/inkpipe when NOT in Docker", () =>
     Effect.gen(function* () {
-      // Override the mock: existsSync returns false for /.dockerenv
-      vi.doMock("node:fs", () => ({
-        existsSync: vi.fn(() => false),
-      }))
-
       const svc = yield* FileManagerService
       const result = yield* svc.getTempBase
 

@@ -3,3 +3,4 @@ export * from "./api";
 export * from "./errors";
 export * from "./titleMatch";
 export * from "./prowlarr-client";
+export * from "./annas-archive-client";

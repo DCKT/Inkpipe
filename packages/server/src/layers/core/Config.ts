@@ -64,19 +64,25 @@ interface KomgaRow {
   defaultLibraryId: string
 }
 
+interface AnnasArchiveRow {
+  apiKey: string
+  baseUrl: string
+}
+
 export const ConfigServiceLive = Layer.effect(
   ConfigService,
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
 
     const loadConfig = Effect.gen(function* () {
-      const [prowlarrRows, alldebridRows, kccRows, copypartyRows, komgaRows] =
+      const [prowlarrRows, alldebridRows, kccRows, copypartyRows, komgaRows, annasArchiveRows] =
         yield* Effect.all([
           sql<ProwlarrRow>`SELECT url, api_key FROM prowlarr_config WHERE id = 1`,
           sql<AlldebridRow>`SELECT api_key FROM alldebrid_config WHERE id = 1`,
           sql<KccRow>`SELECT * FROM kcc_config WHERE id = 1`,
           sql<CopypartyRow>`SELECT url, upload_path, password FROM copyparty_config WHERE id = 1`,
           sql<KomgaRow>`SELECT url, api_key, default_library_id FROM komga_config WHERE id = 1`,
+          sql<AnnasArchiveRow>`SELECT api_key, base_url FROM annas_archive_config WHERE id = 1`,
         ], { concurrency: "unbounded" })
 
       const prowlarr = prowlarrRows[0]
@@ -84,6 +90,7 @@ export const ConfigServiceLive = Layer.effect(
       const kcc = kccRows[0]
       const copyparty = copypartyRows[0]
       const komga = komgaRows[0]
+      const annasArchive = annasArchiveRows[0]
 
       return {
         prowlarr: { url: prowlarr?.url ?? "", apiKey: prowlarr?.apiKey ?? "" },
@@ -125,6 +132,10 @@ export const ConfigServiceLive = Layer.effect(
           url: komga?.url ?? "",
           apiKey: komga?.apiKey ?? "",
           defaultLibraryId: komga?.defaultLibraryId ?? "",
+        },
+        annasArchive: {
+          apiKey: annasArchive?.apiKey ?? "",
+          baseUrl: annasArchive?.baseUrl ?? "https://annas-archive.gl",
         },
       } satisfies AppConfig
     }).pipe(
@@ -170,6 +181,7 @@ export const ConfigServiceLive = Layer.effect(
           WHERE id = 1`
         yield* sql`UPDATE copyparty_config SET url = ${config.copyparty.url}, upload_path = ${config.copyparty.uploadPath}, password = ${config.copyparty.password} WHERE id = 1`
         yield* sql`UPDATE komga_config SET url = ${config.komga.url}, api_key = ${config.komga.apiKey}, default_library_id = ${config.komga.defaultLibraryId} WHERE id = 1`
+        yield* sql`UPDATE annas_archive_config SET api_key = ${config.annasArchive.apiKey}, base_url = ${config.annasArchive.baseUrl} WHERE id = 1`
       }).pipe(
         Effect.mapError((e) =>
           new ConfigSaveError({

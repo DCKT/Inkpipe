@@ -97,6 +97,19 @@ export const ProwlarrResultSchema = Schema.Struct({
 })
 export type ProwlarrResult = typeof ProwlarrResultSchema.Type
 
+// --- AnnasArchiveResult ---
+
+export const AnnasArchiveResultSchema = Schema.Struct({
+  md5: Schema.String,
+  title: Schema.String,
+  author: Schema.NullOr(Schema.String),
+  extension: Schema.NullOr(Schema.String),
+  size: Schema.NullOr(Schema.String),
+  language: Schema.NullOr(Schema.String),
+  coverUrl: Schema.NullOr(Schema.String),
+})
+export type AnnasArchiveResult = typeof AnnasArchiveResultSchema.Type
+
 // --- AppConfig sub-schemas ---
 
 export const ProwlarrConfigSchema = Schema.Struct({
@@ -104,6 +117,12 @@ export const ProwlarrConfigSchema = Schema.Struct({
   apiKey: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
 })
 export type ProwlarrConfig = typeof ProwlarrConfigSchema.Type
+
+export const AnnasArchiveConfigSchema = Schema.Struct({
+  apiKey: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
+  baseUrl: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed("https://annas-archive.gl"))),
+})
+export type AnnasArchiveConfig = typeof AnnasArchiveConfigSchema.Type
 
 export const AlldebridConfigSchema = Schema.Struct({
   apiKey: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
@@ -162,6 +181,7 @@ export const AppConfigSchema = Schema.Struct({
   kcc: KccConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed(KccConfigDefaults))),
   copyparty: CopypartyConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ url: "", uploadPath: "/", password: "" }))),
   komga: KomgaConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ url: "", apiKey: "", defaultLibraryId: "" }))),
+  annasArchive: AnnasArchiveConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ apiKey: "", baseUrl: "https://annas-archive.gl" }))),
 })
 export type AppConfig = typeof AppConfigSchema.Type
 

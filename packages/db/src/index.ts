@@ -6,6 +6,7 @@ import { homedir } from "node:os"
 import { mkdirSync } from "node:fs"
 
 import migration_0001 from "./migrations/0001_initial"
+import migration_0002 from "./migrations/0002_annas_archive"
 
 const CONFIG_DIR = process.env.INKPIPE_DATA_DIR ?? join(homedir(), ".inkpipe")
 export const DB_PATH = join(CONFIG_DIR, "inkpipe.db")
@@ -45,6 +46,7 @@ export const runMigrations = Effect.gen(function* () {
 
   const migrations: Array<{ id: number; name: string; effect: typeof migration_0001 }> = [
     { id: 1, name: "0001_initial", effect: migration_0001 },
+    { id: 2, name: "0002_annas_archive", effect: migration_0002 },
   ]
 
   for (const migration of migrations) {

@@ -40,6 +40,21 @@ export class MagnetStatusError extends Schema.TaggedErrorClass<MagnetStatusError
   { message: Schema.String, statusCode: Schema.optional(Schema.Number) },
 ) {}
 
+export class AnnasArchiveNotConfigured extends Schema.TaggedErrorClass<AnnasArchiveNotConfigured>()(
+  "AnnasArchiveNotConfigured",
+  { message: Schema.String },
+) {}
+
+export class AnnasArchiveHttpError extends Schema.TaggedErrorClass<AnnasArchiveHttpError>()(
+  "AnnasArchiveHttpError",
+  { message: Schema.String, status: Schema.optional(Schema.Number) },
+) {}
+
+export class AnnasArchiveDownloadError extends Schema.TaggedErrorClass<AnnasArchiveDownloadError>()(
+  "AnnasArchiveDownloadError",
+  { message: Schema.String },
+) {}
+
 export class KomgaNotConfigured extends Schema.TaggedErrorClass<KomgaNotConfigured>()(
   "KomgaNotConfigured",
   { message: Schema.String },

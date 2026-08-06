@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect"
 import { spawn } from "node:child_process"
 import { basename, parse, relative } from "node:path"
-import type { AppConfig } from "@inkpipe/shared"
+import type { AppConfig, KccConfig } from "@inkpipe/shared"
 import { KccError } from "@inkpipe/shared"
 import { ConfigService } from "../core/Config"
 import { FileManagerService } from "../pipeline/FileManager"
@@ -10,7 +10,7 @@ import { LogService } from "../core/Log"
 export class KccService extends Context.Service<
   KccService,
   {
-    readonly convert: (inputPath: string, outputDir: string, onLog?: (line: string) => void) => Effect.Effect<string, KccError>
+    readonly convert: (inputPath: string, outputDir: string, overrides?: Partial<KccConfig>, onLog?: (line: string) => void) => Effect.Effect<string, KccError>
   }
 >()("KccService") {}
 
@@ -77,13 +77,16 @@ export const KccServiceLive = Layer.effect(
     const fileManager = yield* FileManagerService
     const log = yield* LogService
 
-    const convert = (inputPath: string, outputDir: string, onLog?: (line: string) => void) =>
+    const convert = (inputPath: string, outputDir: string, overrides?: Partial<KccConfig>, onLog?: (line: string) => void) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
           Effect.catch((e) => Effect.fail(new KccError({ message: e.message }))),
         )
+        const effectiveConfig: AppConfig = overrides
+          ? { ...config, kcc: { ...config.kcc, ...overrides } }
+          : config
         const inputFilename = basename(inputPath)
-        const kccArgs = buildKccArgs(inputFilename, config)
+        const kccArgs = buildKccArgs(inputFilename, effectiveConfig)
         const isDocker = yield* fileManager.isRunningInDocker
 
         return yield* Effect.tryPromise({

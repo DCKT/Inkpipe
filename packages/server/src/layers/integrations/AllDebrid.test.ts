@@ -20,6 +20,7 @@ const testConfig: AppConfig = {
   },
   copyparty: { url: "", uploadPath: "/", password: "" },
   komga: { url: "", apiKey: "", defaultLibraryId: "" },
+  annasArchive: { apiKey: "", baseUrl: "https://annas-archive.org" },
 }
 
 function makeLayer(config?: Partial<AppConfig>) {
@@ -52,19 +53,18 @@ function mockUnlockResponse(filename: string, size = 1000) {
   return { data: { link: `https://cdn.example.com/${filename}`, filename, filesize: size } }
 }
 
+const originalBunWrite = Bun.write
+
 beforeEach(() => {
   vi.spyOn(console, "log").mockImplementation(() => {}) as any
   vi.spyOn(console, "error").mockImplementation(() => {}) as any
   ;(globalThis as any).fetch = vi.fn()
-  ;(globalThis as any).Bun = {
-    write: vi.fn(() => Promise.resolve()),
-    file: vi.fn(() => ({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) })),
-  }
+  Bun.write = vi.fn(() => Promise.resolve(0)) as any
 })
 
 afterEach(() => {
   vi.restoreAllMocks()
-  delete (globalThis as any).Bun
+  Bun.write = originalBunWrite
 })
 
 describe("AllDebridService", () => {
@@ -277,22 +277,27 @@ describe("AllDebridService", () => {
           }),
         )
 
-        expect((globalThis as any).Bun.write).toHaveBeenCalled()
+        expect(Bun.write).toHaveBeenCalled()
         expect(received).toBe(4)
         expect(total).toBe(4)
       }))
 
-    it.effect("fails with AllDebridHttpError on non-OK response", () =>
-      Effect.gen(function* () {
-        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-          ok: false,
-          status: 404,
-        })
+    // Uses a plain vitest `it` + Effect.runPromise (no AbortSignal) rather than it.effect:
+    // this download goes through 3 real-timer retries (~3s), and it.effect wires the
+    // vitest test's AbortSignal into Effect.runPromise, which hangs until timeout when
+    // combined with real (non-TestClock) delays in this effect v4 + Bun setup.
+    it("fails with AllDebridHttpError on non-OK response", async () => {
+      ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: false,
+        status: 404,
+      })
 
-        const error = yield* Effect.flip(makeProgram((svc) => svc.downloadFile("url", "/tmp/file.cbz")))
+      const error = await Effect.runPromise(
+        Effect.flip(makeProgram((svc) => svc.downloadFile("url", "/tmp/file.cbz"))),
+      )
 
-        expect(error.message).toContain("Download failed")
-      }))
+      expect(error.message).toContain("Download failed")
+    }, 10000)
   })
 
   describe("error handling", () => {

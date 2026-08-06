@@ -20,6 +20,7 @@ const testConfig: AppConfig = {
   },
   copyparty: { url: "", uploadPath: "/", password: "" },
   komga: { url: "http://komga:8080", apiKey: "kk", defaultLibraryId: "lib-1" },
+  annasArchive: { apiKey: "", baseUrl: "https://annas-archive.org" },
 }
 
 function makeConfigLayer(config?: Partial<AppConfig>) {

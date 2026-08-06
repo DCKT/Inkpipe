@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useListCollection } from "@ark-ui/react";
 import { api } from "../hooks/useApiClient";
-import type { ProwlarrResult } from "../lib/types";
 import { Dialog } from "../ui/dialog";
 import { Combobox } from "../ui/combobox";
 import { Button } from "../ui/button";
@@ -14,17 +13,17 @@ interface FolderItem {
 
 const NEW_OPTION = "[[new]]";
 
-interface DownloadModalProps {
-  items: ProwlarrResult[];
-  onConfirm: (items: ProwlarrResult[], subfolder?: string, newFolder?: boolean) => void;
+interface DownloadModalProps<T> {
+  items: T[];
+  onConfirm: (items: T[], subfolder?: string, newFolder?: boolean) => void;
   onClose: () => void;
 }
 
-export default function DownloadModal({
+export default function DownloadModal<T>({
   items,
   onConfirm,
   onClose,
-}: DownloadModalProps) {
+}: DownloadModalProps<T>) {
   const foldersQuery = useQuery({
     queryKey: ["copyparty-folders"],
     queryFn: () =>

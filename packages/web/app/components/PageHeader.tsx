@@ -1,5 +1,7 @@
 import { NavLink } from "react-router-dom";
-import { NAV_ITEMS, SETTINGS_NAV_ITEM } from "../lib/nav";
+import { NAV_ITEMS, SETTINGS_NAV_ITEM, flattenNavEntries } from "../lib/nav";
+
+const MOBILE_TAB_ITEMS = [...flattenNavEntries(NAV_ITEMS), SETTINGS_NAV_ITEM];
 
 interface PageHeaderProps {
   /** Roman numeral shown in the eyebrow, e.g. "III". Omit and pass `eyebrow` for non-numbered pages. */
@@ -37,7 +39,7 @@ export function PageHeader({ numeral, label, eyebrow, title, meta }: PageHeaderP
 
       {/* Mobile-only quick tab strip, mirrors the sidebar's nav items */}
       <nav className="mt-3 flex gap-1 overflow-x-auto pb-1 md:hidden">
-        {[...NAV_ITEMS, SETTINGS_NAV_ITEM].map((item) => (
+        {MOBILE_TAB_ITEMS.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}

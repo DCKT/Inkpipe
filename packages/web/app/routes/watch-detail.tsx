@@ -110,7 +110,7 @@ export default function WatchDetailPage() {
   return (
     <main className="page-wrap px-4 pb-8 pt-8">
       <PageHeader
-        numeral="V"
+        numeral="IV"
         label="Watches"
         title={watchQuery.data?.name ?? "Watch"}
         meta={alertsQuery.data ? `${alerts.length} alerts` : undefined}

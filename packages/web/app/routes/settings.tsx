@@ -79,7 +79,7 @@ export default function SettingsPage() {
 
   return (
     <main className="page-wrap px-4 pb-8 pt-8">
-      <PageHeader numeral="VII" label="Settings" title="Settings" />
+      <PageHeader numeral="VI" label="Settings" title="Settings" />
 
       <div className="mb-6 flex items-center justify-end">
         <div className="flex gap-2">

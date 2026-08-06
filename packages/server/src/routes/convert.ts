@@ -1,8 +1,9 @@
-import { Effect } from "effect"
+import { Effect, Schema } from "effect"
 import { writeFile, readdir, mkdir, readFile, rm } from "node:fs/promises"
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
-import { ConvertError } from "@inkpipe/shared"
+import type { KccConfig } from "@inkpipe/shared"
+import { ConvertError, KccConfigSchema } from "@inkpipe/shared"
 import { KccService } from "../layers/integrations/Kcc"
 import { FileManagerService } from "../layers/pipeline/FileManager"
 
@@ -36,6 +37,16 @@ export const convertStartHandler = (formData: FormData) =>
       return yield* Effect.fail(new ConvertError({ message: "Only .cbz files are accepted" }))
     }
 
+    const optionsField = formData.get("options")
+    const overrides = yield* Effect.try({
+      try: (): Partial<KccConfig> | undefined =>
+        typeof optionsField === "string" && optionsField.length > 0
+          ? Schema.decodeUnknownSync(KccConfigSchema)(JSON.parse(optionsField))
+          : undefined,
+      catch: (e) =>
+        new ConvertError({ message: `Invalid KCC options: ${e instanceof Error ? e.message : String(e)}` }),
+    })
+
     const id = randomUUID()
     const fileManager = yield* FileManagerService
     const tempBase = yield* fileManager.getTempBase
@@ -59,7 +70,7 @@ export const convertStartHandler = (formData: FormData) =>
 
     // forkDetach inherits the current fiber's service context (KccService, etc.)
     yield* Effect.forkDetach(
-      kcc.convert(inputPath, workDir, onLog).pipe(
+      kcc.convert(inputPath, workDir, overrides, onLog).pipe(
         Effect.flatMap(() =>
           Effect.promise(() => readdir(workDir)).pipe(
             Effect.flatMap((files) => {

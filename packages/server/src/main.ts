@@ -18,6 +18,10 @@ import { CopypartyServiceLive } from "./layers/integrations/Copyparty"
 import type { CopypartyService } from "./layers/integrations/Copyparty"
 import { KccServiceLive } from "./layers/integrations/Kcc"
 import type { KccService } from "./layers/integrations/Kcc"
+import { AnnasArchiveServiceLive } from "./layers/integrations/AnnasArchive"
+import type { AnnasArchiveService } from "./layers/integrations/AnnasArchive"
+import { AnnasArchivePipelineServiceLive } from "./layers/pipeline/AnnasArchivePipeline"
+import type { AnnasArchivePipelineService } from "./layers/pipeline/AnnasArchivePipeline"
 import { FileManagerServiceLive } from "./layers/pipeline/FileManager"
 import type { FileManagerService } from "./layers/pipeline/FileManager"
 import { PipelineServiceLive } from "./layers/pipeline/Pipeline"
@@ -27,8 +31,10 @@ import type { WatchStoreService } from "./layers/storage/WatchStore"
 import { PushServiceLive } from "./layers/pipeline/Push"
 import type { PushService } from "./layers/pipeline/Push"
 import { searchHandler } from "./routes/search"
+import { annasArchiveSearchHandler, annasArchiveDownloadHandler } from "./routes/annas-archive"
 import { latestHandler } from "./routes/latest"
 import { downloadHandler } from "./routes/download"
+import { saveMagnetHandler } from "./routes/alldebrid"
 import { jobsHandler, clearJobsHandler } from "./routes/jobs"
 import { getSettingsHandler, updateSettingsHandler, exportSettingsHandler, importSettingsHandler } from "./routes/settings"
 import { convertStartHandler, convertProgressHandler, convertDownloadHandler } from "./routes/convert"
@@ -52,9 +58,9 @@ import {
   triggerWatchHandler,
 } from "./routes/watches"
 import { getVapidPublicKeyHandler, subscribeHandler, unsubscribeHandler } from "./routes/push"
-import type { AppConfig, ProwlarrResult, CreateWatchRequest, UpdateWatchRequest, PushSubscriptionRequest } from "@inkpipe/shared"
+import type { AppConfig, ProwlarrResult, AnnasArchiveResult, CreateWatchRequest, UpdateWatchRequest, PushSubscriptionRequest } from "@inkpipe/shared"
 
-type AllServices = PushService | LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService
+type AllServices = PushService | LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService | AnnasArchiveService | AnnasArchivePipelineService
 
 // Base layer — services with no dependencies of their own.
 // PushServiceLive requires LogService; use provideMerge to satisfy it
@@ -75,11 +81,17 @@ const AllDebridLayer = Layer.provide(AllDebridServiceLive, Layer.mergeAll(BaseLa
 const KomgaLayer = Layer.provide(KomgaServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
 const CopypartyLayer = Layer.provide(CopypartyServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
 const KccLayer = Layer.provide(KccServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
+const AnnasArchiveLayer = Layer.provide(AnnasArchiveServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
 
 // Pipeline needs services from multiple layers during construction
 const PipelineLayer = Layer.provide(
   PipelineServiceLive,
   Layer.mergeAll(BaseLayer, ConfigLayer, JobStoreLayer, AllDebridLayer, KccLayer, CopypartyLayer),
+)
+
+const AnnasArchivePipelineLayer = Layer.provide(
+  AnnasArchivePipelineServiceLive,
+  Layer.mergeAll(BaseLayer, ConfigLayer, JobStoreLayer, AnnasArchiveLayer, CopypartyLayer),
 )
 
 const WatchStoreLayer = Layer.provide(WatchStoreServiceLive, BaseLayer)
@@ -95,6 +107,8 @@ const MainLayer = Layer.mergeAll(
   KccLayer,
   PipelineLayer,
   WatchStoreLayer,
+  AnnasArchiveLayer,
+  AnnasArchivePipelineLayer,
 ) as Layer.Layer<AllServices, never, never>
 
 const runtime = ManagedRuntime.make(MainLayer)
@@ -187,6 +201,18 @@ const server = Bun.serve({
       if (p === "/api/download" && m === "POST") {
         const body = (await req.json()) as { items: ProwlarrResult[]; subfolder?: string; newFolder?: boolean }
         return api(await runtime.runPromise(downloadHandler(body)))
+      }
+      if (p === "/api/alldebrid/save-magnet" && m === "POST") {
+        const body = (await req.json()) as { magnetUrl?: string | null; downloadUrl?: string | null }
+        return api(await runtime.runPromise(saveMagnetHandler(body)))
+      }
+      if (p === "/api/annas-archive/search" && m === "GET") {
+        const q = url.searchParams.get("q") || ""
+        return api(await runtime.runPromise(annasArchiveSearchHandler(q)))
+      }
+      if (p === "/api/annas-archive/download" && m === "POST") {
+        const body = (await req.json()) as { items: AnnasArchiveResult[]; subfolder?: string; newFolder?: boolean }
+        return api(await runtime.runPromise(annasArchiveDownloadHandler(body)))
       }
       if (p === "/api/jobs" && m === "GET") {
         return api(await runtime.runPromise(jobsHandler))
