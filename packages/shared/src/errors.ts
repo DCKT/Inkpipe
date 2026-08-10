@@ -149,3 +149,11 @@ export class SettingsImportError extends Schema.TaggedErrorClass<SettingsImportE
   "SettingsImportError",
   { message: Schema.String },
 ) {}
+
+// Raised when a request fails HttpApi's schema decoding (bad/missing params,
+// query, headers, or payload) — distinct from ValidationError, which is for
+// well-formed requests that fail a business rule.
+export class RequestValidationError extends Schema.TaggedErrorClass<RequestValidationError>()(
+  "RequestValidationError",
+  { message: Schema.String },
+) {}

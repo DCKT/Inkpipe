@@ -4,3 +4,5 @@ export * from "./errors";
 export * from "./titleMatch";
 export * from "./prowlarr-client";
 export * from "./annas-archive-client";
+export * from "./httpApi/index";
+export * from "./httpApi/middleware";

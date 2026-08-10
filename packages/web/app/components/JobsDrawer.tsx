@@ -1,9 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import JobCard from "./JobCard";
-import { api } from "../hooks/useApiClient";
+import { runApi, WS_BASE } from "../lib/apiClient";
 import type { Job } from "../lib/types";
 import { ToastGroup } from "../ui/toast";
+
+type JobsSocketMessage =
+  | { type: "init"; jobs: Job[] }
+  | { type: "update"; job: Job };
 
 export function JobsDrawer() {
   const [open, setOpen] = useState(false);
@@ -11,12 +15,54 @@ export function JobsDrawer() {
 
   const jobsQuery = useQuery({
     queryKey: ["jobs"],
-    queryFn: () => api.get("jobs").json<Job[]>(),
-    refetchInterval: 3000,
+    queryFn: () => runApi((client) => client.jobs.list({})).then((r) => r.jobs),
+    // Backstop for the WebSocket connection above: if `/api/jobs/ws` can't
+    // establish (e.g. a proxy that doesn't forward Upgrade), this keeps the
+    // drawer live instead of freezing at its initial fetch.
+    refetchInterval: 15000,
   });
 
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const connect = () => {
+      if (cancelled) return;
+      ws = new WebSocket(`${WS_BASE}/api/jobs/ws`);
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data) as JobsSocketMessage;
+        if (msg.type === "init") {
+          queryClient.setQueryData(["jobs"], msg.jobs);
+        } else if (msg.type === "update") {
+          queryClient.setQueryData<Job[]>(["jobs"], (prev) => {
+            const list = prev ?? [];
+            const idx = list.findIndex((j) => j.id === msg.job.id);
+            if (idx === -1) return [msg.job, ...list];
+            const next = list.slice();
+            next[idx] = msg.job;
+            return next;
+          });
+        }
+      };
+
+      ws.onclose = () => {
+        if (!cancelled) reconnectTimer = setTimeout(connect, 3000);
+      };
+    };
+
+    connect();
+
+    return () => {
+      cancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      ws?.close();
+    };
+  }, [queryClient]);
+
   const clearMutation = useMutation({
-    mutationFn: () => api.delete("jobs"),
+    mutationFn: () => runApi((client) => client.jobs.clear({})),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       ToastGroup.create.success("Cleared completed jobs");

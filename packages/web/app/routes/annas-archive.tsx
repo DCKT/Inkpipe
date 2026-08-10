@@ -5,7 +5,7 @@ import SearchBar from "../components/SearchBar";
 import AnnasArchiveResultsList from "../components/AnnasArchiveResultsList";
 import DownloadModal from "../components/DownloadModal";
 import { PageHeader } from "../components/PageHeader";
-import { api } from "../hooks/useApiClient";
+import { runApi } from "../lib/apiClient";
 import type { AnnasArchiveResult } from "../lib/types";
 import { ToastGroup } from "../ui/toast";
 
@@ -16,10 +16,7 @@ export default function AnnasArchivePage() {
 
   const searchQuery = useQuery({
     queryKey: ["annas-archive-search", query],
-    queryFn: () =>
-      api
-        .get("annas-archive/search", { searchParams: { q: query } })
-        .json<AnnasArchiveResult[]>(),
+    queryFn: () => runApi((client) => client.annasArchive.search({ query: { q: query } })),
     enabled: query.length > 0,
   });
 
@@ -27,7 +24,7 @@ export default function AnnasArchivePage() {
 
   const downloadMutation = useMutation({
     mutationFn: ({ items, subfolder, newFolder }: { items: AnnasArchiveResult[]; subfolder?: string; newFolder?: boolean }) =>
-      api.post("annas-archive/download", { json: { items, subfolder, newFolder } }).json<{ started: number }>(),
+      runApi((client) => client.annasArchive.download({ payload: { items, subfolder, newFolder } })),
     onSuccess: (data) => {
       setSelected(new Set());
       queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] });
@@ -74,12 +71,12 @@ export default function AnnasArchivePage() {
   };
 
   return (
-    <main className="page-wrap px-4 pb-8 pt-8 flex flex-col gap-6">
+    <main className="page-wrap sm:px-4 pb-8 pt-8 flex flex-col gap-6">
       <PageHeader
         numeral="I"
         label="Anna's Archive"
         title="Books"
-        meta={query ? `${results.length} results` : undefined}
+        meta={searchQuery.data ? `${results.length} results` : undefined}
       />
 
       <section className="">

@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { api } from "../hooks/useApiClient"
-import type { Watch } from "../lib/types"
+import { runApi } from "../lib/apiClient"
 import { ToastGroup } from "../ui/toast"
 import { WatchFormDialog } from "../components/WatchForm"
 import { PageHeader } from "../components/PageHeader"
@@ -13,12 +12,12 @@ export default function WatchesPage() {
 
   const watchesQuery = useQuery({
     queryKey: ["watches"],
-    queryFn: () => api.get("watches").json<{ watches: Watch[] }>(),
+    queryFn: () => runApi((client) => client.watches.list({})),
     refetchInterval: 30_000,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.delete(`watches/${id}`),
+    mutationFn: (id: number) => runApi((client) => client.watches.delete({ params: { id } })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watches"] })
       ToastGroup.create.success("Watch deleted")
@@ -30,19 +29,15 @@ export default function WatchesPage() {
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
-      api.put(`watches/${id}`, { json: { enabled } }),
+      runApi((client) => client.watches.update({ params: { id }, payload: { enabled } })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watches"] })
     },
   })
 
   const triggerMutation = useMutation({
-    mutationFn: (id: number) => api.post(`watches/${id}/trigger`).json<{ matches: number; error?: string }>(),
+    mutationFn: (id: number) => runApi((client) => client.watches.trigger({ params: { id } })),
     onSuccess: (data) => {
-      if (data.error) {
-        ToastGroup.create.error("Trigger failed", data.error)
-        return
-      }
       if (data.matches === 0) {
         ToastGroup.create.success("No new matches found")
       } else {
@@ -56,7 +51,8 @@ export default function WatchesPage() {
   })
 
   const dismissMutation = useMutation({
-    mutationFn: (watchId: number) => api.post(`watches/${watchId}/alerts/acknowledge-all`),
+    mutationFn: (watchId: number) =>
+      runApi((client) => client.watches.acknowledgeAllAlerts({ params: { id: watchId } })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watches"] })
     },
@@ -68,7 +64,7 @@ export default function WatchesPage() {
   const push = usePushSubscription()
 
   return (
-    <main className="page-wrap px-4 pb-8 pt-8">
+    <main className="page-wrap sm:px-4 pb-8 pt-8">
       <PageHeader
         numeral="IV"
         label="Watches"
@@ -143,12 +139,12 @@ export default function WatchesPage() {
           {watchesQuery.data.watches.map((watch) => (
             <div
               key={watch.id}
-              className="island-shell rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
+              className="island-shell rounded-2xl p-4 flex flex-col gap-3 cursor-pointer hover:bg-surface-hover sm:flex-row sm:items-center sm:justify-between"
               onClick={() => navigate(`/watches/${watch.id}`)}
             >
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-primary truncate">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-primary break-words">
                     {watch.name}
                   </span>
                   <span className={`text-xs px-1.5 py-0.5 rounded-full ${watch.enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
@@ -167,7 +163,7 @@ export default function WatchesPage() {
                   )}
                 </p>
               </div>
-              <div className="flex items-center gap-2 ml-3 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 sm:ml-3 sm:shrink-0">
                 {(watch.unreadCount ?? 0) > 0 && (
                   <button
                     className="text-xs text-secondary hover:text-primary px-2 py-1 rounded-lg hover:bg-surface transition-colors"

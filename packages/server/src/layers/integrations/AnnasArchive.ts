@@ -7,7 +7,7 @@ import {
   AnnasArchiveDownloadError,
   sortAnnasArchiveResults,
 } from "@inkpipe/shared";
-import { ConfigService } from "../core/Config";
+import { ConfigService, requireConfigured } from "../core/Config";
 import { LogService } from "../core/Log";
 
 interface Logger {
@@ -119,19 +119,13 @@ export const AnnasArchiveServiceLive = Layer.effect(
     // Downloads require a paid member key (Anna's Archive's one documented JSON API).
     const getDownloadUrl = (md5: string) =>
       Effect.gen(function* () {
-        const config = yield* configService.loadConfig.pipe(
-          Effect.catch((e) =>
-            Effect.fail(new AnnasArchiveNotConfigured({ message: e.message })),
-          ),
+        const { apiKey, baseUrl } = yield* requireConfigured(
+          configService,
+          (c) => c.annasArchive,
+          (a) => a.apiKey.length > 0,
+          "Anna's Archive API key is not configured",
+          (message) => new AnnasArchiveNotConfigured({ message }),
         );
-        const { apiKey, baseUrl } = config.annasArchive;
-        if (!apiKey) {
-          return yield* Effect.fail(
-            new AnnasArchiveNotConfigured({
-              message: "Anna's Archive API key is not configured",
-            }),
-          );
-        }
 
         return yield* Effect.tryPromise({
           try: () =>

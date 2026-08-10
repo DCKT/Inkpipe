@@ -38,14 +38,19 @@ export default function JobCard({ job }: { job: Job }) {
 
   return (
     <div
-      className={`grid grid-cols-[4.5rem_1fr_8rem_auto] items-center gap-4 border-b border-border py-3 last:border-0 ${
+      className={`flex flex-col gap-2 border-b border-border py-3 last:border-0 sm:grid sm:grid-cols-[4.5rem_1fr_8rem_auto] sm:items-center sm:gap-4 ${
         isDone || isFailed ? "opacity-70" : ""
       }`}
     >
-      <span className="font-mono text-xs text-secondary">{shortId(job.id)}</span>
+      <div className="flex items-center justify-between gap-2 sm:contents">
+        <span className="font-mono text-xs text-secondary">{shortId(job.id)}</span>
+        <span className={`status-pill font-mono sm:order-4 ${statusClass}`}>
+          {STAGE_LABELS[job.stage] ?? job.stage}
+        </span>
+      </div>
 
       <div className="min-w-0">
-        <p className="truncate font-display text-sm italic text-primary">
+        <p className="break-words font-display text-sm text-primary">
           {job.title}
         </p>
         {isFailed && job.error && (
@@ -53,7 +58,7 @@ export default function JobCard({ job }: { job: Job }) {
         )}
       </div>
 
-      <div className="w-32">
+      <div className="w-full sm:w-32">
         {isActive ? (
           <Progress.Root value={job.progress}>
             <Progress.Track>
@@ -66,10 +71,6 @@ export default function JobCard({ job }: { job: Job }) {
           </span>
         )}
       </div>
-
-      <span className={`status-pill font-mono ${statusClass}`}>
-        {STAGE_LABELS[job.stage] ?? job.stage}
-      </span>
     </div>
   );
 }

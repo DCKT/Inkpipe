@@ -4,7 +4,7 @@ import {
   CopypartyHttpError,
   CopypartyFolderError,
 } from "@inkpipe/shared";
-import { ConfigService } from "../core/Config";
+import { ConfigService, requireConfigured } from "../core/Config";
 import { LogService } from "../core/Log";
 
 export class CopypartyService extends Context.Service<
@@ -84,19 +84,13 @@ export const CopypartyServiceLive = Layer.effect(
 
     const uploadFile = (filePath: string, subfolder?: string) =>
       Effect.gen(function* () {
-        const config = yield* configService.loadConfig.pipe(
-          Effect.catch((e) =>
-            Effect.fail(new CopypartyNotConfigured({ message: e.message })),
-          ),
+        const { url, uploadPath, password } = yield* requireConfigured(
+          configService,
+          (c) => c.copyparty,
+          (cp) => cp.url.length > 0,
+          "Copyparty URL not configured",
+          (message) => new CopypartyNotConfigured({ message }),
         );
-        const { url, uploadPath, password } = config.copyparty;
-        if (!url) {
-          return yield* Effect.fail(
-            new CopypartyNotConfigured({
-              message: "Copyparty URL not configured",
-            }),
-          );
-        }
 
         yield* Effect.tryPromise({
           try: async () => {
@@ -142,19 +136,13 @@ export const CopypartyServiceLive = Layer.effect(
 
     const createFolder = (folderName: string) =>
       Effect.gen(function* () {
-        const config = yield* configService.loadConfig.pipe(
-          Effect.catch((e) =>
-            Effect.fail(new CopypartyNotConfigured({ message: e.message })),
-          ),
+        const { url, uploadPath, password } = yield* requireConfigured(
+          configService,
+          (c) => c.copyparty,
+          (cp) => cp.url.length > 0,
+          "Copyparty URL not configured",
+          (message) => new CopypartyNotConfigured({ message }),
         );
-        const { url, uploadPath, password } = config.copyparty;
-        if (!url) {
-          return yield* Effect.fail(
-            new CopypartyNotConfigured({
-              message: "Copyparty URL not configured",
-            }),
-          );
-        }
 
         const sanitized = folderName.replace(/^\/+|\/+$/g, "");
         if (!sanitized) {
@@ -216,19 +204,13 @@ export const CopypartyServiceLive = Layer.effect(
 
     const deleteFolder = (folderName: string) =>
       Effect.gen(function* () {
-        const config = yield* configService.loadConfig.pipe(
-          Effect.catch((e) =>
-            Effect.fail(new CopypartyNotConfigured({ message: e.message })),
-          ),
+        const { url, uploadPath, password } = yield* requireConfigured(
+          configService,
+          (c) => c.copyparty,
+          (cp) => cp.url.length > 0,
+          "Copyparty URL not configured",
+          (message) => new CopypartyNotConfigured({ message }),
         );
-        const { url, uploadPath, password } = config.copyparty;
-        if (!url) {
-          return yield* Effect.fail(
-            new CopypartyNotConfigured({
-              message: "Copyparty URL not configured",
-            }),
-          );
-        }
 
         const sanitized = folderName.replace(/^\/+|\/+$/g, "");
         if (!sanitized) {

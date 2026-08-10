@@ -5,7 +5,7 @@ import SearchBar from "../components/SearchBar";
 import ResultsTable from "../components/ResultsTable";
 import DownloadModal from "../components/DownloadModal";
 import { PageHeader } from "../components/PageHeader";
-import { api } from "../hooks/useApiClient";
+import { runApi } from "../lib/apiClient";
 import type { ProwlarrResult } from "../lib/types";
 import { ToastGroup } from "../ui/toast";
 
@@ -16,15 +16,23 @@ export default function HomePage() {
 
   const searchQuery = useQuery({
     queryKey: ["search", query],
-    queryFn: () => api.get("search", { searchParams: { q: query } }).json<ProwlarrResult[]>(),
+    queryFn: () => runApi((client) => client.search.search({ query: { q: query } })),
     enabled: query.length > 0,
   });
 
   const queryClient = useQueryClient();
 
   const downloadMutation = useMutation({
-    mutationFn: ({ items, subfolder, newFolder }: { items: ProwlarrResult[]; subfolder?: string; newFolder?: boolean }) =>
-      api.post("download", { json: { items, subfolder, newFolder } }).json<{ started: number }>(),
+    mutationFn: ({
+      items,
+      subfolder,
+      newFolder,
+    }: {
+      items: ProwlarrResult[];
+      subfolder?: string;
+      newFolder?: boolean;
+    }) =>
+      runApi((client) => client.download.download({ payload: { items, subfolder, newFolder } })),
     onSuccess: (data) => {
       setSelected(new Set());
       queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] });
@@ -66,17 +74,21 @@ export default function HomePage() {
     }
   };
 
-  const handleModalConfirm = (items: ProwlarrResult[], subfolder?: string, newFolder?: boolean) => {
+  const handleModalConfirm = (
+    items: ProwlarrResult[],
+    subfolder?: string,
+    newFolder?: boolean,
+  ) => {
     downloadMutation.mutate({ items, subfolder, newFolder });
   };
 
   return (
-    <main className="page-wrap px-4 pb-8 pt-8 flex flex-col gap-6">
+    <main className="page-wrap sm:px-4 pb-8 pt-8 flex flex-col gap-4">
       <PageHeader
         numeral="I"
         label="Prowlarr"
         title="Search"
-        meta={query ? `${results.length} results` : undefined}
+        meta={searchQuery.data ? `${results.length} results` : undefined}
       />
 
       <section className="">

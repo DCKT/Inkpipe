@@ -6,7 +6,7 @@ import {
   KomgaNotConfigured,
   KomgaHttpError,
 } from "@inkpipe/shared"
-import { ConfigService } from "../core/Config"
+import { ConfigService, requireConfigured } from "../core/Config"
 import { LogService } from "../core/Log"
 
 export class KomgaService extends Context.Service<
@@ -34,16 +34,13 @@ export const KomgaServiceLive = Layer.effect(
 
     const getApiInfo = () =>
       Effect.gen(function* () {
-        const config = yield* configService.loadConfig.pipe(
-          Effect.catch((e) => Effect.fail(new KomgaNotConfigured({ message: e.message }))),
+        return yield* requireConfigured(
+          configService,
+          (c) => ({ url: c.komga.url, apiKey: c.komga.apiKey }),
+          (info) => info.url.length > 0 && info.apiKey.length > 0,
+          "Komga is not configured",
+          (message) => new KomgaNotConfigured({ message }),
         )
-        const { url, apiKey } = config.komga
-        if (!url || !apiKey) {
-          return yield* Effect.fail(
-            new KomgaNotConfigured({ message: "Komga is not configured" }),
-          )
-        }
-        return { url, apiKey }
       })
 
     const komgaFetch = (

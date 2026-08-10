@@ -76,17 +76,22 @@ export const PushServiceLive = Layer.effect(
           const keys = ensureVapidKeysSync()
           webpush.setVapidDetails("mailto:inkpipe@localhost", keys.publicKey, keys.privateKey)
           const subs = readSubscriptionsSync()
+          const expiredEndpoints = new Set<string>()
           await Promise.allSettled(
             subs.map((sub) =>
               webpush.sendNotification(sub, JSON.stringify(payload)).catch((err) => {
                 if (err.statusCode === 410 || err.statusCode === 404) {
                   Effect.runSync(log.info("push", "Removing expired subscription:", sub.endpoint))
+                  expiredEndpoints.add(sub.endpoint)
                   return
                 }
                 throw err
               }),
             ),
           )
+          if (expiredEndpoints.size > 0) {
+            writeSubscriptionsSync(subs.filter((s) => !expiredEndpoints.has(s.endpoint)))
+          }
         },
         catch: (e) => {
           if (e instanceof Error) Effect.runSync(log.error("push", "Failed to send:", e.message))

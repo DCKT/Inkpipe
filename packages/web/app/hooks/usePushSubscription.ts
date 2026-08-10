@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { api } from "./useApiClient"
+import { runApi } from "../lib/apiClient"
 
 const STORAGE_KEY = "push-subscribed"
 
@@ -50,7 +50,7 @@ export function usePushSubscription() {
     }
 
     const reg = await navigator.serviceWorker.ready
-    const vapidResp = await api.get("push/vapid-public-key").json<{ publicKey: string }>()
+    const vapidResp = await runApi((client) => client.push.vapidPublicKey({}))
     const applicationServerKey = urlBase64ToUint8Array(vapidResp.publicKey)
 
     let subscription = await reg.pushManager.getSubscription()
@@ -61,7 +61,8 @@ export function usePushSubscription() {
       })
     }
 
-    await api.post("push/subscribe", { json: subscription.toJSON() })
+    const subJson = subscription.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }
+    await runApi((client) => client.push.subscribe({ payload: subJson }))
     localStorage.setItem(STORAGE_KEY, "true")
     setStatus("subscribed")
   }, [])
@@ -72,7 +73,7 @@ export function usePushSubscription() {
     const subscription = await reg.pushManager.getSubscription()
     if (subscription) {
       const subscriptionJson = subscription.toJSON() as { endpoint: string }
-      await api.delete("push/subscribe", { json: { endpoint: subscriptionJson.endpoint } })
+      await runApi((client) => client.push.unsubscribe({ payload: { endpoint: subscriptionJson.endpoint } }))
       await subscription.unsubscribe()
     }
     localStorage.removeItem(STORAGE_KEY)

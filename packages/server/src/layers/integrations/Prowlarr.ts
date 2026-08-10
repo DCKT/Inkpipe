@@ -7,8 +7,10 @@ import {
   sortProwlarrResults,
   buildProwlarrSearchParams,
 } from "@inkpipe/shared"
-import { ConfigService } from "../core/Config"
+import { ConfigService, requireConfigured } from "../core/Config"
 import { LogService } from "../core/Log"
+
+const PROWLARR_TIMEOUT_MS = 30000
 
 export class ProwlarrService extends Context.Service<
   ProwlarrService,
@@ -26,20 +28,23 @@ export const ProwlarrServiceLive = Layer.effect(
 
     const search = (query: string) =>
       Effect.gen(function* () {
-        const config = yield* configService.loadConfig.pipe(
-          Effect.catch((e) => Effect.fail(new ProwlarrNotConfigured({ message: e.message }))),
+        const { url, apiKey } = yield* requireConfigured(
+          configService,
+          (c) => c.prowlarr,
+          (p) => p.url.length > 0 && p.apiKey.length > 0,
+          "Prowlarr is not configured",
+          (message) => new ProwlarrNotConfigured({ message }),
         )
-        const { url, apiKey } = config.prowlarr
-        if (!url || !apiKey) {
-          return yield* Effect.fail(
-            new ProwlarrNotConfigured({ message: "Prowlarr is not configured" }),
-          )
-        }
 
         return yield* Effect.tryPromise({
           try: () =>
             doProwlarrSearch(`${url}/api/v1/search`, apiKey, { query, type: "search" }, log),
           catch: (e) => {
+            if (e instanceof DOMException && e.name === "TimeoutError") {
+              return new ProwlarrHttpError({
+                message: `Prowlarr search timed out after ${PROWLARR_TIMEOUT_MS / 1000}s`,
+              })
+            }
             const message = e instanceof Error ? e.message : String(e)
             return new ProwlarrHttpError({ message: `Prowlarr search failed: ${message}` })
           },
@@ -47,15 +52,13 @@ export const ProwlarrServiceLive = Layer.effect(
       })
 
     const getLatest = Effect.gen(function* () {
-      const config = yield* configService.loadConfig.pipe(
-        Effect.catch((e) => Effect.fail(new ProwlarrNotConfigured({ message: e.message }))),
+      const { url, apiKey } = yield* requireConfigured(
+        configService,
+        (c) => c.prowlarr,
+        (p) => p.url.length > 0 && p.apiKey.length > 0,
+        "Prowlarr is not configured",
+        (message) => new ProwlarrNotConfigured({ message }),
       )
-      const { url, apiKey } = config.prowlarr
-      if (!url || !apiKey) {
-        return yield* Effect.fail(
-          new ProwlarrNotConfigured({ message: "Prowlarr is not configured" }),
-        )
-      }
 
       return yield* Effect.tryPromise({
         try: () =>
@@ -64,6 +67,11 @@ export const ProwlarrServiceLive = Layer.effect(
             categories: ["8010", "7030"],
           }, log),
         catch: (e) => {
+          if (e instanceof DOMException && e.name === "TimeoutError") {
+            return new ProwlarrHttpError({
+              message: `Prowlarr latest timed out after ${PROWLARR_TIMEOUT_MS / 1000}s`,
+            })
+          }
           const message = e instanceof Error ? e.message : String(e)
           return new ProwlarrHttpError({ message: `Prowlarr latest failed: ${message}` })
         },
@@ -84,7 +92,7 @@ async function doProwlarrSearch(
   const searchParams = buildProwlarrSearchParams(params)
   const response = await fetch(`${url}?${searchParams.toString()}`, {
     headers: { "X-Api-Key": apiKey },
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(PROWLARR_TIMEOUT_MS),
   })
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`)

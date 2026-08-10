@@ -2,6 +2,8 @@
 
 Manga/comic pipeline: search, download, convert, and upload to your e-reader.
 
+> **⚠️ Disclaimer:** This project is developed solely to reflect my personal usage and needs. It is not intended for general production use, and stability, backwards compatibility, and support are not guaranteed.
+
 ## Features
 
 - **Search** Prowlarr for manga/comics

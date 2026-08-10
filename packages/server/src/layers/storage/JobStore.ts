@@ -2,6 +2,7 @@ import { Context, Effect, Layer, Option } from "effect"
 import { SqlClient } from "effect/unstable/sql"
 import type { Job, JobStage } from "@inkpipe/shared"
 import { JobId } from "@inkpipe/shared"
+import { publishJobEvent } from "../../lib/jobEvents"
 
 export class JobStoreService extends Context.Service<
   JobStoreService,
@@ -51,7 +52,9 @@ export const JobStoreServiceLive = Layer.effect(
           progress: 0,
           startedAt: Date.now(),
         }).returning("*")}`
-        return toJob(rows[0])
+        const job = toJob(rows[0])
+        publishJobEvent(job)
+        return job
       }).pipe(Effect.orDie)
 
     const updateJob = (id: JobId, update: Partial<Omit<Job, "id">>): Effect.Effect<void> =>
@@ -62,7 +65,8 @@ export const JobStoreServiceLive = Layer.effect(
         if (update.error !== undefined) dbUpdate.error = update.error
         if (update.startedAt !== undefined) dbUpdate.startedAt = update.startedAt
         if (Object.keys(dbUpdate).length > 0) {
-          yield* sql`UPDATE jobs SET ${sql.update(dbUpdate, ["id"])} WHERE id = ${id}`
+          const rows = yield* sql<JobRow>`UPDATE jobs SET ${sql.update(dbUpdate, ["id"])} WHERE id = ${id} RETURNING *`
+          if (rows.length > 0) publishJobEvent(toJob(rows[0]))
         }
       }).pipe(Effect.orDie)
 

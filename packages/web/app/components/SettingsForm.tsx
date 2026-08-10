@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { AppConfig, KomgaLibrary } from "../lib/types";
-import { api } from "../hooks/useApiClient";
+import type { AppConfig } from "../lib/types";
+import { runApi } from "../lib/apiClient";
 import { Button } from "../ui/button";
 import { Select, createListCollection } from "../ui/select";
 import { Field } from "../ui/field";
@@ -28,7 +28,7 @@ function KomgaDefaultLibrarySelect({
 
   const librariesQuery = useQuery({
     queryKey: ["komga-libraries"],
-    queryFn: () => api.post("komga/libraries").json<KomgaLibrary[]>(),
+    queryFn: () => runApi((client) => client.komga.libraries({})),
     staleTime: 5 * 60 * 1000,
     enabled: hasCredentials,
     retry: false,
@@ -116,7 +116,7 @@ export default function SettingsForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid grid-cols-2 items-start  gap-4"
+      className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2"
     >
       <fieldset className="island-shell rounded-2xl p-6">
         <legend className="island-kicker mb-3 px-1">Prowlarr</legend>

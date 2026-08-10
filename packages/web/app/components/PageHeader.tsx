@@ -1,8 +1,3 @@
-import { NavLink } from "react-router-dom";
-import { NAV_ITEMS, SETTINGS_NAV_ITEM, flattenNavEntries } from "../lib/nav";
-
-const MOBILE_TAB_ITEMS = [...flattenNavEntries(NAV_ITEMS), SETTINGS_NAV_ITEM];
-
 interface PageHeaderProps {
   /** Roman numeral shown in the eyebrow, e.g. "III". Omit and pass `eyebrow` for non-numbered pages. */
   numeral?: string;
@@ -16,11 +11,17 @@ interface PageHeaderProps {
   meta?: string;
 }
 
-export function PageHeader({ numeral, label, eyebrow, title, meta }: PageHeaderProps) {
+export function PageHeader({
+  numeral,
+  label,
+  eyebrow,
+  title,
+  meta,
+}: PageHeaderProps) {
   const eyebrowText = eyebrow ?? `${numeral} — ${(label ?? "").toUpperCase()}`;
 
   return (
-    <div className="mb-6">
+    <div className="mb-4">
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b border-border pb-4">
         <div>
           <p className="font-mono text-xs font-semibold uppercase tracking-[0.15em] text-accent">
@@ -36,22 +37,6 @@ export function PageHeader({ numeral, label, eyebrow, title, meta }: PageHeaderP
           </p>
         )}
       </div>
-
-      {/* Mobile-only quick tab strip, mirrors the sidebar's nav items */}
-      <nav className="mt-3 flex gap-1 overflow-x-auto pb-1 md:hidden">
-        {MOBILE_TAB_ITEMS.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.end}
-            className={({ isActive }) =>
-              `nav-link shrink-0 whitespace-nowrap font-mono text-xs uppercase ${isActive ? "is-active" : ""}`
-            }
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
     </div>
   );
 }

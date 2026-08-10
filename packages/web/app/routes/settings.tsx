@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import SettingsForm from "../components/SettingsForm";
 import { PageHeader } from "../components/PageHeader";
-import { api } from "../hooks/useApiClient";
+import { runApi } from "../lib/apiClient";
 import type { AppConfig } from "../lib/types";
 import { Button } from "../ui/button";
 import { ToastGroup } from "../ui/toast";
@@ -17,11 +17,11 @@ export default function SettingsPage() {
 
   const configQuery = useQuery({
     queryKey: ["settings"],
-    queryFn: () => api.get("settings").json<AppConfig>(),
+    queryFn: () => runApi((client) => client.settings.get({})),
   });
 
   const saveMutation = useMutation({
-    mutationFn: (config: AppConfig) => api.post("settings", { json: config }),
+    mutationFn: (config: AppConfig) => runApi((client) => client.settings.update({ payload: config })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       ToastGroup.create.success("Settings saved successfully.");
@@ -33,14 +33,12 @@ export default function SettingsPage() {
 
   const handleExport = async () => {
     try {
-      const res = await api.get("settings/export");
-      const blob = await res.blob();
+      const config = await runApi((client) => client.settings.export({}));
+      const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const disposition = res.headers.get("Content-Disposition");
-      const filenameMatch = disposition?.match(/filename="?([^"]+)"?/);
-      a.download = filenameMatch?.[1] ?? "inkpipe-settings.json";
+      a.download = "inkpipe-settings.json";
       a.click();
       URL.revokeObjectURL(url);
       ToastGroup.create.success("Settings exported successfully.");
@@ -57,14 +55,9 @@ export default function SettingsPage() {
     if (!file) return;
     try {
       const text = await file.text();
-      const config = JSON.parse(text);
-      await api
-        .post("settings/import", { json: config })
-        .json<{ success?: boolean; error?: string }>()
-        .then((data) => {
-          if (data.error) throw new Error(data.error);
-        });
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      const config: unknown = JSON.parse(text);
+      await runApi((client) => client.settings.import({ payload: config }));
+      await queryClient.invalidateQueries({ queryKey: ["settings"] });
       setFormKey((k) => k + 1);
       ToastGroup.create.success("Settings imported successfully.");
     } catch (err) {
@@ -78,7 +71,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <main className="page-wrap px-4 pb-8 pt-8">
+    <main className="page-wrap sm:px-4 pb-8 pt-8">
       <PageHeader numeral="VI" label="Settings" title="Settings" />
 
       <div className="mb-6 flex items-center justify-end">

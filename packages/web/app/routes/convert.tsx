@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowDown, RefreshCw } from "lucide-react";
-import { api } from "../hooks/useApiClient";
+import { runApi } from "../lib/apiClient";
 import FileDrop from "../components/FileDrop";
 import KccOptionsFields from "../components/KccOptionsFields";
 import { PageHeader } from "../components/PageHeader";
-import type { AppConfig, KccConfig } from "../lib/types";
+import type { KccConfig } from "../lib/types";
 import { Button } from "../ui/button";
 import { ToastGroup } from "../ui/toast";
 
@@ -27,7 +27,7 @@ export default function ConvertPage() {
   const [overrides, setOverrides] = useState<KccConfig | null>(null);
 
   useEffect(() => {
-    api.get("settings").json<AppConfig>().then((config) => {
+    runApi((client) => client.settings.get({})).then((config) => {
       if (!config.kcc.dockerImage) {
         navigate("/settings");
         return;
@@ -51,7 +51,7 @@ export default function ConvertPage() {
         formData.append("options", JSON.stringify(overrides));
       }
 
-      const { id } = await api.post("convert/start", { body: formData }).json<{ id: string }>();
+      const { id } = await runApi((client) => client.convert.start({ payload: formData }));
 
       setSubStage("converting");
 
@@ -79,7 +79,10 @@ export default function ConvertPage() {
       setDownloadUrl(dlUrl);
       setDownloadFilename(filename);
 
-      const blobResponse = await api.get("convert/download", { searchParams: { id } });
+      const API_BASE_URL = import.meta.env.DEV ? "http://localhost:3000" : "";
+      const blobResponse = await fetch(
+        `${API_BASE_URL}/api/convert/download?id=${encodeURIComponent(id)}`,
+      );
       const blob = await blobResponse.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -107,7 +110,7 @@ export default function ConvertPage() {
   }, [overrides]);
 
   return (
-    <main className="page-wrap px-4 pb-8 pt-8">
+    <main className="page-wrap sm:px-4 pb-8 pt-8">
       <PageHeader numeral="V" label="Convert" title="Convert CBZ to EPUB" />
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">

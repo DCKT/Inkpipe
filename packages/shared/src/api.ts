@@ -3,24 +3,9 @@ import {
   ProwlarrResultSchema,
   JobSchema,
   AppConfigSchema,
-  KomgaLibrarySchema,
-  KomgaSeriesSchema,
-  KomgaBookSchema,
   WatchSchema,
   WatchAlertSchema,
 } from "./schemas"
-
-// --- Search / Latest ---
-
-export const SearchResponseSchema = Schema.Struct({
-  results: Schema.Array(ProwlarrResultSchema),
-})
-export type SearchResponse = typeof SearchResponseSchema.Type
-
-export const LatestResponseSchema = Schema.Struct({
-  results: Schema.Array(ProwlarrResultSchema),
-})
-export type LatestResponse = typeof LatestResponseSchema.Type
 
 // --- Download ---
 
@@ -47,34 +32,6 @@ export type JobsResponse = typeof JobsResponseSchema.Type
 
 export const SettingsResponseSchema = AppConfigSchema
 export type SettingsResponse = typeof SettingsResponseSchema.Type
-
-// --- Convert/Upload ---
-
-export const ConvertUploadResponseSchema = Schema.Struct({
-  id: Schema.String,
-  filename: Schema.String,
-})
-export type ConvertUploadResponse = typeof ConvertUploadResponseSchema.Type
-
-// --- Komga ---
-
-export const KomgaLibrariesResponseSchema = Schema.Struct({
-  libraries: Schema.Array(KomgaLibrarySchema),
-})
-export type KomgaLibrariesResponse = typeof KomgaLibrariesResponseSchema.Type
-
-export const KomgaSeriesResponseSchema = Schema.Struct({
-  series: Schema.Array(KomgaSeriesSchema),
-})
-export type KomgaSeriesResponse = typeof KomgaSeriesResponseSchema.Type
-
-export const KomgaBooksResponseSchema = Schema.Struct({
-  books: Schema.Array(KomgaBookSchema),
-})
-export type KomgaBooksResponse = typeof KomgaBooksResponseSchema.Type
-
-export const KomgaThumbnailResponseSchema = Schema.String
-export type KomgaThumbnailResponse = typeof KomgaThumbnailResponseSchema.Type
 
 // --- Copyparty ---
 
@@ -151,10 +108,3 @@ export const ClearJobsResponseSchema = Schema.Struct({
   deleted: Schema.Number,
 })
 export type ClearJobsResponse = typeof ClearJobsResponseSchema.Type
-
-// --- Error ---
-
-export const ErrorResponseSchema = Schema.Struct({
-  error: Schema.String,
-})
-export type ErrorResponse = typeof ErrorResponseSchema.Type

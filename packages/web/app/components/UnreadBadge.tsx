@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
-import { api } from "../hooks/useApiClient"
+import { runApi } from "../lib/apiClient"
 
 export function UnreadBadge() {
   const unreadQuery = useQuery({
     queryKey: ["unread-count"],
-    queryFn: () => api.get("watches/unread-count").json<{ count: number }>(),
+    queryFn: () => runApi((client) => client.watches.unreadCount({})),
     refetchInterval: 30_000,
   })
 

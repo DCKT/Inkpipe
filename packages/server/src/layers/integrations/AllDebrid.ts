@@ -7,7 +7,7 @@ import {
   MagnetUploadError,
   MagnetStatusError,
 } from "@inkpipe/shared"
-import { ConfigService } from "../core/Config"
+import { ConfigService, requireConfigured } from "../core/Config"
 import { LogService } from "../core/Log"
 
 interface Logger {
@@ -160,15 +160,13 @@ export const AllDebridServiceLive = Layer.effect(
 
     const uploadMagnet = (magnetOrUrl: string) =>
       Effect.gen(function* () {
-        const config = yield* configService.loadConfig.pipe(
-          Effect.catch((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
+        const apiKey = yield* requireConfigured(
+          configService,
+          (c) => c.alldebrid.apiKey,
+          (key) => key.length > 0,
+          "AllDebrid API key not configured",
+          (message) => new AllDebridNotConfigured({ message }),
         )
-        const apiKey = config.alldebrid.apiKey
-        if (!apiKey) {
-          return yield* Effect.fail(
-            new AllDebridNotConfigured({ message: "AllDebrid API key not configured" }),
-          )
-        }
 
         if (isMagnetUri(magnetOrUrl)) {
           return yield* Effect.tryPromise({
@@ -190,15 +188,13 @@ export const AllDebridServiceLive = Layer.effect(
 
     const getMagnetStatus = (magnetId: number) =>
       Effect.gen(function* () {
-        const config = yield* configService.loadConfig.pipe(
-          Effect.catch((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
+        const apiKey = yield* requireConfigured(
+          configService,
+          (c) => c.alldebrid.apiKey,
+          (key) => key.length > 0,
+          "AllDebrid API key not configured",
+          (message) => new AllDebridNotConfigured({ message }),
         )
-        const apiKey = config.alldebrid.apiKey
-        if (!apiKey) {
-          return yield* Effect.fail(
-            new AllDebridNotConfigured({ message: "AllDebrid API key not configured" }),
-          )
-        }
 
         return yield* Effect.tryPromise({
           try: async () => {
@@ -230,15 +226,13 @@ export const AllDebridServiceLive = Layer.effect(
 
     const getMagnetFiles = (magnetId: number) =>
       Effect.gen(function* () {
-        const config = yield* configService.loadConfig.pipe(
-          Effect.catch((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
+        const apiKey = yield* requireConfigured(
+          configService,
+          (c) => c.alldebrid.apiKey,
+          (key) => key.length > 0,
+          "AllDebrid API key not configured",
+          (message) => new AllDebridNotConfigured({ message }),
         )
-        const apiKey = config.alldebrid.apiKey
-        if (!apiKey) {
-          return yield* Effect.fail(
-            new AllDebridNotConfigured({ message: "AllDebrid API key not configured" }),
-          )
-        }
 
         return yield* Effect.tryPromise({
           try: async () => {
@@ -270,15 +264,13 @@ export const AllDebridServiceLive = Layer.effect(
 
     const unlockLink = (link: string) =>
       Effect.gen(function* () {
-        const config = yield* configService.loadConfig.pipe(
-          Effect.catch((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
+        const apiKey = yield* requireConfigured(
+          configService,
+          (c) => c.alldebrid.apiKey,
+          (key) => key.length > 0,
+          "AllDebrid API key not configured",
+          (message) => new AllDebridNotConfigured({ message }),
         )
-        const apiKey = config.alldebrid.apiKey
-        if (!apiKey) {
-          return yield* Effect.fail(
-            new AllDebridNotConfigured({ message: "AllDebrid API key not configured" }),
-          )
-        }
 
         return yield* Effect.tryPromise({
           try: async () => {
@@ -313,15 +305,13 @@ export const AllDebridServiceLive = Layer.effect(
 
     const deleteMagnet = (magnetId: number) =>
       Effect.gen(function* () {
-        const config = yield* configService.loadConfig.pipe(
-          Effect.catch((e) => Effect.fail(new AllDebridNotConfigured({ message: e.message }))),
+        const apiKey = yield* requireConfigured(
+          configService,
+          (c) => c.alldebrid.apiKey,
+          (key) => key.length > 0,
+          "AllDebrid API key not configured",
+          (message) => new AllDebridNotConfigured({ message }),
         )
-        const apiKey = config.alldebrid.apiKey
-        if (!apiKey) {
-          return yield* Effect.fail(
-            new AllDebridNotConfigured({ message: "AllDebrid API key not configured" }),
-          )
-        }
 
         yield* Effect.tryPromise({
           try: async () => {

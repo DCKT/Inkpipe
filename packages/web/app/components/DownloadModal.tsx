@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useListCollection } from "@ark-ui/react";
-import { api } from "../hooks/useApiClient";
+import { runApi } from "../lib/apiClient";
 import { Dialog } from "../ui/dialog";
 import { Combobox } from "../ui/combobox";
 import { Button } from "../ui/button";
@@ -27,10 +27,7 @@ export default function DownloadModal<T>({
   const foldersQuery = useQuery({
     queryKey: ["copyparty-folders"],
     queryFn: () =>
-      api
-        .get("copyparty/folders")
-        .json<{ folders: string[] }>()
-        .then((r) => r.folders),
+      runApi((client) => client.copyparty.listFolders({})).then((r) => r.folders),
   });
 
   const folders = foldersQuery.data ?? [];
@@ -120,7 +117,7 @@ export default function DownloadModal<T>({
       }}
     >
       <Dialog.Backdrop />
-      <Dialog.Content className="w-full max-w-md p-6 flex flex-col gap-5">
+      <Dialog.Content className="max-w-md p-6 flex flex-col gap-5">
         <Dialog.Title>
           Download {items.length} item{items.length !== 1 ? "s" : ""}
         </Dialog.Title>

@@ -14,6 +14,32 @@ export class ConfigService extends Context.Service<
   }
 >()("ConfigService") {}
 
+/**
+ * Loads config, selects an integration's section, and fails with `makeError`
+ * if either the load fails or the section isn't configured — the "load →
+ * guard → fail *NotConfigured" boilerplate every integration service repeats
+ * (config load errors and "not configured" are collapsed into one typed
+ * error since callers only ever want to react to "I can't reach this
+ * integration", not distinguish why).
+ */
+export function requireConfigured<Section, E>(
+  configService: typeof ConfigService.Service,
+  select: (config: AppConfig) => Section,
+  isConfigured: (section: Section) => boolean,
+  notConfiguredMessage: string,
+  makeError: (message: string) => E,
+): Effect.Effect<Section, E> {
+  return configService.loadConfig.pipe(
+    Effect.mapError((e) => makeError(e.message)),
+    Effect.flatMap((config) => {
+      const section = select(config)
+      return isConfigured(section)
+        ? Effect.succeed(section)
+        : Effect.fail(makeError(notConfiguredMessage))
+    }),
+  )
+}
+
 interface ProwlarrRow {
   url: string
   apiKey: string

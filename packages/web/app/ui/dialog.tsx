@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 const backdropClass = "fixed inset-0 z-50 bg-black/50";
 
 const contentClass =
-  "island-shell fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 rounded-sm shadow-2xl";
+  "island-shell fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-sm shadow-2xl";
 
 const titleClass = "font-display text-xl italic text-primary";
 

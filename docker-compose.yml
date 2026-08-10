@@ -2,6 +2,7 @@ services:
   inkpipe:
     build: .
     image: ghcr.io/dckt/inkpipe:latest
+    restart: unless-stopped
     ports:
       - "3001:3000"
     volumes:
@@ -14,6 +15,7 @@ services:
   kcc:
     image: ghcr.io/ciromattia/kcc:latest
     container_name: inkpipe-kcc
+    restart: unless-stopped
     volumes:
       - inkpipe-temp:/data
     entrypoint: ["sleep", "infinity"]

@@ -4,7 +4,7 @@ import type { AnnasArchiveResult } from "../lib/types";
 import { Checkbox } from "../ui/checkbox";
 
 interface AnnasArchiveResultsListProps {
-  results: AnnasArchiveResult[];
+  results: readonly AnnasArchiveResult[];
   selected: Set<string>;
   onToggle: (md5: string) => void;
   onToggleAll: () => void;
@@ -127,7 +127,7 @@ function AnnasArchiveResultCard({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
-        <span className="block truncate font-display text-lg italic text-primary sm:text-xl">
+        <span className="block break-words font-display text-lg text-primary sm:text-xl">
           {result.title}
         </span>
         {result.author && (

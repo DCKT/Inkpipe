@@ -49,12 +49,3 @@ export const SETTINGS_NAV_ITEM: NavLink = {
   label: "Settings",
   path: "/settings",
 };
-
-/** Flattens sections into their children — used by flat presentations (mobile tab strip). */
-export function flattenNavEntries(entries: NavEntry[]): NavSubLink[] {
-  return entries.flatMap((entry) =>
-    entry.type === "section"
-      ? entry.children
-      : [{ label: entry.label, path: entry.path, end: entry.end }],
-  );
-}

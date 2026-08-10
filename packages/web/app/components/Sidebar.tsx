@@ -1,25 +1,32 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { Menu } from "lucide-react";
 import { UnreadBadge } from "./UnreadBadge";
 import { NAV_ITEMS, SETTINGS_NAV_ITEM, type NavSubLink } from "../lib/nav";
-import { api } from "../hooks/useApiClient";
-import type { AppConfig } from "../lib/types";
+import { runApi } from "../lib/apiClient";
 
 function isSubLinkActive(pathname: string, item: NavSubLink): boolean {
   if (item.end) return pathname === item.path;
   return pathname === item.path || pathname.startsWith(`${item.path}/`);
 }
 
-function SidebarContent() {
+function SidebarContent({ fullLabels = false }: { fullLabels?: boolean }) {
   const location = useLocation();
 
   const configQuery = useQuery({
     queryKey: ["settings"],
-    queryFn: () => api.get("settings").json<AppConfig>(),
+    queryFn: () => runApi((client) => client.settings.get({})),
     staleTime: 5 * 60 * 1000,
   });
   const copypartyUrl = configQuery.data?.copyparty.url;
+
+  // Icon rail (lg, <xl) shows only numerals with a title tooltip; the full
+  // sidebar (xl+) and the mobile overlay drawer both need the text labels.
+  const labelClass = fullLabels
+    ? "spine-label"
+    : "spine-label hidden xl:inline";
+  const letterFallbackClass = fullLabels ? "hidden" : "xl:hidden";
 
   return (
     <>
@@ -46,9 +53,11 @@ function SidebarContent() {
                 }
               >
                 <span className="spine-numeral">{item.numeral}</span>
-                <span className="spine-label hidden lg:inline">{item.label}</span>
+                <span className={labelClass}>{item.label}</span>
                 {item.path === "/watches" && (
-                  <span className="ml-auto hidden lg:inline-flex">
+                  <span
+                    className={`ml-auto ${fullLabels ? "inline-flex" : "hidden xl:inline-flex"}`}
+                  >
                     <UnreadBadge />
                   </span>
                 )}
@@ -67,7 +76,7 @@ function SidebarContent() {
                 title={item.label}
               >
                 <span className="spine-numeral">{item.numeral}</span>
-                <span className="spine-label hidden lg:inline">{item.label}</span>
+                <span className={labelClass}>{item.label}</span>
               </div>
               {item.children.map((child) => (
                 <NavLink
@@ -79,8 +88,8 @@ function SidebarContent() {
                     `spine-link spine-link-sub ${isActive ? "is-active" : ""}`
                   }
                 >
-                  <span className="spine-label hidden lg:inline">{child.label}</span>
-                  <span className="lg:hidden">{child.label[0]}</span>
+                  <span className={labelClass}>{child.label}</span>
+                  <span className={letterFallbackClass}>{child.label[0]}</span>
                 </NavLink>
               ))}
               {item.label === "Utils" && copypartyUrl && (
@@ -91,8 +100,8 @@ function SidebarContent() {
                   title="Copyparty"
                   className="spine-link spine-link-sub"
                 >
-                  <span className="spine-label hidden lg:inline">Copyparty</span>
-                  <span className="lg:hidden">C</span>
+                  <span className={labelClass}>Copyparty</span>
+                  <span className={letterFallbackClass}>C</span>
                 </a>
               )}
             </div>
@@ -111,9 +120,7 @@ function SidebarContent() {
           <span className="spine-numeral spine-numeral-quiet">
             {SETTINGS_NAV_ITEM.numeral}
           </span>
-          <span className="spine-label hidden lg:inline">
-            {SETTINGS_NAV_ITEM.label}
-          </span>
+          <span className={labelClass}>{SETTINGS_NAV_ITEM.label}</span>
         </NavLink>
 
         {import.meta.env.DEV && (
@@ -124,9 +131,11 @@ function SidebarContent() {
               `spine-link spine-link-dev ${isActive ? "is-active-quiet" : ""}`
             }
           >
-            <span className="spine-label hidden lg:inline">Debug</span>
-            <span className="lg:hidden">D</span>
-            <span className="ml-auto hidden font-mono text-[9px] tracking-widest text-secondary lg:inline">
+            <span className={labelClass}>Debug</span>
+            <span className={letterFallbackClass}>D</span>
+            <span
+              className={`ml-auto font-mono text-[9px] tracking-widest text-secondary ${fullLabels ? "inline" : "hidden xl:inline"}`}
+            >
               DEV
             </span>
           </NavLink>
@@ -146,30 +155,38 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Edge tab that opens the drawer on small screens */}
-      <button
-        type="button"
-        aria-label="Open navigation"
-        onClick={() => setOpen(true)}
-        className="fixed left-0 top-1/2 z-40 -translate-y-1/2 rounded-r-[3px] border border-l-0 border-border bg-surface px-1.5 py-3 text-secondary md:hidden"
-      >
-        <span className="block h-4 w-3.5 border-y-2 border-current" />
-      </button>
+      {/* Mobile top bar: hamburger trigger + logo, only below lg */}
+      <div className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-surface px-4 xl:hidden">
+        <NavLink
+          to="/"
+          className="font-display text-lg italic text-primary no-underline"
+        >
+          Inkpipe
+        </NavLink>
+        <button
+          type="button"
+          aria-label="Open navigation"
+          onClick={() => setOpen(true)}
+          className="flex h-9 w-9 items-center justify-center rounded-[3px] border border-border bg-surface text-secondary"
+        >
+          <Menu size={18} />
+        </button>
+      </div>
 
-      {/* Desktop / tablet sidebar: full spine at lg+, icon rail at md */}
-      <aside className="sticky top-0 hidden h-screen w-16 shrink-0 flex-col border-r border-border bg-surface md:flex lg:w-[220px]">
+      {/* Desktop / tablet sidebar: full spine at xl+, icon rail at lg */}
+      <aside className="sticky top-0 hidden h-screen w-16 shrink-0 flex-col border-r border-border bg-surface xl:flex xl:w-[220px]">
         <SidebarContent />
       </aside>
 
       {/* Mobile overlay drawer */}
       {open && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
+        <div className="fixed inset-0 z-50 flex xl:hidden">
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => setOpen(false)}
           />
           <aside className="relative z-10 flex h-full w-[220px] flex-col border-r border-border bg-surface">
-            <SidebarContent />
+            <SidebarContent fullLabels />
           </aside>
         </div>
       )}

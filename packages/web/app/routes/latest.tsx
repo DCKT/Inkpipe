@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowDown } from "lucide-react";
 import ResultsTable from "../components/ResultsTable";
 import { PageHeader } from "../components/PageHeader";
-import { api } from "../hooks/useApiClient";
+import { runApi } from "../lib/apiClient";
 import type { ProwlarrResult } from "../lib/types";
 import { Button } from "../ui/button";
 import { ToastGroup } from "../ui/toast";
@@ -13,12 +13,12 @@ export default function LatestPage() {
 
   const latestQuery = useQuery({
     queryKey: ["latest-mangas"],
-    queryFn: () => api.get("latest").json<ProwlarrResult[]>(),
+    queryFn: () => runApi((client) => client.latest.latest({})),
   });
 
   const downloadMutation = useMutation({
     mutationFn: (items: ProwlarrResult[]) =>
-      api.post("download", { json: { items } }).json<{ started: number }>(),
+      runApi((client) => client.download.download({ payload: { items } })),
     onSuccess: (data) => {
       setSelected(new Set());
       ToastGroup.create.success(
@@ -55,7 +55,7 @@ export default function LatestPage() {
   };
 
   return (
-    <main className="page-wrap px-4 pb-8 pt-8 flex flex-col gap-6">
+    <main className="page-wrap sm:px-4 pb-8 pt-8 flex flex-col gap-6">
       <PageHeader
         numeral="II"
         label="Latest"

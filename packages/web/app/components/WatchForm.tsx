@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { api } from "../hooks/useApiClient";
+import { runApi } from "../lib/apiClient";
 import type { Watch, FilterGroup, FilterGroupMode } from "../lib/types";
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
@@ -42,7 +42,7 @@ export function WatchFormDialog({
       query: string;
       intervalSeconds: number;
       filterGroups: FilterGroup[];
-    }) => api.post("watches", { json: body }).json<Watch>(),
+    }) => runApi((client) => client.watches.create({ payload: body })),
     onSuccess: () => {
       ToastGroup.create.success("Watch created");
       setName("");
@@ -63,7 +63,10 @@ export function WatchFormDialog({
       query: string;
       intervalSeconds: number;
       filterGroups: FilterGroup[];
-    }) => api.put(`watches/${existing!.id}`, { json: body }).json<Watch>(),
+    }) =>
+      runApi((client) =>
+        client.watches.update({ params: { id: existing!.id }, payload: body }),
+      ),
     onSuccess: () => {
       ToastGroup.create.success("Watch updated. Restart scheduled.");
       setOpen(false);
@@ -170,7 +173,7 @@ export function WatchFormDialog({
       >
         <Dialog.Backdrop />
         <Dialog.Positioner>
-          <Dialog.Content className="max-w-lg w-full max-h-[80vh] overflow-y-auto p-4">
+          <Dialog.Content className="max-w-lg max-h-[80vh] overflow-y-auto p-4">
             <Dialog.Title className="text-lg font-bold text-primary">
               {isEdit ? "Edit Watch" : "Create Watch"}
             </Dialog.Title>

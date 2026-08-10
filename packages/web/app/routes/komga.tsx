@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Library } from "lucide-react";
-import { api } from "../hooks/useApiClient";
-import type { KomgaSeries, KomgaLibrary, AppConfig } from "../lib/types";
+import { runApi } from "../lib/apiClient";
+import type { KomgaSeries } from "../lib/types";
 import KomgaBooksModal from "../components/KomgaBooksModal";
 import { PageHeader } from "../components/PageHeader";
 import { Button } from "../ui/button";
@@ -47,10 +47,9 @@ function SeriesCard({
   const thumbnailQuery = useQuery({
     queryKey: ["komga-thumbnail", series.id],
     queryFn: () =>
-      api
-        .get("komga/thumbnail", { searchParams: { seriesId: series.id } })
-        .json<{ thumbnail: string }>()
-        .then((data) => data.thumbnail),
+      runApi((client) => client.komga.thumbnail({ query: { seriesId: series.id } })).then(
+        (data) => data.thumbnail,
+      ),
     enabled: isVisible,
     staleTime: Infinity,
   });
@@ -111,7 +110,7 @@ export default function KomgaPage() {
 
   const configQuery = useQuery({
     queryKey: ["settings"],
-    queryFn: () => api.get("settings").json<AppConfig>(),
+    queryFn: () => runApi((client) => client.settings.get({})),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -125,7 +124,7 @@ export default function KomgaPage() {
 
   const librariesQuery = useQuery({
     queryKey: ["komga-libraries"],
-    queryFn: () => api.post("komga/libraries").json<KomgaLibrary[]>(),
+    queryFn: () => runApi((client) => client.komga.libraries({})),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -141,11 +140,9 @@ export default function KomgaPage() {
   const seriesQuery = useQuery({
     queryKey: ["komga-series", activeLibraryId],
     queryFn: () =>
-      api
-        .post("komga/series", {
-          json: { libraryId: activeLibraryId || undefined },
-        })
-        .json<KomgaSeries[]>(),
+      runApi((client) =>
+        client.komga.series({ payload: { libraryId: activeLibraryId || undefined } }),
+      ),
     enabled: selectedLibraryId !== null,
   });
 
@@ -163,14 +160,14 @@ export default function KomgaPage() {
 
   if (configQuery.isLoading) {
     return (
-      <main className="page-wrap px-4 pb-8 pt-8 flex items-center justify-center py-24">
+      <main className="page-wrap sm:px-4 pb-8 pt-8 flex items-center justify-center py-24">
         <span className="text-sm text-secondary">Loading...</span>
       </main>
     );
   }
 
   return (
-    <main className="page-wrap px-4 pb-8 pt-8 flex flex-col gap-6">
+    <main className="page-wrap sm:px-4 pb-8 pt-8 flex flex-col gap-6">
       <PageHeader
         numeral="III"
         label="Komga"

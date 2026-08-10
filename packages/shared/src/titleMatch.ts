@@ -72,7 +72,7 @@ export function matchesFilter(title: string, groups: readonly FilterGroup[]): bo
  */
 export function findBestMatch(
   rawTitle: string,
-  series: {
+  series: readonly {
     id: string;
     name: string;
     booksCount: number;

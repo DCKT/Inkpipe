@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
-import { api } from "../hooks/useApiClient";
-import type { Watch, WatchAlert, ProwlarrResult } from "../lib/types";
+import { runApi } from "../lib/apiClient";
+import type { WatchAlert, ProwlarrResult } from "../lib/types";
 import { ToastGroup } from "../ui/toast";
 import { WatchFormDialog } from "../components/WatchForm";
 import DownloadModal from "../components/DownloadModal";
@@ -17,21 +17,23 @@ export default function WatchDetailPage() {
 
   const watchQuery = useQuery({
     queryKey: ["watches", id],
-    queryFn: () => api.get(`watches/${id}`).json<Watch>(),
+    queryFn: () => runApi((client) => client.watches.get({ params: { id: Number(id) } })),
     enabled: !!id,
   });
 
   const alertsQuery = useQuery({
     queryKey: ["watch-alerts", id],
     queryFn: () =>
-      api.get(`watches/${id}/alerts`).json<{ alerts: WatchAlert[] }>(),
+      runApi((client) => client.watches.listAlerts({ params: { id: Number(id) } })),
     enabled: !!id,
     refetchInterval: 60_000,
   });
 
   const ackMutation = useMutation({
     mutationFn: (alertId: number) =>
-      api.post(`watches/${id}/alerts/${alertId}/acknowledge`),
+      runApi((client) =>
+        client.watches.acknowledgeAlert({ params: { id: Number(id), alertId } }),
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
       queryClient.invalidateQueries({ queryKey: ["unread-count"] });
@@ -39,7 +41,8 @@ export default function WatchDetailPage() {
   });
 
   const ackAllMutation = useMutation({
-    mutationFn: () => api.post(`watches/${id}/alerts/acknowledge-all`),
+    mutationFn: () =>
+      runApi((client) => client.watches.acknowledgeAllAlerts({ params: { id: Number(id) } })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
       queryClient.invalidateQueries({ queryKey: ["unread-count"] });
@@ -54,18 +57,20 @@ export default function WatchDetailPage() {
       newFolder?: boolean;
       alertId: number;
     }) =>
-      api
-        .post("download", {
-          json: {
+      runApi((client) =>
+        client.download.download({
+          payload: {
             items: vars.items,
             subfolder: vars.subfolder,
             newFolder: vars.newFolder,
           },
-        })
-        .json<{ started: number }>(),
+        }),
+      ),
     onSuccess: (data, { alertId }) => {
       queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] });
-      api.post(`watches/${id}/alerts/${alertId}/acknowledge`);
+      runApi((client) =>
+        client.watches.acknowledgeAlert({ params: { id: Number(id), alertId } }),
+      );
       queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
       queryClient.invalidateQueries({ queryKey: ["unread-count"] });
       ToastGroup.create.success(
@@ -108,7 +113,7 @@ export default function WatchDetailPage() {
   };
 
   return (
-    <main className="page-wrap px-4 pb-8 pt-8">
+    <main className="page-wrap sm:px-4 pb-8 pt-8">
       <PageHeader
         numeral="IV"
         label="Watches"
@@ -137,7 +142,7 @@ export default function WatchDetailPage() {
 
       {watchQuery.data && (
         <div className="mb-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm text-secondary mt-1">
                 Query:{" "}
@@ -221,12 +226,12 @@ export default function WatchDetailPage() {
         {alerts.map((alert) => (
           <div
             key={alert.id}
-            className={`island-shell rounded-2xl p-3 flex items-center justify-between ${
+            className={`island-shell rounded-2xl p-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${
               alert.acknowledged ? "opacity-50" : ""
             }`}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-primary truncate">
+              <p className="text-sm text-primary break-words">
                 {alert.title}
               </p>
               <p className="text-xs text-secondary mt-0.5">
@@ -235,7 +240,7 @@ export default function WatchDetailPage() {
                 {new Date(alert.matchedAt).toLocaleString()}
               </p>
             </div>
-            <div className="flex items-center gap-2 ml-3 shrink-0">
+            <div className="flex items-center gap-2 sm:ml-3 sm:shrink-0">
               <button
                 className="text-xs text-accent hover:text-accent/80 px-2 py-1 rounded-lg hover:bg-surface transition-colors"
                 onClick={() => setModalItems([alertToProwlarrResult(alert)])}

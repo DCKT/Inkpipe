@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { api } from "../hooks/useApiClient";
 import { usePushSubscription } from "../hooks/usePushSubscription";
 import { PageHeader } from "../components/PageHeader";
+
+const API_BASE = import.meta.env.DEV ? "http://localhost:3000" : "";
 
 interface EndpointDef {
   group: string;
@@ -155,7 +156,7 @@ function prettyJson(value: unknown, spaces: number = 2): string {
 export default function DebugPage() {
   if (import.meta.env.PROD) {
     return (
-      <main className="page-wrap px-4 pb-8 pt-8">
+      <main className="page-wrap sm:px-4 pb-8 pt-8">
         <PageHeader eyebrow="— — DEBUG (APPENDIX)" title="Debug" />
         <p className="text-sm text-primary/60">
           The debug page is only available in development mode.
@@ -197,25 +198,15 @@ export default function DebugPage() {
     setError(null);
 
     try {
-      const cleanPath = selected.path.replace(/^\/api\/?/, "");
-      const searchParams: Record<string, string> = {};
+      const searchParams = new URLSearchParams();
       if (selected.queryKey && queryValue.trim()) {
-        searchParams[selected.queryKey] = queryValue.trim();
+        searchParams.set(selected.queryKey, queryValue.trim());
       }
+      const qs = searchParams.toString();
+      const url = `${API_BASE}${selected.path}${qs ? `?${qs}` : ""}`;
 
-      let result: Response;
-
-      const fetchOpts: Record<string, unknown> = {
-        throwHttpErrors: false,
-      };
-      if (Object.keys(searchParams).length > 0) {
-        fetchOpts.searchParams = searchParams;
-      }
-
-      if (selected.method === "GET") {
-        result = await api.get(cleanPath, fetchOpts);
-      } else {
-        let jsonBody: unknown = undefined;
+      let jsonBody: unknown = undefined;
+      if (selected.method !== "GET") {
         if (selected.bodyKey && bodyValue.trim()) {
           try {
             jsonBody = JSON.parse(bodyValue);
@@ -227,18 +218,13 @@ export default function DebugPage() {
         } else if (selected.bodyKey) {
           jsonBody = {};
         }
-        if (selected.method === "DELETE") {
-          result = await api.delete(cleanPath, {
-            ...fetchOpts,
-            json: jsonBody ?? undefined,
-          });
-        } else {
-          result = await api.post(cleanPath, {
-            ...fetchOpts,
-            json: jsonBody ?? undefined,
-          });
-        }
       }
+
+      const result = await fetch(url, {
+        method: selected.method,
+        headers: jsonBody !== undefined ? { "Content-Type": "application/json" } : undefined,
+        body: jsonBody !== undefined ? JSON.stringify(jsonBody) : undefined,
+      });
 
       const headers: Record<string, string> = {};
       result.headers.forEach((v, k) => {
@@ -274,8 +260,19 @@ export default function DebugPage() {
   };
 
   return (
-    <main className="page-wrap px-4 pb-8 pt-8">
+    <main className="page-wrap sm:px-4 pb-8 pt-8">
       <PageHeader eyebrow="— — DEBUG (APPENDIX)" title="Debug — API Explorer" />
+
+      <div className="mb-4 -mt-2">
+        <a
+          href={`${API_BASE}/docs`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-accent hover:text-accent-hover underline"
+        >
+          Open Swagger docs ↗
+        </a>
+      </div>
 
       <div className="flex gap-6 h-[calc(100vh-12rem)]">
         {/* Sidebar */}
