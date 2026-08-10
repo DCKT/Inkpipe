@@ -2,13 +2,13 @@ import { Effect, Layer } from "effect"
 import { describe, it, expect } from "@effect/vitest"
 import type { AppConfig } from "@inkpipe/shared"
 import { ConfigService, ConfigServiceLive } from "./Config"
-import { makeTestDbLayer } from "../../__mocks__/testDb"
+import { testDbLayer } from "../../__mocks__/testDb"
 
 function makeProgram<T, E>(prog: (svc: typeof ConfigService.Service) => Effect.Effect<T, E>) {
   return Effect.gen(function* () {
     const svc = yield* ConfigService
     return yield* prog(svc)
-  }).pipe(Effect.provide(Layer.provide(ConfigServiceLive, makeTestDbLayer())))
+  }).pipe(Effect.provide(Layer.provide(ConfigServiceLive, testDbLayer)))
 }
 
 describe("ConfigService", () => {

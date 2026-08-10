@@ -17,7 +17,7 @@ export const DownloadRequestSchema = Schema.Struct({
 export type DownloadRequest = typeof DownloadRequestSchema.Type
 
 export const DownloadResponseSchema = Schema.Struct({
-  started: Schema.Number,
+  started: Schema.Finite,
 })
 export type DownloadResponse = typeof DownloadResponseSchema.Type
 
@@ -63,7 +63,7 @@ export type WatchResponse = typeof WatchResponseSchema.Type
 export const CreateWatchRequestSchema = Schema.Struct({
   name: Schema.String,
   query: Schema.String,
-  intervalSeconds: Schema.Number,
+  intervalSeconds: Schema.Finite,
   filterGroups: Schema.Array(Schema.Struct({
     mode: Schema.Literals(["AND", "OR"]),
     substrings: Schema.Array(Schema.String),
@@ -75,7 +75,7 @@ export const UpdateWatchRequestSchema = Schema.Struct({
   name: Schema.optional(Schema.String),
   enabled: Schema.optional(Schema.Boolean),
   query: Schema.optional(Schema.String),
-  intervalSeconds: Schema.optional(Schema.Number),
+  intervalSeconds: Schema.optional(Schema.Finite),
   filterGroups: Schema.optional(Schema.Array(Schema.Struct({
     mode: Schema.Literals(["AND", "OR"]),
     substrings: Schema.Array(Schema.String),
@@ -89,7 +89,7 @@ export const WatchAlertsResponseSchema = Schema.Struct({
 export type WatchAlertsResponse = typeof WatchAlertsResponseSchema.Type
 
 export const UnreadCountResponseSchema = Schema.Struct({
-  count: Schema.Number,
+  count: Schema.Finite,
 })
 export type UnreadCountResponse = typeof UnreadCountResponseSchema.Type
 
@@ -105,6 +105,6 @@ export type PushSubscriptionRequest = typeof PushSubscriptionRequestSchema.Type
 // --- Clear Jobs ---
 
 export const ClearJobsResponseSchema = Schema.Struct({
-  deleted: Schema.Number,
+  deleted: Schema.Finite,
 })
 export type ClearJobsResponse = typeof ClearJobsResponseSchema.Type

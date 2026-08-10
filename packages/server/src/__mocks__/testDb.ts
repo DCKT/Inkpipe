@@ -15,15 +15,14 @@ function toCamelCase(str: string): string {
   return str.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())
 }
 
-export function makeTestDbLayer() {
-  const InMemoryDb = SqliteClient.layer({
-    filename: ":memory:",
-    disableWAL: true,
-    transformQueryNames: toSnakeCase,
-    transformResultNames: toCamelCase,
-  })
-  return Layer.mergeAll(
-    InMemoryDb,
-    Layer.effectDiscard(runMigrations).pipe(Layer.provide(InMemoryDb)),
-  )
-}
+const InMemoryDb = SqliteClient.layer({
+  filename: ":memory:",
+  disableWAL: true,
+  transformQueryNames: toSnakeCase,
+  transformResultNames: toCamelCase,
+})
+
+export const testDbLayer = Layer.mergeAll(
+  InMemoryDb,
+  Layer.effectDiscard(runMigrations).pipe(Layer.provide(InMemoryDb)),
+)

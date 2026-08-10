@@ -17,10 +17,8 @@ export const DownloadGroupLive = HttpApiBuilder.group(InkpipeApi, "download", (h
       }
 
       for (const item of payload.items) {
-        Effect.runFork(
-          pipeline.runPipeline(item, payload.subfolder, createdFolder).pipe(
-            Effect.catch(() => Effect.void),
-          ),
+        yield* Effect.forkDetach(
+          pipeline.runPipeline(item, payload.subfolder, createdFolder).pipe(Effect.ignore),
         )
       }
 

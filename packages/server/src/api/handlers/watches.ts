@@ -24,7 +24,7 @@ export const WatchesGroupLive = HttpApiBuilder.group(InkpipeApi, "watches", (han
     .handle("create", ({ payload }) =>
       Effect.gen(function* () {
         if (payload.intervalSeconds < 300) {
-          return yield* Effect.fail(new ValidationError({ message: "intervalSeconds must be at least 300" }))
+          return yield* new ValidationError({ message: "intervalSeconds must be at least 300" })
         }
         const store = yield* WatchStoreService
         return yield* store.createWatch({
@@ -43,7 +43,7 @@ export const WatchesGroupLive = HttpApiBuilder.group(InkpipeApi, "watches", (han
     .handle("update", ({ params, payload }) =>
       Effect.gen(function* () {
         if (payload.intervalSeconds !== undefined && payload.intervalSeconds < 300) {
-          return yield* Effect.fail(new ValidationError({ message: "intervalSeconds must be at least 300" }))
+          return yield* new ValidationError({ message: "intervalSeconds must be at least 300" })
         }
         const store = yield* WatchStoreService
         return yield* store.updateWatch(

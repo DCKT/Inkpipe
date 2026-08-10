@@ -18,7 +18,7 @@ export const WatchAlertIdParamSchema = Schema.Struct({
   alertId: Schema.FiniteFromString,
 })
 export const SuccessFlagSchema = Schema.Struct({ success: Schema.Boolean })
-export const TriggerResponseSchema = Schema.Struct({ matches: Schema.Number })
+export const TriggerResponseSchema = Schema.Struct({ matches: Schema.Finite })
 
 export const WatchesGroup = HttpApiGroup.make("watches").add(
   HttpApiEndpoint.get("list", "/api/watches", {

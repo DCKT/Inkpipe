@@ -22,7 +22,7 @@ const jobSocketWriters = new Set<Writer>()
 function broadcastToJobSockets(payload: unknown): void {
   const message = JSON.stringify(payload)
   for (const write of jobSocketWriters) {
-    Effect.runFork(write(message).pipe(Effect.catch(() => Effect.void)))
+    Effect.runFork(write(message).pipe(Effect.ignore))
   }
 }
 
@@ -41,10 +41,10 @@ const jobsWsHandler = Effect.gen(function* () {
   const sendInitialJobs = Effect.gen(function* () {
     const jobs = yield* jobStore.getAllJobs
     yield* write(JSON.stringify({ type: "init", jobs }))
-  }).pipe(Effect.catch(() => Effect.void))
+  }).pipe(Effect.ignore)
 
   yield* socket.run(() => Effect.void, { onOpen: sendInitialJobs }).pipe(
-    Effect.catch(() => Effect.void),
+    Effect.ignore,
   )
 
   return HttpServerResponse.empty()

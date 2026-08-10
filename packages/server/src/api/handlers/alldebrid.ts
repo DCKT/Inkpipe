@@ -11,7 +11,7 @@ export const AllDebridGroupLive = HttpApiBuilder.group(InkpipeApi, "alldebrid", 
 
       const target = payload.magnetUrl ?? payload.downloadUrl
       if (!target) {
-        return yield* Effect.fail(new NoMagnetUrl({ message: "No magnet or download URL provided" }))
+        return yield* new NoMagnetUrl({ message: "No magnet or download URL provided" })
       }
 
       return yield* allDebrid.uploadMagnet(target)

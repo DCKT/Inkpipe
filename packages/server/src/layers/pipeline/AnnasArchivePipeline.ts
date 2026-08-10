@@ -37,6 +37,7 @@ export const AnnasArchivePipelineServiceLive = Layer.effect(
         const job = yield* jobStore.createJob(result.title)
         const jl = log.withJob(String(job.id))
         yield* jl.info("jobs", "Created job")
+        const context = yield* Effect.context<never>()
 
         const pipelineBody = Effect.gen(function* () {
           // Stage 1: Download — AnnasArchiveService.getDownloadUrl already
@@ -66,7 +67,7 @@ export const AnnasArchivePipelineServiceLive = Layer.effect(
           yield* jl.info("pipeline", "Downloading to:", destPath)
           yield* annasArchive.downloadFile(downloadUrl, destPath, (received, total) => {
             if (total > 0) {
-              Effect.runFork(
+              Effect.runForkWith(context)(
                 jobStore.updateJob(job.id, { progress: Math.round((received / total) * 100) }),
               )
             }
@@ -94,10 +95,7 @@ export const AnnasArchivePipelineServiceLive = Layer.effect(
 
         const cleanup = Effect.gen(function* () {
           yield* jl.info("pipeline", "Cleaning up")
-          yield* Effect.catch(
-            fileManager.cleanupJobDir(String(job.id)),
-            () => Effect.void,
-          )
+          yield* Effect.ignore(fileManager.cleanupJobDir(String(job.id)))
         })
 
         yield* pipelineBody.pipe(
@@ -108,10 +106,7 @@ export const AnnasArchivePipelineServiceLive = Layer.effect(
               yield* jl.error("pipeline", "FAILED:", message)
               yield* jobStore.updateJob(job.id, { stage: "FAILED", error: message })
               if (createdFolder && subfolder) {
-                yield* Effect.catch(
-                  copyparty.deleteFolder(subfolder),
-                  () => Effect.void,
-                )
+                yield* Effect.ignore(copyparty.deleteFolder(subfolder))
               }
             })
           }),

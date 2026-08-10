@@ -40,11 +40,11 @@ export const WatchSchema = Schema.Struct({
   name: Schema.String,
   enabled: Schema.Boolean,
   query: Schema.String,
-  intervalSeconds: Schema.Number,
+  intervalSeconds: Schema.Finite,
   filterGroups: Schema.Array(FilterGroupSchema),
   createdAt: Schema.String,
   updatedAt: Schema.String,
-  unreadCount: Schema.optional(Schema.Number),
+  unreadCount: Schema.optional(Schema.Finite),
 })
 export type Watch = typeof WatchSchema.Type
 
@@ -60,10 +60,10 @@ export const WatchAlertSchema = Schema.Struct({
   guid: Schema.String,
   title: Schema.String,
   magnetUrl: Schema.NullOr(Schema.String),
-  size: Schema.Number,
-  seeders: Schema.Number,
+  size: Schema.Finite,
+  seeders: Schema.Finite,
   indexer: Schema.String,
-  matchedAt: Schema.Number,
+  matchedAt: Schema.Finite,
   acknowledged: Schema.Boolean,
 })
 export type WatchAlert = typeof WatchAlertSchema.Type
@@ -74,9 +74,9 @@ export const JobSchema = Schema.Struct({
   id: JobId,
   title: Schema.String,
   stage: JobStageSchema,
-  progress: Schema.Number,
+  progress: Schema.Finite,
   error: Schema.optional(Schema.String),
-  startedAt: Schema.Number,
+  startedAt: Schema.Finite,
   createdAt: Schema.String,
   updatedAt: Schema.String,
 })
@@ -89,8 +89,8 @@ export const ProwlarrResultSchema = Schema.Struct({
   guid: Schema.String,
   magnetUrl: Schema.NullOr(Schema.String),
   downloadUrl: Schema.NullOr(Schema.String),
-  size: Schema.Number,
-  seeders: Schema.Number,
+  size: Schema.Finite,
+  seeders: Schema.Finite,
   indexer: Schema.String,
   categories: Schema.Array(Schema.String),
   publishDate: Schema.NullOr(Schema.String),
@@ -139,9 +139,9 @@ export const KccConfigSchema = Schema.Struct({
   upscale: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(true))),
   stretch: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
   hq: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
-  gamma: Schema.Number.pipe(Schema.withDecodingDefaultType(Effect.succeed(1.0))),
+  gamma: Schema.Finite.pipe(Schema.withDecodingDefaultType(Effect.succeed(1.0))),
   cropping: Schema.Literals(["0", "1", "2"]).pipe(Schema.withDecodingDefaultType(Effect.succeed("1" as const))),
-  croppingPower: Schema.Number.pipe(Schema.withDecodingDefaultType(Effect.succeed(1.0))),
+  croppingPower: Schema.Finite.pipe(Schema.withDecodingDefaultType(Effect.succeed(1.0))),
   forceColor: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(true))),
   forcePng: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
   noAutoContrast: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
@@ -152,9 +152,9 @@ export const KccConfigSchema = Schema.Struct({
   eraseRainbow: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(true))),
   coverFill: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
   batchSplit: Schema.Literals(["0", "1", "2"]).pipe(Schema.withDecodingDefaultType(Effect.succeed("0" as const))),
-  targetSize: Schema.Number.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
-  customWidth: Schema.Number.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
-  customHeight: Schema.Number.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
+  targetSize: Schema.Finite.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
+  customWidth: Schema.Finite.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
+  customHeight: Schema.Finite.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
   noKepub: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
 })
 export type KccConfig = typeof KccConfigSchema.Type
@@ -196,7 +196,7 @@ export type KomgaLibrary = typeof KomgaLibrarySchema.Type
 export const KomgaSeriesSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
-  booksCount: Schema.Number,
+  booksCount: Schema.Finite,
   metadata: Schema.Struct({ status: Schema.String, title: Schema.String }),
 })
 export type KomgaSeries = typeof KomgaSeriesSchema.Type
@@ -204,10 +204,10 @@ export type KomgaSeries = typeof KomgaSeriesSchema.Type
 export const KomgaBookSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
-  number: Schema.Number,
+  number: Schema.Finite,
   created: Schema.String,
   size: Schema.String,
-  media: Schema.Struct({ pagesCount: Schema.Number, mediaType: Schema.String }),
+  media: Schema.Struct({ pagesCount: Schema.Finite, mediaType: Schema.String }),
   metadata: Schema.Struct({ title: Schema.String, number: Schema.String }),
 })
 export type KomgaBook = typeof KomgaBookSchema.Type
@@ -217,12 +217,12 @@ export type KomgaBook = typeof KomgaBookSchema.Type
 export const DebridFileSchema = Schema.Struct({
   filename: Schema.String,
   link: Schema.String,
-  size: Schema.Number,
+  size: Schema.Finite,
 })
 export type DebridFile = typeof DebridFileSchema.Type
 
 export const UploadResultSchema = Schema.Struct({
-  id: Schema.Number,
+  id: Schema.Finite,
   ready: Schema.Boolean,
 })
 export type UploadResult = typeof UploadResultSchema.Type
@@ -232,7 +232,7 @@ export type UploadResult = typeof UploadResultSchema.Type
 export const MatchResultSchema = Schema.Struct({
   seriesId: Schema.String,
   seriesName: Schema.String,
-  score: Schema.Number,
-  booksCount: Schema.Number,
+  score: Schema.Finite,
+  booksCount: Schema.Finite,
 })
 export type MatchResult = typeof MatchResultSchema.Type

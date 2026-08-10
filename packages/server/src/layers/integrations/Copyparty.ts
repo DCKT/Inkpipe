@@ -41,7 +41,7 @@ export const CopypartyServiceLive = Layer.effect(
 
     const listFolders = Effect.gen(function* () {
       const configOpt = yield* configService.loadConfig.pipe(
-        Effect.catch(() => Effect.succeed(undefined)),
+        Effect.orElseSucceed(() => undefined),
       );
       if (!configOpt) return [];
       const { url, uploadPath, password } = configOpt.copyparty;
@@ -91,6 +91,7 @@ export const CopypartyServiceLive = Layer.effect(
           "Copyparty URL not configured",
           (message) => new CopypartyNotConfigured({ message }),
         );
+        const context = yield* Effect.context<never>();
 
         yield* Effect.tryPromise({
           try: async () => {
@@ -110,7 +111,7 @@ export const CopypartyServiceLive = Layer.effect(
               ? `${uploadUrl}?${sp.toString()}`
               : uploadUrl;
 
-            Effect.runSync(
+            Effect.runSyncWith(context)(
               log.info("copyparty", `Uploading ${filename} (${fileBuf.byteLength} bytes) to ${uploadUrl}`),
             );
             const response = await fetch(finalUrl, {
@@ -118,9 +119,9 @@ export const CopypartyServiceLive = Layer.effect(
               body: new Uint8Array(fileBuf),
               signal: AbortSignal.timeout(300000),
             });
-            Effect.runSync(log.info("copyparty", "Upload response status:", response.status));
+            Effect.runSyncWith(context)(log.info("copyparty", "Upload response status:", response.status));
             const text = await response.text();
-            Effect.runSync(log.info("copyparty", "Upload response:", text));
+            Effect.runSyncWith(context)(log.info("copyparty", "Upload response:", text));
             if (!response.ok) {
               throw new Error(
                 `Copyparty upload failed: HTTP ${response.status} — ${text}`,
@@ -146,12 +147,11 @@ export const CopypartyServiceLive = Layer.effect(
 
         const sanitized = folderName.replace(/^\/+|\/+$/g, "");
         if (!sanitized) {
-          return yield* Effect.fail(
-            new CopypartyFolderError({
-              message: "Folder name is empty after sanitization",
-            }),
-          );
+          return yield* new CopypartyFolderError({
+            message: "Folder name is empty after sanitization",
+          });
         }
+        const context = yield* Effect.context<never>();
 
         yield* Effect.tryPromise({
           try: async () => {
@@ -169,7 +169,7 @@ export const CopypartyServiceLive = Layer.effect(
             body.append("act", "mkdir");
             body.append("name", sanitized);
 
-            Effect.runSync(
+            Effect.runSyncWith(context)(
               log.info("copyparty", `Creating folder ${sanitized} at ${fetchUrl}`),
             );
             const response = await fetch(fetchUrl, {
@@ -178,7 +178,7 @@ export const CopypartyServiceLive = Layer.effect(
               signal: AbortSignal.timeout(10000),
             });
             const text = await response.text();
-            Effect.runSync(
+            Effect.runSyncWith(context)(
               log.info("copyparty", "Create folder response:", response.status, text),
             );
             if (!response.ok) {
@@ -190,7 +190,7 @@ export const CopypartyServiceLive = Layer.effect(
             const scanParams = new URLSearchParams({ scan: "" });
             if (password) scanParams.set("pw", password);
             const scanUrl = `${parentUrl}?${scanParams.toString()}`;
-            Effect.runSync(log.info("copyparty", `Scanning after mkdir: ${scanUrl}`));
+            Effect.runSyncWith(context)(log.info("copyparty", `Scanning after mkdir: ${scanUrl}`));
             await fetch(scanUrl, {
               signal: AbortSignal.timeout(10000),
             });
@@ -214,12 +214,11 @@ export const CopypartyServiceLive = Layer.effect(
 
         const sanitized = folderName.replace(/^\/+|\/+$/g, "");
         if (!sanitized) {
-          return yield* Effect.fail(
-            new CopypartyFolderError({
-              message: "Folder name is empty after sanitization",
-            }),
-          );
+          return yield* new CopypartyFolderError({
+            message: "Folder name is empty after sanitization",
+          });
         }
+        const context = yield* Effect.context<never>();
 
         yield* Effect.tryPromise({
           try: async () => {
@@ -233,13 +232,13 @@ export const CopypartyServiceLive = Layer.effect(
             if (password) sp.set("pw", password);
             const fetchUrl = `${folderUrl}?${sp.toString()}`;
 
-            Effect.runSync(log.info("copyparty", `Deleting folder ${folderUrl}`));
+            Effect.runSyncWith(context)(log.info("copyparty", `Deleting folder ${folderUrl}`));
             const response = await fetch(fetchUrl, {
               method: "POST",
               signal: AbortSignal.timeout(10000),
             });
             const text = await response.text();
-            Effect.runSync(
+            Effect.runSyncWith(context)(
               log.info("copyparty", "Delete folder response:", response.status, text),
             );
             if (!response.ok) {

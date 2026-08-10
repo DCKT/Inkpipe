@@ -2,14 +2,14 @@ import { Effect, Layer, Option } from "effect"
 import { describe, it, expect, beforeEach, afterEach, vi } from "@effect/vitest"
 import { JobId } from "@inkpipe/shared"
 import { JobStoreService, JobStoreServiceLive } from "./JobStore"
-import { makeTestDbLayer } from "../../__mocks__/testDb"
+import { testDbLayer } from "../../__mocks__/testDb"
 import { subscribeJobEvents, subscribeJobListEvents } from "../../lib/jobEvents"
 
 function makeProgram<T, E>(prog: (svc: typeof JobStoreService.Service) => Effect.Effect<T, E>) {
   return Effect.gen(function* () {
     const svc = yield* JobStoreService
     return yield* prog(svc)
-  }).pipe(Effect.provide(Layer.provide(JobStoreServiceLive, makeTestDbLayer())))
+  }).pipe(Effect.provide(Layer.provide(JobStoreServiceLive, testDbLayer)))
 }
 
 beforeEach(() => {

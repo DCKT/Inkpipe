@@ -195,10 +195,11 @@ export const AllDebridServiceLive = Layer.effect(
           "AllDebrid API key not configured",
           (message) => new AllDebridNotConfigured({ message }),
         )
+        const context = yield* Effect.context<never>()
 
         return yield* Effect.tryPromise({
           try: async () => {
-            Effect.runSync(log.info("alldebrid", `Checking status for magnet ${magnetId}`))
+            Effect.runSyncWith(context)(log.info("alldebrid", `Checking status for magnet ${magnetId}`))
             const body = new URLSearchParams({ id: String(magnetId) })
             const response = await fetchWithAuth(buildUrl("v4.1/magnet/status"), apiKey, {
               method: "POST",
@@ -208,11 +209,11 @@ export const AllDebridServiceLive = Layer.effect(
             const data = parseApiResponse<{
               magnets?: Array<{ id: number; filename: string; statusCode: number; status: string }>
             }>(await response.json() as ApiResponse<{ magnets?: Array<{ id: number; filename: string; statusCode: number; status: string }> }>)
-            Effect.runSync(log.info("alldebrid", `Status response for magnet ${magnetId}:`, JSON.stringify(data)))
+            Effect.runSyncWith(context)(log.info("alldebrid", `Status response for magnet ${magnetId}:`, JSON.stringify(data)))
             const magnets = data.magnets
             const magnet = Array.isArray(magnets) ? magnets[0] : magnets
             if (!magnet) {
-              Effect.runSync(log.info("alldebrid", `Magnet ${magnetId} not yet in response`))
+              Effect.runSyncWith(context)(log.info("alldebrid", `Magnet ${magnetId} not yet in response`))
               return { ready: false, statusCode: 0, status: "Waiting" }
             }
             return { ready: magnet.statusCode === 4, statusCode: magnet.statusCode, status: magnet.status }
@@ -233,10 +234,11 @@ export const AllDebridServiceLive = Layer.effect(
           "AllDebrid API key not configured",
           (message) => new AllDebridNotConfigured({ message }),
         )
+        const context = yield* Effect.context<never>()
 
         return yield* Effect.tryPromise({
           try: async () => {
-            Effect.runSync(log.info("alldebrid", `Fetching files for magnet ${magnetId}`))
+            Effect.runSyncWith(context)(log.info("alldebrid", `Fetching files for magnet ${magnetId}`))
             const body = new URLSearchParams()
             body.append("id[]", String(magnetId))
             const response = await fetchWithAuth(buildUrl("v4/magnet/files"), apiKey, {
@@ -252,7 +254,7 @@ export const AllDebridServiceLive = Layer.effect(
               throw new Error("No files returned from AllDebrid")
             }
             const files = flattenFileTree(magnetData.files)
-            Effect.runSync(log.info("alldebrid", `Found ${files.length} files for magnet ${magnetId}`))
+            Effect.runSyncWith(context)(log.info("alldebrid", `Found ${files.length} files for magnet ${magnetId}`))
             return files
           },
           catch: (e) => {
@@ -271,10 +273,11 @@ export const AllDebridServiceLive = Layer.effect(
           "AllDebrid API key not configured",
           (message) => new AllDebridNotConfigured({ message }),
         )
+        const context = yield* Effect.context<never>()
 
         return yield* Effect.tryPromise({
           try: async () => {
-            Effect.runSync(log.info("alldebrid", `Unlocking link: ${link}`))
+            Effect.runSyncWith(context)(log.info("alldebrid", `Unlocking link: ${link}`))
             const body = new URLSearchParams({ link })
             const response = await fetchWithAuth(buildUrl("v4/link/unlock"), apiKey, {
               method: "POST",
@@ -312,14 +315,15 @@ export const AllDebridServiceLive = Layer.effect(
           "AllDebrid API key not configured",
           (message) => new AllDebridNotConfigured({ message }),
         )
+        const context = yield* Effect.context<never>()
 
         yield* Effect.tryPromise({
           try: async () => {
-            Effect.runSync(log.info("alldebrid", `Deleting magnet ${magnetId}`))
+            Effect.runSyncWith(context)(log.info("alldebrid", `Deleting magnet ${magnetId}`))
             await fetchWithAuth(buildUrl("v4/magnet/delete", { id: String(magnetId) }), apiKey)
           },
           catch: (e) => {
-            Effect.runSync(log.error("alldebrid", `Failed to delete magnet ${magnetId}:`, e))
+            Effect.runSyncWith(context)(log.error("alldebrid", `Failed to delete magnet ${magnetId}:`, e))
             return new AllDebridNotConfigured({ message: `Delete failed: ${e instanceof Error ? e.message : String(e)}` })
           },
         })
@@ -330,14 +334,12 @@ export const AllDebridServiceLive = Layer.effect(
       destPath: string,
       onProgress?: (received: number, total: number) => void,
     ) =>
-      Effect.gen(function* () {
-        yield* Effect.tryPromise({
-          try: () => downloadWithRetry(url, destPath, log, onProgress),
-          catch: (e) => {
-            const message = e instanceof Error ? e.message : String(e)
-            return new AllDebridHttpError({ message: `Download failed: ${message}` })
-          },
-        })
+      Effect.tryPromise({
+        try: () => downloadWithRetry(url, destPath, log, onProgress),
+        catch: (e) => {
+          const message = e instanceof Error ? e.message : String(e)
+          return new AllDebridHttpError({ message: `Download failed: ${message}` })
+        },
       })
 
     return { uploadMagnet, getMagnetStatus, getMagnetFiles, unlockLink, deleteMagnet, downloadFile }

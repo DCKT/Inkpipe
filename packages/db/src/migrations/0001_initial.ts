@@ -1,6 +1,14 @@
 import { Effect } from "effect"
 import { SqlClient } from "effect/unstable/sql"
 
+const tryParseJson = (value: string): unknown => {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return undefined
+  }
+}
+
 export default Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
 
@@ -135,8 +143,7 @@ export default Effect.gen(function* () {
 
   if (oldConfig.length > 0) {
     for (const row of oldConfig) {
-      let parsed: unknown
-      try { parsed = JSON.parse(row.value) } catch { continue }
+      const parsed = tryParseJson(row.value)
       if (typeof parsed !== "object" || parsed === null) continue
       const obj = parsed as Record<string, unknown>
       switch (row.key) {

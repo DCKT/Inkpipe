@@ -17,7 +17,7 @@ export class ProwlarrNotConfigured extends Schema.TaggedErrorClass<ProwlarrNotCo
 
 export class ProwlarrHttpError extends Schema.TaggedErrorClass<ProwlarrHttpError>()(
   "ProwlarrHttpError",
-  { message: Schema.String, status: Schema.optional(Schema.Number) },
+  { message: Schema.String, status: Schema.optional(Schema.Finite) },
 ) {}
 
 export class AllDebridNotConfigured extends Schema.TaggedErrorClass<AllDebridNotConfigured>()(
@@ -27,7 +27,7 @@ export class AllDebridNotConfigured extends Schema.TaggedErrorClass<AllDebridNot
 
 export class AllDebridHttpError extends Schema.TaggedErrorClass<AllDebridHttpError>()(
   "AllDebridHttpError",
-  { message: Schema.String, status: Schema.optional(Schema.Number) },
+  { message: Schema.String, status: Schema.optional(Schema.Finite) },
 ) {}
 
 export class MagnetUploadError extends Schema.TaggedErrorClass<MagnetUploadError>()(
@@ -37,7 +37,7 @@ export class MagnetUploadError extends Schema.TaggedErrorClass<MagnetUploadError
 
 export class MagnetStatusError extends Schema.TaggedErrorClass<MagnetStatusError>()(
   "MagnetStatusError",
-  { message: Schema.String, statusCode: Schema.optional(Schema.Number) },
+  { message: Schema.String, statusCode: Schema.optional(Schema.Finite) },
 ) {}
 
 export class AnnasArchiveNotConfigured extends Schema.TaggedErrorClass<AnnasArchiveNotConfigured>()(
@@ -47,7 +47,7 @@ export class AnnasArchiveNotConfigured extends Schema.TaggedErrorClass<AnnasArch
 
 export class AnnasArchiveHttpError extends Schema.TaggedErrorClass<AnnasArchiveHttpError>()(
   "AnnasArchiveHttpError",
-  { message: Schema.String, status: Schema.optional(Schema.Number) },
+  { message: Schema.String, status: Schema.optional(Schema.Finite) },
 ) {}
 
 export class AnnasArchiveDownloadError extends Schema.TaggedErrorClass<AnnasArchiveDownloadError>()(
@@ -62,7 +62,7 @@ export class KomgaNotConfigured extends Schema.TaggedErrorClass<KomgaNotConfigur
 
 export class KomgaHttpError extends Schema.TaggedErrorClass<KomgaHttpError>()(
   "KomgaHttpError",
-  { message: Schema.String, status: Schema.optional(Schema.Number) },
+  { message: Schema.String, status: Schema.optional(Schema.Finite) },
 ) {}
 
 export class CopypartyNotConfigured extends Schema.TaggedErrorClass<CopypartyNotConfigured>()(

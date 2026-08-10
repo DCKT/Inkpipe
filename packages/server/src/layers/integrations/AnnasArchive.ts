@@ -96,11 +96,9 @@ export const AnnasArchiveServiceLive = Layer.effect(
     const search = (query: string) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catch(() =>
-            Effect.succeed({
-              annasArchive: { apiKey: "", baseUrl: "https://annas-archive.gl" },
-            }),
-          ),
+          Effect.orElseSucceed(() => ({
+            annasArchive: { apiKey: "", baseUrl: "https://annas-archive.gl" },
+          })),
         );
         const baseUrl =
           config.annasArchive.baseUrl || "https://annas-archive.gl";
@@ -149,16 +147,14 @@ export const AnnasArchiveServiceLive = Layer.effect(
       destPath: string,
       onProgress?: (received: number, total: number) => void,
     ) =>
-      Effect.gen(function* () {
-        yield* Effect.tryPromise({
-          try: () => downloadSingle(url, destPath, log, onProgress),
-          catch: (e) => {
-            const message = e instanceof Error ? e.message : String(e);
-            return new AnnasArchiveDownloadError({
-              message: `Download failed: ${message}`,
-            });
-          },
-        });
+      Effect.tryPromise({
+        try: () => downloadSingle(url, destPath, log, onProgress),
+        catch: (e) => {
+          const message = e instanceof Error ? e.message : String(e);
+          return new AnnasArchiveDownloadError({
+            message: `Download failed: ${message}`,
+          });
+        },
       });
 
     return { search, getDownloadUrl, downloadFile };

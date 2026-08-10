@@ -3,13 +3,13 @@ import { describe, it, expect } from "@effect/vitest"
 import { WatchId, WatchAlertId } from "@inkpipe/shared"
 import type { Watch } from "@inkpipe/shared"
 import { WatchStoreService, WatchStoreServiceLive } from "./WatchStore"
-import { makeTestDbLayer } from "../../__mocks__/testDb"
+import { testDbLayer } from "../../__mocks__/testDb"
 
 function makeProgram<T, E>(prog: (svc: typeof WatchStoreService.Service) => Effect.Effect<T, E>) {
   return Effect.gen(function* () {
     const svc = yield* WatchStoreService
     return yield* prog(svc)
-  }).pipe(Effect.provide(Layer.provide(WatchStoreServiceLive, makeTestDbLayer())))
+  }).pipe(Effect.provide(Layer.provide(WatchStoreServiceLive, testDbLayer)))
 }
 
 const newWatch = {

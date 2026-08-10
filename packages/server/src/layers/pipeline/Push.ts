@@ -53,6 +53,7 @@ export const PushServiceLive = Layer.effect(
   PushService,
   Effect.gen(function* () {
     const log = yield* LogService
+    const context = yield* Effect.context<never>()
     const getVapidPublicKey = Effect.sync(() => ensureVapidKeysSync().publicKey)
 
     const addSubscription = (sub: PushSubscriptionRequest) =>
@@ -81,7 +82,7 @@ export const PushServiceLive = Layer.effect(
             subs.map((sub) =>
               webpush.sendNotification(sub, JSON.stringify(payload)).catch((err) => {
                 if (err.statusCode === 410 || err.statusCode === 404) {
-                  Effect.runSync(log.info("push", "Removing expired subscription:", sub.endpoint))
+                  Effect.runSyncWith(context)(log.info("push", "Removing expired subscription:", sub.endpoint))
                   expiredEndpoints.add(sub.endpoint)
                   return
                 }
@@ -94,7 +95,7 @@ export const PushServiceLive = Layer.effect(
           }
         },
         catch: (e) => {
-          if (e instanceof Error) Effect.runSync(log.error("push", "Failed to send:", e.message))
+          if (e instanceof Error) Effect.runSyncWith(context)(log.error("push", "Failed to send:", e.message))
           return undefined as void
         },
       }) as Effect.Effect<void>

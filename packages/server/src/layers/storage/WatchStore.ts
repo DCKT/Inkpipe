@@ -118,7 +118,7 @@ export const WatchStoreServiceLive = Layer.effect(
       Effect.gen(function* () {
         const rows = yield* sql<WatchRow>`SELECT * FROM watches WHERE id = ${id}`
         if (rows.length === 0) {
-          return yield* Effect.fail(new WatchNotFoundError({ message: `Watch ${id} not found` }))
+          return yield* new WatchNotFoundError({ message: `Watch ${id} not found` })
         }
         return toWatch(rows[0])
       }).pipe(
@@ -192,7 +192,7 @@ export const WatchStoreServiceLive = Layer.effect(
       Effect.gen(function* () {
         const rows = yield* sql<AlertRow>`SELECT * FROM watch_alerts WHERE watch_id = ${watchId} AND id = ${alertId}`
         if (rows.length === 0) {
-          return yield* Effect.fail(new WatchNotFoundError({ message: `Alert ${alertId} not found` }))
+          return yield* new WatchNotFoundError({ message: `Alert ${alertId} not found` })
         }
         return toAlert(rows[0])
       }).pipe(
@@ -214,26 +214,22 @@ export const WatchStoreServiceLive = Layer.effect(
       )
 
     const acknowledgeAllAlerts = (watchId: WatchId) =>
-      Effect.gen(function* () {
-        yield* sql`UPDATE watch_alerts SET acknowledged = 1 WHERE watch_id = ${watchId} AND acknowledged = 0`
-      }).pipe(
+      sql`UPDATE watch_alerts SET acknowledged = 1 WHERE watch_id = ${watchId} AND acknowledged = 0`.pipe(
         Effect.mapError((e) => new WatchStoreError({ message: `Failed to acknowledge alerts: ${String(e)}` })),
       )
 
     const insertAlert = (alert: { watchId: WatchId; guid: string; title: string; magnetUrl: string | null; size: number; seeders: number; indexer: string; matchedAt: number; acknowledged: boolean }) =>
-      Effect.gen(function* () {
-        yield* sql`INSERT OR IGNORE INTO watch_alerts ${sql.insert({
-          watchId: alert.watchId,
-          guid: alert.guid,
-          title: alert.title,
-          magnetUrl: alert.magnetUrl,
-          size: alert.size,
-          seeders: alert.seeders,
-          indexer: alert.indexer,
-          matchedAt: alert.matchedAt,
-          acknowledged: alert.acknowledged ? 1 : 0,
-        })}`
-      }).pipe(
+      sql`INSERT OR IGNORE INTO watch_alerts ${sql.insert({
+        watchId: alert.watchId,
+        guid: alert.guid,
+        title: alert.title,
+        magnetUrl: alert.magnetUrl,
+        size: alert.size,
+        seeders: alert.seeders,
+        indexer: alert.indexer,
+        matchedAt: alert.matchedAt,
+        acknowledged: alert.acknowledged ? 1 : 0,
+      })}`.pipe(
         Effect.mapError((e) => new WatchStoreError({ message: `Failed to insert alert: ${String(e)}` })),
       )
 

@@ -42,14 +42,13 @@ export const PipelineServiceLive = Layer.effect(
         const magnetOrUrl = result.magnetUrl ?? result.downloadUrl
         if (!magnetOrUrl) {
           yield* log.error("pipeline", "No magnet or download URL for:", result.title)
-          return yield* Effect.fail(
-            new PipelineError({ message: `No magnet or download URL for "${result.title}"` }),
-          )
+          return yield* new PipelineError({ message: `No magnet or download URL for "${result.title}"` })
         }
 
         const job = yield* jobStore.createJob(result.title)
         const jl = log.withJob(String(job.id))
         yield* jl.info("jobs", "Created job")
+        const context = yield* Effect.context<never>()
 
         let magnetId: number | null = null
 
@@ -74,11 +73,9 @@ export const PipelineServiceLive = Layer.effect(
                 break
               }
               if (status.statusCode >= 5) {
-                return yield* Effect.fail(
-                  new PipelineError({
-                    message: `AllDebrid magnet error: ${status.status} (code ${status.statusCode})`,
-                  }),
-                )
+                return yield* new PipelineError({
+                  message: `AllDebrid magnet error: ${status.status} (code ${status.statusCode})`,
+                })
               }
               yield* jl.info("pipeline", "Debrid not ready (poll #" + pollCount + ", status: " + status.status + "), waiting...")
               yield* sleep(POLL_INTERVAL)
@@ -91,9 +88,7 @@ export const PipelineServiceLive = Layer.effect(
           const debridFiles = yield* alldebrid.getMagnetFiles(upload.id)
           yield* jl.info("pipeline", "Got", debridFiles.length, "files from AllDebrid")
           if (debridFiles.length === 0) {
-            return yield* Effect.fail(
-              new PipelineError({ message: "No files returned from AllDebrid" }),
-            )
+            return yield* new PipelineError({ message: "No files returned from AllDebrid" })
           }
 
           // Stage 3: Download
@@ -110,7 +105,7 @@ export const PipelineServiceLive = Layer.effect(
             yield* jl.info("pipeline", "Downloading to:", destPath, "(" + unlocked.size + " bytes)")
             yield* alldebrid.downloadFile(unlocked.url, destPath, (received, total) => {
               if (total > 0) {
-                Effect.runFork(
+                Effect.runForkWith(context)(
                   jobStore.updateJob(job.id, {
                     progress: Math.round(((i + received / total) / debridFiles.length) * 100),
                   }),
@@ -187,15 +182,9 @@ export const PipelineServiceLive = Layer.effect(
 
         const cleanup = Effect.gen(function* () {
           yield* jl.info("pipeline", "Cleaning up")
-          yield* Effect.catch(
-            fileManager.cleanupJobDir(String(job.id)),
-            () => Effect.void,
-          )
+          yield* Effect.ignore(fileManager.cleanupJobDir(String(job.id)))
           if (magnetId !== null) {
-            yield* Effect.catch(
-              alldebrid.deleteMagnet(magnetId),
-              () => Effect.void,
-            )
+            yield* Effect.ignore(alldebrid.deleteMagnet(magnetId))
           }
         })
 
@@ -210,10 +199,7 @@ export const PipelineServiceLive = Layer.effect(
               }
               yield* jobStore.updateJob(job.id, { stage: "FAILED", error: message })
               if (createdFolder && subfolder) {
-                yield* Effect.catch(
-                  copyparty.deleteFolder(subfolder),
-                  () => Effect.void,
-                )
+                yield* Effect.ignore(copyparty.deleteFolder(subfolder))
               }
             })
           }),

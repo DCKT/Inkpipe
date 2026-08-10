@@ -33,15 +33,13 @@ export const KomgaServiceLive = Layer.effect(
     const log = yield* LogService
 
     const getApiInfo = () =>
-      Effect.gen(function* () {
-        return yield* requireConfigured(
-          configService,
-          (c) => ({ url: c.komga.url, apiKey: c.komga.apiKey }),
-          (info) => info.url.length > 0 && info.apiKey.length > 0,
-          "Komga is not configured",
-          (message) => new KomgaNotConfigured({ message }),
-        )
-      })
+      requireConfigured(
+        configService,
+        (c) => ({ url: c.komga.url, apiKey: c.komga.apiKey }),
+        (info) => info.url.length > 0 && info.apiKey.length > 0,
+        "Komga is not configured",
+        (message) => new KomgaNotConfigured({ message }),
+      )
 
     const komgaFetch = (
       info: { url: string; apiKey: string },

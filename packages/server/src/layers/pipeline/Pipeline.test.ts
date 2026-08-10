@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect"
 import { describe, it, expect, vi, beforeEach, afterEach } from "@effect/vitest"
 import type { AppConfig, Job, ProwlarrResult, DebridFile } from "@inkpipe/shared"
-import { JobId } from "@inkpipe/shared"
+import { JobId, AllDebridHttpError } from "@inkpipe/shared"
 import { PipelineService, PipelineServiceLive } from "./Pipeline"
 import { AllDebridService } from "../integrations/AllDebrid"
 import { KccService } from "../integrations/Kcc"
@@ -305,7 +305,7 @@ describe("PipelineService", () => {
         updateJobSpy,
         deleteMagnetSpy,
         deleteMagnet: deleteMagnetSpy,
-        unlockLink: () => Effect.fail(new Error("unlock failed")),
+        unlockLink: () => Effect.fail(new AllDebridHttpError({ message: "unlock failed" })),
       })
 
       const failedCall = updateJobSpy.mock.calls.find(
@@ -323,7 +323,7 @@ describe("PipelineService", () => {
         (svc) => svc.runPipeline(testResult, "NewFolder", true),
         {
           deleteFolder: deleteFolderSpy,
-          unlockLink: () => Effect.fail(new Error("boom")),
+          unlockLink: () => Effect.fail(new AllDebridHttpError({ message: "boom" })),
         },
       )
 
@@ -337,7 +337,7 @@ describe("PipelineService", () => {
         (svc) => svc.runPipeline(testResult, "ExistingFolder", false),
         {
           deleteFolder: deleteFolderSpy,
-          unlockLink: () => Effect.fail(new Error("boom")),
+          unlockLink: () => Effect.fail(new AllDebridHttpError({ message: "boom" })),
         },
       )
 

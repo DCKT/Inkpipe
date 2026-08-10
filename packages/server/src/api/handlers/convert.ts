@@ -43,17 +43,24 @@ export const ConvertGroupLive = HttpApiBuilder.group(InkpipeApi, "convert", (han
         const filename = basename(file.name || "unknown")
         const ext = filename.toLowerCase().split(".").pop()
         if (ext !== "cbz") {
-          return yield* Effect.fail(new ConvertError({ message: "Only .cbz files are accepted" }))
+          return yield* new ConvertError({ message: "Only .cbz files are accepted" })
         }
 
-        const overrides = yield* Effect.try({
-          try: (): Partial<KccConfig> | undefined =>
-            payload.options && payload.options.length > 0
-              ? Schema.decodeUnknownSync(KccConfigSchema)(JSON.parse(payload.options))
-              : undefined,
-          catch: (e) =>
-            new ConvertError({ message: `Invalid KCC options: ${e instanceof Error ? e.message : String(e)}` }),
-        })
+        const options = payload.options
+        const overrides: Partial<KccConfig> | undefined =
+          options && options.length > 0
+            ? yield* Effect.try({
+                try: (): unknown => JSON.parse(options),
+                catch: (e) =>
+                  new ConvertError({ message: `Invalid KCC options: ${e instanceof Error ? e.message : String(e)}` }),
+              }).pipe(
+                Effect.flatMap((parsed) =>
+                  Schema.decodeUnknownEffect(KccConfigSchema)(parsed).pipe(
+                    Effect.mapError((e) => new ConvertError({ message: `Invalid KCC options: ${e.message}` })),
+                  ),
+                ),
+              )
+            : undefined
 
         const id = randomUUID()
         const fileManager = yield* FileManagerService
@@ -185,7 +192,7 @@ export const ConvertGroupLive = HttpApiBuilder.group(InkpipeApi, "convert", (han
         const id = query.id
         const job = jobs.get(id)
         if (job && job.status !== "done") {
-          return yield* Effect.fail(new ConvertError({ message: "Conversion not yet complete" }))
+          return yield* new ConvertError({ message: "Conversion not yet complete" })
         }
 
         const fileManager = yield* FileManagerService
@@ -202,7 +209,7 @@ export const ConvertGroupLive = HttpApiBuilder.group(InkpipeApi, "convert", (han
           const epubFile = files.find((f) => f.toLowerCase().endsWith(".epub"))
 
           if (!epubFile) {
-            return yield* Effect.fail(new NotFoundError({ message: "EPUB not found" }))
+            return yield* new NotFoundError({ message: "EPUB not found" })
           }
 
           const filePath = join(workDir, epubFile)

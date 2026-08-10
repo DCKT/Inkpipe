@@ -80,7 +80,7 @@ export const KccServiceLive = Layer.effect(
     const convert = (inputPath: string, outputDir: string, overrides?: Partial<KccConfig>, onLog?: (line: string) => void) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
-          Effect.catch((e) => Effect.fail(new KccError({ message: e.message }))),
+          Effect.mapError((e) => new KccError({ message: e.message })),
         )
         const effectiveConfig: AppConfig = overrides
           ? { ...config, kcc: { ...config.kcc, ...overrides } }
@@ -88,6 +88,7 @@ export const KccServiceLive = Layer.effect(
         const inputFilename = basename(inputPath)
         const kccArgs = buildKccArgs(inputFilename, effectiveConfig)
         const isDocker = yield* fileManager.isRunningInDocker
+        const context = yield* Effect.context<never>()
 
         return yield* Effect.tryPromise({
           try: () =>
@@ -117,8 +118,8 @@ export const KccServiceLive = Layer.effect(
                   ]
                 }
 
-                Effect.runSync(log.info("kcc", `Starting conversion: ${inputFilename}`))
-                Effect.runSync(log.info("kcc", `Docker args: docker ${args.join(" ")}`))
+                Effect.runSyncWith(context)(log.info("kcc", `Starting conversion: ${inputFilename}`))
+                Effect.runSyncWith(context)(log.info("kcc", `Docker args: docker ${args.join(" ")}`))
 
                 const proc = spawn("docker", args)
 
@@ -128,31 +129,31 @@ export const KccServiceLive = Layer.effect(
                 proc.stdout.on("data", (data: Buffer) => {
                   stdout += data.toString()
                   const line = data.toString().trim()
-                  Effect.runSync(log.info("kcc", `stdout: ${line}`))
+                  Effect.runSyncWith(context)(log.info("kcc", `stdout: ${line}`))
                   onLog?.(line)
                 })
 
                 proc.stderr.on("data", (data: Buffer) => {
                   stderr += data.toString()
                   const line = data.toString().trim()
-                  Effect.runSync(log.info("kcc", `stderr: ${line}`))
+                  Effect.runSyncWith(context)(log.info("kcc", `stderr: ${line}`))
                   onLog?.(line)
                 })
 
                 proc.on("close", (code: number) => {
-                  Effect.runSync(log.info("kcc", `Process exited with code ${code}`))
+                  Effect.runSyncWith(context)(log.info("kcc", `Process exited with code ${code}`))
                   if (code === 0) {
-                    Effect.runSync(log.info("kcc", `Conversion succeeded for: ${inputFilename}`))
+                    Effect.runSyncWith(context)(log.info("kcc", `Conversion succeeded for: ${inputFilename}`))
                     resolve(stdout)
                   } else {
-                    Effect.runSync(log.error("kcc", `Conversion failed for: ${inputFilename}`))
-                    Effect.runSync(log.error("kcc", `stderr: ${stderr}`))
+                    Effect.runSyncWith(context)(log.error("kcc", `Conversion failed for: ${inputFilename}`))
+                    Effect.runSyncWith(context)(log.error("kcc", `stderr: ${stderr}`))
                     reject(new Error(`KCC exited with code ${code}: ${stderr}`))
                   }
                 })
 
                 proc.on("error", (err: Error) => {
-                  Effect.runSync(log.error("kcc", `Failed to start KCC: ${err.message}`))
+                  Effect.runSyncWith(context)(log.error("kcc", `Failed to start KCC: ${err.message}`))
                   reject(new Error(`Failed to start KCC: ${err.message}`))
                 })
               }),

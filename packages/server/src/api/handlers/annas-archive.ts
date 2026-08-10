@@ -24,10 +24,8 @@ export const AnnasArchiveGroupLive = HttpApiBuilder.group(InkpipeApi, "annasArch
         }
 
         for (const item of payload.items) {
-          Effect.runFork(
-            pipeline.run(item, payload.subfolder, createdFolder).pipe(
-              Effect.catch(() => Effect.void),
-            ),
+          yield* Effect.forkDetach(
+            pipeline.run(item, payload.subfolder, createdFolder).pipe(Effect.ignore),
           )
         }
 
