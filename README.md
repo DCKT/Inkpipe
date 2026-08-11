@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="packages/web/public/icon-512.png" width="96" alt="Inkpipe" />
+</p>
+
 # Inkpipe
 
 Manga/comic pipeline: search, download, convert, and upload to your e-reader.

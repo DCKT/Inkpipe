@@ -3,6 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Menu } from "lucide-react";
 import { UnreadBadge } from "./UnreadBadge";
+import { InkpipeMark } from "./InkpipeMark";
 import { NAV_ITEMS, SETTINGS_NAV_ITEM, type NavSubLink } from "../lib/nav";
 import { runApi } from "../lib/apiClient";
 
@@ -33,9 +34,11 @@ function SidebarContent({ fullLabels = false }: { fullLabels?: boolean }) {
       <div className="border-b border-border px-5 py-4">
         <NavLink
           to="/"
-          className="font-display text-lg italic text-primary no-underline"
+          title="Inkpipe"
+          className="flex items-center gap-2 font-display text-lg italic text-primary no-underline"
         >
-          Inkpipe
+          <InkpipeMark size={20} />
+          <span className={labelClass}>Inkpipe</span>
         </NavLink>
       </div>
 
@@ -159,8 +162,9 @@ export function Sidebar() {
       <div className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-surface px-4 xl:hidden">
         <NavLink
           to="/"
-          className="font-display text-lg italic text-primary no-underline"
+          className="flex items-center gap-2 font-display text-lg italic text-primary no-underline"
         >
+          <InkpipeMark size={20} />
           Inkpipe
         </NavLink>
         <button

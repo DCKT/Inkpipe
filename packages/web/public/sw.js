@@ -2,8 +2,8 @@ self.addEventListener("push", (event) => {
   const data = event.data?.json() ?? { title: "Inkpipe", body: "New match found" }
   const options = {
     body: data.body ?? "",
-    icon: "/favicon.ico",
-    badge: "/favicon.ico",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
     tag: data.tag ?? "inkpipe-watch",
   }
   event.waitUntil(
