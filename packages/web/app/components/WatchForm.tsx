@@ -248,67 +248,95 @@ export function WatchFormDialog({
                   </p>
                 )}
 
+                {filterGroups.length > 1 && (
+                  <p className="text-xs text-secondary">
+                    A result must match every group below (groups are always
+                    combined with AND).
+                  </p>
+                )}
+
                 {filterGroups.map((group, gi) => (
-                  <div
-                    key={gi}
-                    className="border border-border rounded-xl p-3 space-y-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-secondary">
-                          Group {gi + 1}
+                  <div key={gi}>
+                    {gi > 0 && (
+                      <div className="flex items-center justify-center py-1.5">
+                        <span className="text-[10px] font-bold tracking-wide text-secondary bg-surface border border-border rounded-full px-2 py-0.5">
+                          AND
                         </span>
-                        <span className="text-xs text-secondary">
-                          Mode
-                        </span>
-                        <select
-                          value={group.mode}
-                          onChange={(e) =>
-                            updateGroupMode(
-                              gi,
-                              e.currentTarget.value as FilterGroupMode,
-                            )
-                          }
-                          className="text-xs rounded-lg border border-border bg-surface-hover px-2 py-1"
-                        >
-                          <option value="AND">AND</option>
-                          <option value="OR">OR</option>
-                        </select>
                       </div>
+                    )}
+                    <div className="border border-border rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-secondary">
+                            Group {gi + 1}
+                          </span>
+                          {group.substrings.length > 1 && (
+                            <div className="flex items-center rounded-lg border border-border overflow-hidden">
+                              <button
+                                type="button"
+                                title="Every substring in this group must be present"
+                                onClick={() => updateGroupMode(gi, "AND")}
+                                className={`text-xs px-2 py-1 transition ${
+                                  group.mode === "AND"
+                                    ? "bg-accent text-on-accent"
+                                    : "bg-surface-hover text-secondary hover:text-primary"
+                                }`}
+                              >
+                                Match ALL
+                              </button>
+                              <button
+                                type="button"
+                                title="Any one substring in this group is enough"
+                                onClick={() => updateGroupMode(gi, "OR")}
+                                className={`text-xs px-2 py-1 border-l border-border transition ${
+                                  group.mode === "OR"
+                                    ? "bg-accent text-on-accent"
+                                    : "bg-surface-hover text-secondary hover:text-primary"
+                                }`}
+                              >
+                                Match ANY
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          className="text-xs text-red-500 hover:text-red-700"
+                          onClick={() => removeGroup(gi)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+
+                      {group.substrings.map((sub, si) => (
+                        <div key={si} className="flex items-center gap-2">
+                          <span className="text-[10px] font-semibold text-secondary w-7 shrink-0 text-center">
+                            {si > 0 ? group.mode : ""}
+                          </span>
+                          <Input
+                            value={sub}
+                            onChange={(e) =>
+                              updateSubstring(gi, si, e.currentTarget.value)
+                            }
+                            placeholder="string to match..."
+                            className="flex-1"
+                          />
+                          {group.substrings.length > 1 && (
+                            <button
+                              className="text-xs text-red-500 hover:text-red-700 px-1"
+                              onClick={() => removeSubstring(gi, si)}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      ))}
                       <button
-                        className="text-xs text-red-500 hover:text-red-700"
-                        onClick={() => removeGroup(gi)}
+                        className="text-xs text-accent hover:text-accent-hover"
+                        onClick={() => addSubstring(gi)}
                       >
-                        Remove
+                        + Add substring
                       </button>
                     </div>
-
-                    {group.substrings.map((sub, si) => (
-                      <div key={si} className="flex items-center gap-2">
-                        <Input
-                          value={sub}
-                          onChange={(e) =>
-                            updateSubstring(gi, si, e.currentTarget.value)
-                          }
-                          placeholder="string to match..."
-                          className="flex-1"
-                        />
-                        {group.substrings.length > 1 && (
-                          <button
-                            className="text-xs text-red-500 hover:text-red-700 px-1"
-                            onClick={() => removeSubstring(gi, si)}
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    <button
-                      className="text-xs text-accent hover:text-accent-hover"
-                      onClick={() => addSubstring(gi)}
-                    >
-                      + Add substring
-                    </button>
                   </div>
                 ))}
               </div>

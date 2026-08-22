@@ -159,13 +159,30 @@ export default function WatchDetailPage() {
                 )}
               </p>
               {watchQuery.data.filterGroups.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
                   {watchQuery.data.filterGroups.map((g, gi) => (
-                    <span
-                      key={gi}
-                      className="text-xs bg-surface border border-border rounded-full px-2 py-0.5 text-secondary"
-                    >
-                      {g.mode}: {g.substrings.join(", ")}
+                    <span key={gi} className="flex items-center gap-1.5">
+                      {gi > 0 && (
+                        <span className="text-[10px] font-bold tracking-wide text-secondary">
+                          AND
+                        </span>
+                      )}
+                      <span
+                        className="text-xs bg-surface border border-border rounded-full px-2 py-0.5 text-secondary"
+                        title={
+                          g.substrings.length > 1
+                            ? g.mode === "AND"
+                              ? "Every substring below must be present"
+                              : "Any one substring below is enough"
+                            : undefined
+                        }
+                      >
+                        {g.substrings.length > 1 &&
+                          `${g.mode === "AND" ? "ALL" : "ANY"} of: `}
+                        {g.substrings.join(
+                          g.mode === "AND" ? " + " : " / ",
+                        )}
+                      </span>
                     </span>
                   ))}
                 </div>
