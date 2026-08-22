@@ -1,4 +1,4 @@
-// Wraps each shared `Schema.TaggedErrorClass` with an HTTP status annotation
+// Wraps each shared `Schema.TaggedError` with an HTTP status annotation
 // (`HttpApiSchema.status`) so HttpApi can encode the right status code for
 // each typed error without per-route Effect.catch boilerplate.
 import { HttpApiSchema } from "effect/unstable/httpapi"
@@ -38,49 +38,49 @@ import {
   RequestValidationError,
 } from "../errors"
 
-export const ConfigLoadErrorS = ConfigLoadError.pipe(HttpApiSchema.status(500))
-export const ConfigSaveErrorS = ConfigSaveError.pipe(HttpApiSchema.status(500))
+export const ConfigLoadErrorS = HttpApiSchema.status(500)(ConfigLoadError)
+export const ConfigSaveErrorS = HttpApiSchema.status(500)(ConfigSaveError)
 
-export const ProwlarrNotConfiguredS = ProwlarrNotConfigured.pipe(HttpApiSchema.status(503))
-export const ProwlarrHttpErrorS = ProwlarrHttpError.pipe(HttpApiSchema.status(502))
+export const ProwlarrNotConfiguredS = HttpApiSchema.status(503)(ProwlarrNotConfigured)
+export const ProwlarrHttpErrorS = HttpApiSchema.status(502)(ProwlarrHttpError)
 
-export const AllDebridNotConfiguredS = AllDebridNotConfigured.pipe(HttpApiSchema.status(503))
-export const AllDebridHttpErrorS = AllDebridHttpError.pipe(HttpApiSchema.status(502))
+export const AllDebridNotConfiguredS = HttpApiSchema.status(503)(AllDebridNotConfigured)
+export const AllDebridHttpErrorS = HttpApiSchema.status(502)(AllDebridHttpError)
 
-export const MagnetUploadErrorS = MagnetUploadError.pipe(HttpApiSchema.status(502))
-export const MagnetStatusErrorS = MagnetStatusError.pipe(HttpApiSchema.status(502))
+export const MagnetUploadErrorS = HttpApiSchema.status(502)(MagnetUploadError)
+export const MagnetStatusErrorS = HttpApiSchema.status(502)(MagnetStatusError)
 
-export const AnnasArchiveNotConfiguredS = AnnasArchiveNotConfigured.pipe(HttpApiSchema.status(503))
-export const AnnasArchiveHttpErrorS = AnnasArchiveHttpError.pipe(HttpApiSchema.status(502))
-export const AnnasArchiveDownloadErrorS = AnnasArchiveDownloadError.pipe(HttpApiSchema.status(502))
+export const AnnasArchiveNotConfiguredS = HttpApiSchema.status(503)(AnnasArchiveNotConfigured)
+export const AnnasArchiveHttpErrorS = HttpApiSchema.status(502)(AnnasArchiveHttpError)
+export const AnnasArchiveDownloadErrorS = HttpApiSchema.status(502)(AnnasArchiveDownloadError)
 
-export const KomgaNotConfiguredS = KomgaNotConfigured.pipe(HttpApiSchema.status(503))
-export const KomgaHttpErrorS = KomgaHttpError.pipe(HttpApiSchema.status(502))
+export const KomgaNotConfiguredS = HttpApiSchema.status(503)(KomgaNotConfigured)
+export const KomgaHttpErrorS = HttpApiSchema.status(502)(KomgaHttpError)
 
-export const TelegramNotConfiguredS = TelegramNotConfigured.pipe(HttpApiSchema.status(503))
-export const TelegramHttpErrorS = TelegramHttpError.pipe(HttpApiSchema.status(502))
+export const TelegramNotConfiguredS = HttpApiSchema.status(503)(TelegramNotConfigured)
+export const TelegramHttpErrorS = HttpApiSchema.status(502)(TelegramHttpError)
 
-export const CopypartyNotConfiguredS = CopypartyNotConfigured.pipe(HttpApiSchema.status(503))
-export const CopypartyHttpErrorS = CopypartyHttpError.pipe(HttpApiSchema.status(502))
-export const CopypartyFolderErrorS = CopypartyFolderError.pipe(HttpApiSchema.status(502))
+export const CopypartyNotConfiguredS = HttpApiSchema.status(503)(CopypartyNotConfigured)
+export const CopypartyHttpErrorS = HttpApiSchema.status(502)(CopypartyHttpError)
+export const CopypartyFolderErrorS = HttpApiSchema.status(502)(CopypartyFolderError)
 
-export const KccErrorS = KccError.pipe(HttpApiSchema.status(500))
-export const FileManagerErrorS = FileManagerError.pipe(HttpApiSchema.status(500))
+export const KccErrorS = HttpApiSchema.status(500)(KccError)
+export const FileManagerErrorS = HttpApiSchema.status(500)(FileManagerError)
 
-export const NotFoundErrorS = NotFoundError.pipe(HttpApiSchema.status(404))
-export const ValidationErrorS = ValidationError.pipe(HttpApiSchema.status(422))
-export const PipelineErrorS = PipelineError.pipe(HttpApiSchema.status(500))
+export const NotFoundErrorS = HttpApiSchema.status(404)(NotFoundError)
+export const ValidationErrorS = HttpApiSchema.status(422)(ValidationError)
+export const PipelineErrorS = HttpApiSchema.status(500)(PipelineError)
 
-export const NoMagnetUrlS = NoMagnetUrl.pipe(HttpApiSchema.status(422))
-export const DebridTimeoutErrorS = DebridTimeoutError.pipe(HttpApiSchema.status(502))
-export const DebridErrorS = DebridError.pipe(HttpApiSchema.status(502))
-export const NoFilesErrorS = NoFilesError.pipe(HttpApiSchema.status(422))
-export const KccConversionErrorS = KccConversionError.pipe(HttpApiSchema.status(500))
+export const NoMagnetUrlS = HttpApiSchema.status(422)(NoMagnetUrl)
+export const DebridTimeoutErrorS = HttpApiSchema.status(502)(DebridTimeoutError)
+export const DebridErrorS = HttpApiSchema.status(502)(DebridError)
+export const NoFilesErrorS = HttpApiSchema.status(422)(NoFilesError)
+export const KccConversionErrorS = HttpApiSchema.status(500)(KccConversionError)
 
-export const WatchNotFoundErrorS = WatchNotFoundError.pipe(HttpApiSchema.status(404))
-export const WatchStoreErrorS = WatchStoreError.pipe(HttpApiSchema.status(500))
+export const WatchNotFoundErrorS = HttpApiSchema.status(404)(WatchNotFoundError)
+export const WatchStoreErrorS = HttpApiSchema.status(500)(WatchStoreError)
 
-export const ConvertErrorS = ConvertError.pipe(HttpApiSchema.status(400))
-export const SettingsImportErrorS = SettingsImportError.pipe(HttpApiSchema.status(422))
+export const ConvertErrorS = HttpApiSchema.status(400)(ConvertError)
+export const SettingsImportErrorS = HttpApiSchema.status(422)(SettingsImportError)
 
-export const RequestValidationErrorS = RequestValidationError.pipe(HttpApiSchema.status(400))
+export const RequestValidationErrorS = HttpApiSchema.status(400)(RequestValidationError)
