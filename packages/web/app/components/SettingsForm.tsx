@@ -216,11 +216,6 @@ export default function SettingsForm({
       </fieldset>
 
       <fieldset className="island-shell rounded-2xl p-6">
-        <legend className="island-kicker mb-3 px-1">KCC</legend>
-        <KccOptionsFields value={form.kcc} onChange={setKcc} />
-      </fieldset>
-
-      <fieldset className="island-shell rounded-2xl p-6">
         <legend className="island-kicker mb-3 px-1">Copyparty</legend>
         <div className="space-y-4">
           <Field.Root>
@@ -382,14 +377,20 @@ export default function SettingsForm({
         </div>
       </fieldset>
 
-      <Button
-        type="submit"
-        variant="submit"
-        disabled={isSaving}
-        className="col-span-2"
-      >
-        {isSaving ? "Saving..." : "Save Settings"}
-      </Button>
+      <fieldset className="island-shell rounded-2xl p-6">
+        <legend className="island-kicker mb-3 px-1">KCC</legend>
+        <KccOptionsFields value={form.kcc} onChange={setKcc} />
+      </fieldset>
+
+      <div className="col-span-2 h-20" aria-hidden="true" />
+
+      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface/95 backdrop-blur">
+        <div className="page-wrap py-3">
+          <Button type="submit" variant="submit" disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save Settings"}
+          </Button>
+        </div>
+      </div>
     </form>
   );
 }
