@@ -103,6 +103,18 @@ describe("RpcSerialization", () => {
     assert.deepStrictEqual(parser.decode("x".repeat(1024)), [])
   })
 
+  it("ndjson decodes a multibyte character split across byte chunks", () => {
+    const parser = RpcSerialization.ndjson.makeUnsafe()
+    const message = { value: "\u20ac" }
+    const encoded = parser.encode(message)
+    assert(typeof encoded === "string")
+    const bytes = new TextEncoder().encode(encoded)
+    const split = bytes.indexOf(0xe2) + 1
+
+    assert.deepStrictEqual(parser.decode(bytes.slice(0, split)), [])
+    assert.deepStrictEqual(parser.decode(bytes.slice(split)), [message])
+  })
+
   it.effect("layerNdjsonWith forwards maxBufferSize to its decoder", () =>
     Effect.gen(function*() {
       const serialization = yield* RpcSerialization.RpcSerialization
@@ -192,7 +204,7 @@ describe("RpcSerialization", () => {
     })
     assert.strictEqual(
       encoded,
-      "{\"jsonrpc\":\"2.0\",\"method\":\"users.get\",\"params\":null,\"id\":0,\"headers\":[]}"
+      "{\"jsonrpc\":\"2.0\",\"method\":\"users.get\",\"params\":null,\"id\":0}"
     )
   })
 
@@ -228,7 +240,36 @@ describe("RpcSerialization", () => {
     })
     assert.strictEqual(
       encoded,
-      "{\"jsonrpc\":\"2.0\",\"method\":\"users.get\",\"params\":null,\"id\":\"\",\"headers\":[]}"
+      "{\"jsonrpc\":\"2.0\",\"method\":\"users.get\",\"params\":null,\"id\":\"\"}"
+    )
+  })
+
+  it("jsonRpc encodes a notification without an id", () => {
+    const parser = RpcSerialization.jsonRpc().makeUnsafe()
+    const decoded = parser.decode("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/message\"}")
+    assert.deepStrictEqual(decoded, [{
+      _tag: "Request",
+      id: "",
+      tag: "notifications/message",
+      payload: null,
+      headers: [],
+      isNotification: true
+    }])
+
+    const encoded = parser.encode({
+      _tag: "Request",
+      id: "",
+      tag: "notifications/message",
+      payload: { level: "info" },
+      headers: [["x-test", "value"]],
+      traceId: "trace",
+      spanId: "span",
+      sampled: true,
+      isNotification: true
+    })
+    assert.strictEqual(
+      encoded,
+      "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/message\",\"params\":{\"level\":\"info\"},\"headers\":[[\"x-test\",\"value\"]],\"traceId\":\"trace\",\"spanId\":\"span\",\"sampled\":true}"
     )
   })
 

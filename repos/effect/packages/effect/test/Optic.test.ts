@@ -1,8 +1,35 @@
-import { Optic, Option, Result, Schema } from "effect"
+import { Optic, Option, Result, Schema, SchemaIssue } from "effect"
 import { describe, it } from "vitest"
-import { assertFailure, assertSuccess, assertTrue, deepStrictEqual, strictEqual, throws } from "./utils/assert.ts"
+import { assertSuccess, assertTrue, deepStrictEqual, strictEqual, throws } from "./utils/assert.ts"
 
 const addOne = (n: number) => n + 1
+
+function getFailure<A>(result: Result.Result<A, SchemaIssue.Issue>): SchemaIssue.Issue {
+  assertTrue(Result.isFailure(result))
+  return result.failure
+}
+
+function assertFailureMessage<A>(result: Result.Result<A, SchemaIssue.Issue>, message: string) {
+  strictEqual(SchemaIssue.defaultFormatter(getFailure(result)), message)
+}
+
+function assertFailureIssue<A>(result: Result.Result<A, SchemaIssue.Issue>, issue: SchemaIssue.Issue) {
+  strictEqual(getFailure(result), issue)
+}
+
+function assertPointerFailure<A>(
+  result: Result.Result<A, SchemaIssue.Issue>,
+  path: ReadonlyArray<PropertyKey>
+): SchemaIssue.Issue {
+  const failure = getFailure(result)
+  assertTrue(failure._tag === "Pointer")
+  deepStrictEqual(failure.path, path)
+  return failure.issue
+}
+
+function assertMissingKeyFailure<A>(result: Result.Result<A, SchemaIssue.Issue>, key: PropertyKey) {
+  assertTrue(assertPointerFailure(result, [key])._tag === "MissingKey")
+}
 
 describe("Optic", () => {
   it("replace should throw an error if the object has a non-Object constructor or null prototype", () => {
@@ -49,6 +76,35 @@ describe("Optic", () => {
     strictEqual(iso.get(1), 1)
     strictEqual(iso.set(1), 1)
     strictEqual(iso.modify(addOne)(1), 2)
+  })
+
+  describe("standalone functions", () => {
+    const lens = Optic.id<{ readonly value: number }>().key("value")
+    const optional = Optic.id<Record<string, number>>().at("value")
+    const prism = Optic.some<number>()
+    const traversal = Optic.id<ReadonlyArray<number>>().forEach((item) => item)
+
+    it("supports data-first usage", () => {
+      strictEqual(Optic.get({ value: 1 }, lens), 1)
+      assertSuccess(Optic.getResult({ value: 1 }, optional), 1)
+      deepStrictEqual(Optic.set(1, prism), Option.some(1))
+      deepStrictEqual(Optic.replace({ value: 1 }, lens, 2), { value: 2 })
+      assertSuccess(Optic.replaceResult({ value: 1 }, optional, 2), { value: 2 })
+      deepStrictEqual(Optic.modify({ value: 1 }, lens, addOne), { value: 2 })
+      deepStrictEqual(Optic.getAll([1, 2, 3], traversal), [1, 2, 3])
+      deepStrictEqual(Optic.modifyAll([1, 2, 3], traversal, addOne), [2, 3, 4])
+    })
+
+    it("supports data-last usage", () => {
+      strictEqual(Optic.get(lens)({ value: 1 }), 1)
+      assertSuccess(Optic.getResult(optional)({ value: 1 }), 1)
+      deepStrictEqual(Optic.set(prism)(1), Option.some(1))
+      deepStrictEqual(Optic.replace(lens, 2)({ value: 1 }), { value: 2 })
+      assertSuccess(Optic.replaceResult(optional, 2)({ value: 1 }), { value: 2 })
+      deepStrictEqual(Optic.modify(lens, addOne)({ value: 1 }), { value: 2 })
+      deepStrictEqual(Optic.getAll(traversal)([1, 2, 3]), [1, 2, 3])
+      deepStrictEqual(Optic.modifyAll(traversal, addOne)([1, 2, 3]), [2, 3, 4])
+    })
   })
 
   describe("compose", () => {
@@ -109,12 +165,13 @@ describe("Optic", () => {
     })
 
     it("preserves optional setter failures", () => {
+      const issue = new SchemaIssue.InvalidValue({ message: "cannot replace" })
       const optic = Optic.makeOptional<number, number>(
         Result.succeed,
-        () => Result.fail("cannot replace")
+        () => Result.fail(issue)
       ).compose(Optic.makeIso<number, number>((n) => n, (n) => n))
 
-      assertFailure(optic.replaceResult(2, 1), "cannot replace")
+      assertFailureIssue(optic.replaceResult(2, 1), issue)
       strictEqual(optic.replace(2, 1), 1)
       strictEqual(optic.modify(addOne)(1), 1)
     })
@@ -319,7 +376,7 @@ describe("Optic", () => {
       type S = number
       const optic = Optic.id<S>().check(Schema.isGreaterThan(0))
       assertSuccess(optic.getResult(1), 1)
-      assertFailure(optic.getResult(0), `Expected a value greater than 0, got 0`)
+      assertFailureMessage(optic.getResult(0), `Expected a value greater than 0`)
       strictEqual(optic.set(1), 1)
       strictEqual(optic.set(0), 0)
       deepStrictEqual(optic.modify(addOne)(1), 2)
@@ -330,12 +387,12 @@ describe("Optic", () => {
       type S = number
       const optic = Optic.id<S>().check(Schema.isInt(), Schema.isGreaterThan(0))
       assertSuccess(optic.getResult(1), 1)
-      assertFailure(optic.getResult(0), `Expected a value greater than 0, got 0`)
-      assertFailure(optic.getResult(1.1), `Expected an integer, got 1.1`)
-      assertFailure(
+      assertFailureMessage(optic.getResult(0), `Expected a value greater than 0`)
+      assertFailureMessage(optic.getResult(1.1), `Expected an integer`)
+      assertFailureMessage(
         optic.getResult(-1.1),
-        `Expected an integer, got -1.1
-Expected a value greater than 0, got -1.1`
+        `Expected an integer
+Expected a value greater than 0`
       )
       deepStrictEqual(optic.modify(addOne)(1), 2)
       deepStrictEqual(optic.modify(addOne)(0), 0)
@@ -348,10 +405,10 @@ Expected a value greater than 0, got -1.1`
         .check(Schema.isInt())
         .check(Schema.isGreaterThan(0))
 
-      assertFailure(
+      assertFailureMessage(
         optic.getResult(-1.1),
-        `Expected an integer, got -1.1
-Expected a value greater than 0, got -1.1`
+        `Expected an integer
+Expected a value greater than 0`
       )
     })
   })
@@ -365,7 +422,7 @@ Expected a value greater than 0, got -1.1`
     ).key("b")
 
     assertSuccess(optic.getResult({ _tag: "b", b: 1 }), 1)
-    assertFailure(optic.getResult({ _tag: "a", a: "value" }), `Expected "b" tag, got {"_tag":"a","a":"value"}`)
+    assertFailureMessage(optic.getResult({ _tag: "a", a: "value" }), `Expected "b" tag`)
     deepStrictEqual(optic.modify(addOne)({ _tag: "a", a: "value" }), { _tag: "a", a: "value" })
     deepStrictEqual(optic.modify(addOne)({ _tag: "b", b: 1 }), { _tag: "b", b: 2 })
   })
@@ -375,7 +432,7 @@ Expected a value greater than 0, got -1.1`
     const optic = Optic.id<S>().tag("b").key("b")
 
     assertSuccess(optic.getResult({ _tag: "b", b: 1 }), 1)
-    assertFailure(optic.getResult({ _tag: "a", a: "value" }), `Expected "b" tag, got "a"`)
+    assertFailureMessage(optic.getResult({ _tag: "a", a: "value" }), `Expected "b" tag`)
     deepStrictEqual(optic.modify(addOne)({ _tag: "a", a: "value" }), { _tag: "a", a: "value" })
     deepStrictEqual(optic.modify(addOne)({ _tag: "b", b: 1 }), { _tag: "b", b: 2 })
   })
@@ -386,9 +443,9 @@ Expected a value greater than 0, got -1.1`
       const optic = Optic.id<S>().at("a")
 
       assertSuccess(optic.getResult({ a: 1, b: 2 }), 1)
-      assertFailure(optic.getResult({ b: 2 }), `Key "a" not found`)
+      assertMissingKeyFailure(optic.getResult({ b: 2 }), "a")
       assertSuccess(optic.replaceResult(2, { a: 1, b: 2 }), { a: 2, b: 2 })
-      assertFailure(optic.replaceResult(2, { b: 2 }), `Key "a" not found`)
+      assertMissingKeyFailure(optic.replaceResult(2, { b: 2 }), "a")
       deepStrictEqual(optic.replace(2, { a: 1, b: 2 }), { a: 2, b: 2 })
       deepStrictEqual(optic.replace(2, { b: 2 }), { b: 2 })
     })
@@ -398,9 +455,9 @@ Expected a value greater than 0, got -1.1`
       const optic = Optic.id<S>().at(0)
 
       assertSuccess(optic.getResult([1, 2]), 1)
-      assertFailure(optic.getResult([]), `Key 0 not found`)
+      assertMissingKeyFailure(optic.getResult([]), 0)
       assertSuccess(optic.replaceResult(3, [1, 2]), [3, 2])
-      assertFailure(optic.replaceResult(2, []), `Key 0 not found`)
+      assertMissingKeyFailure(optic.replaceResult(2, []), 0)
       deepStrictEqual(optic.replace(3, [1, 2]), [3, 2])
       deepStrictEqual(optic.replace(2, []), [])
     })
@@ -410,9 +467,9 @@ Expected a value greater than 0, got -1.1`
     type S = { readonly a: number }
     const optic = Optic.id<S>().key("a").check(Schema.isGreaterThan(0))
     assertSuccess(optic.getResult({ a: 1 }), 1)
-    assertFailure(optic.getResult({ a: 0 }), `Expected a value greater than 0, got 0`)
+    assertFailureMessage(optic.getResult({ a: 0 }), `Expected a value greater than 0`)
     assertSuccess(optic.replaceResult(2, { a: 1 }), { a: 2 })
-    assertFailure(optic.replaceResult(2, { a: 0 }), `Expected a value greater than 0, got 0`)
+    assertFailureMessage(optic.replaceResult(2, { a: 0 }), `Expected a value greater than 0`)
     deepStrictEqual(optic.replace(2, { a: 1 }), { a: 2 })
     deepStrictEqual(optic.replace(2, { a: 0 }), { a: 0 })
   })
@@ -466,24 +523,22 @@ Expected a value greater than 0, got -1.1`
     it("fails when the replacement count does not match", () => {
       const optic = Optic.id<ReadonlyArray<number>>().forEach((element) => element)
 
-      assertFailure(
+      assertFailureMessage(
         optic.replaceResult([2], [1, 2]),
         "each: replacement length mismatch: 1 !== 2"
       )
     })
 
     it("fails when an inner setter fails", () => {
+      const issue = new SchemaIssue.InvalidValue({ message: "cannot replace" })
       const optic = Optic.id<ReadonlyArray<number>>().forEach(() =>
         Optic.makeOptional<number, number>(
           Result.succeed,
-          () => Result.fail("cannot replace")
+          () => Result.fail(issue)
         )
       )
 
-      assertFailure(
-        optic.replaceResult([2], [1]),
-        "each: could not set element 0"
-      )
+      strictEqual(assertPointerFailure(optic.replaceResult([2], [1]), [0]), issue)
     })
   })
 
@@ -517,9 +572,10 @@ Expected a value greater than 0, got -1.1`
 
     it("returns the original source when the traversal fails", () => {
       type S = { readonly values?: ReadonlyArray<number> }
+      const issue = new SchemaIssue.InvalidValue({ message: "missing values" })
       const optic: Optic.Traversal<S, number> = Optic.makeOptional(
-        (s) => s.values === undefined ? Result.fail("missing values") : Result.succeed(s.values),
-        (values, s) => s.values === undefined ? Result.fail("missing values") : Result.succeed({ ...s, values })
+        (s) => s.values === undefined ? Result.fail(issue) : Result.succeed(s.values),
+        (values, s) => s.values === undefined ? Result.fail(issue) : Result.succeed({ ...s, values })
       )
       const source: S = {}
 
@@ -530,7 +586,7 @@ Expected a value greater than 0, got -1.1`
   it("notUndefined", () => {
     const optic = Optic.id<number | undefined>().notUndefined()
     assertSuccess(optic.getResult(1), 1)
-    assertFailure(optic.getResult(undefined), "Expected a value other than `undefined`, got undefined")
+    assertFailureMessage(optic.getResult(undefined), "Expected a value other than `undefined`")
 
     deepStrictEqual(optic.replace(2, undefined), 2)
     deepStrictEqual(optic.replace(2, 1), 2)
@@ -547,9 +603,11 @@ Expected a value greater than 0, got -1.1`
   })
 
   it("getAll returns an empty array when the traversal fails", () => {
+    const focusIssue = new SchemaIssue.InvalidValue({ message: "cannot focus" })
+    const replaceIssue = new SchemaIssue.InvalidValue({ message: "cannot replace" })
     const optic: Optic.Traversal<number, number> = Optic.makeOptional<number, ReadonlyArray<number>>(
-      () => Result.fail("cannot focus"),
-      () => Result.fail("cannot replace")
+      () => Result.fail(focusIssue),
+      () => Result.fail(replaceIssue)
     )
 
     deepStrictEqual(Optic.getAll(optic)(1), [])
@@ -591,22 +649,22 @@ Expected a value greater than 0, got -1.1`
   it("fromChecks", () => {
     const optic = Optic.id<number>().compose(Optic.fromChecks(Schema.isGreaterThan(0), Schema.isInt()))
     assertSuccess(optic.getResult(1), 1)
-    assertFailure(optic.getResult(0), `Expected a value greater than 0, got 0`)
-    assertFailure(optic.getResult(1.1), `Expected an integer, got 1.1`)
+    assertFailureMessage(optic.getResult(0), `Expected a value greater than 0`)
+    assertFailureMessage(optic.getResult(1.1), `Expected an integer`)
   })
 
   describe("Option", () => {
     it("some", () => {
       const optic = Optic.id<Option.Option<number>>().compose(Optic.some())
       assertSuccess(optic.getResult(Option.some(1)), 1)
-      assertFailure(optic.getResult(Option.none()), `Expected a Some value, got none()`)
+      assertFailureMessage(optic.getResult(Option.none()), `Expected a Some value`)
       deepStrictEqual(optic.set(2), Option.some(2))
     })
 
     it("none", () => {
       const optic = Optic.id<Option.Option<number>>().compose(Optic.none())
       assertSuccess(optic.getResult(Option.none()), undefined)
-      assertFailure(optic.getResult(Option.some(1)), `Expected a None value, got some(1)`)
+      assertFailureMessage(optic.getResult(Option.some(1)), `Expected a None value`)
       deepStrictEqual(optic.set(undefined), Option.none())
     })
   })
@@ -615,14 +673,14 @@ Expected a value greater than 0, got -1.1`
     it("success", () => {
       const optic = Optic.id<Result.Result<number, string>>().compose(Optic.success())
       assertSuccess(optic.getResult(Result.succeed(1)), 1)
-      assertFailure(optic.getResult(Result.fail("error")), `Expected a Result.Success value, got failure("error")`)
+      assertFailureMessage(optic.getResult(Result.fail("error")), `Expected a Result.Success value`)
       deepStrictEqual(optic.set(2), Result.succeed(2))
     })
 
     it("failure", () => {
       const optic = Optic.id<Result.Result<number, string>>().compose(Optic.failure())
       assertSuccess(optic.getResult(Result.fail("error")), "error")
-      assertFailure(optic.getResult(Result.succeed(1)), `Expected a Result.Failure value, got success(1)`)
+      assertFailureMessage(optic.getResult(Result.succeed(1)), `Expected a Result.Failure value`)
       deepStrictEqual(optic.set("new error"), Result.fail("new error"))
     })
   })

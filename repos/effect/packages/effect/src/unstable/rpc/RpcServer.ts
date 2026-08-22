@@ -27,6 +27,7 @@ import * as Pull from "../../Pull.ts"
 import * as Queue from "../../Queue.ts"
 import * as Schedule from "../../Schedule.ts"
 import * as Schema from "../../Schema.ts"
+import * as SchemaIssue from "../../SchemaIssue.ts"
 import * as Scope from "../../Scope.ts"
 import * as Semaphore from "../../Semaphore.ts"
 import { Stdio } from "../../Stdio.ts"
@@ -240,7 +241,7 @@ export const makeNoSerialization: <Rpcs extends Rpc.Any>(
       return Effect.interrupt
     }
     const rpc = group.requests.get(request.tag) as any as Rpc.AnyWithProps
-    const entry = services.mapUnsafe.get(rpc?.key) as Rpc.Handler<Rpcs["_tag"]>
+    const entry = Context.getOrUndefinedUnsafe(services, rpc?.key) as Rpc.Handler<Rpcs["_tag"]>
     if (!rpc || !entry) {
       const write = Effect.catchDefect(
         options.onFromServer({
@@ -319,9 +320,10 @@ export const makeNoSerialization: <Rpcs extends Rpc.Any>(
       effect = opts.onRequest(effect)
     }
     if (enableTracing) {
-      const parentSpan = requestFiber.context.mapUnsafe.get(
-        Tracer.ParentSpan.key
-      ) as Tracer.AnySpan | undefined
+      const parentSpan = Context.getOrUndefined(
+        requestFiber.context,
+        Tracer.ParentSpan
+      )
       effect = Effect.withSpan(effect, `${spanPrefix}.${request.tag}`, {
         captureStackTrace: false,
         attributes: options.spanAttributes,
@@ -599,7 +601,7 @@ export const make: <Rpcs extends Rpc.Any>(
   const getSchemas = (rpc: Rpc.AnyWithProps) => {
     let schemas = schemasCache.get(rpc)
     if (!schemas) {
-      const entry = services.mapUnsafe.get(rpc.key) as Rpc.Handler<Rpcs["_tag"]>
+      const entry = Context.getOrUndefinedUnsafe(services, rpc.key) as Rpc.Handler<Rpcs["_tag"]>
       const streamSchemas = RpcSchema.getStreamSchemas(rpc.successSchema)
       schemas = {
         decode: Schema.decodeUnknownEffect(Schema.toCodecJson(rpc.payloadSchema)) as any,
@@ -635,7 +637,7 @@ export const make: <Rpcs extends Rpc.Any>(
       Effect.flatMap((a) => send(client.id, onSuccess(a), collector && collector.clearUnsafe())),
       Effect.catchCause((cause) => {
         client.schemas.delete(requestId)
-        const defect = Cause.squash(Cause.map(cause, (e) => e.issue.toString()))
+        const defect = Cause.squash(Cause.map(cause, (e) => SchemaIssue.defaultFormatter(e.issue)))
         return Effect.andThen(
           sendRequestDefect(client, requestId, encodeDefect, defect),
           server.write(client.id, { _tag: "Interrupt", requestId, interruptors: [] })
@@ -708,7 +710,8 @@ export const make: <Rpcs extends Rpc.Any>(
         return Effect.matchEffect(
           Effect.provideContext(schemas.decode(request.payload), schemas.context),
           {
-            onFailure: (error) => sendRequestDefect(client, requestId, schemas.encodeDefect, error.issue.toString()),
+            onFailure: (error) =>
+              sendRequestDefect(client, requestId, schemas.encodeDefect, SchemaIssue.defaultFormatter(error.issue)),
             onSuccess: (payload) => {
               client.schemas.set(
                 requestId,
@@ -803,6 +806,7 @@ export const layerHttp = <Rpcs extends Rpc.Any>(options: {
   readonly spanAttributes?: Record<string, unknown> | undefined
   readonly concurrency?: number | "unbounded" | undefined
   readonly disableFatalDefects?: boolean | undefined
+  readonly streamBufferSize?: number | "unbounded" | undefined
 }): Layer.Layer<
   never,
   never,
@@ -851,6 +855,7 @@ export class Protocol extends Context.Service<
     readonly supportsAck: boolean
     readonly supportsTransferables: boolean
     readonly supportsSpanPropagation: boolean
+    readonly supportsNotifications: boolean
   }
 >()("effect/rpc/RpcServer/Protocol") {
   /**
@@ -968,7 +973,11 @@ export const layerProtocolWebsocket = (options: {
  * @category protocols
  * @since 4.0.0
  */
-export const makeProtocolWithHttpEffect: Effect.Effect<
+export const makeProtocolWithHttpEffect: (
+  options?: {
+    readonly streamBufferSize?: number | "unbounded" | undefined
+  } | undefined
+) => Effect.Effect<
   {
     readonly protocol: Protocol["Service"]
     readonly httpEffect: Effect.Effect<
@@ -979,7 +988,7 @@ export const makeProtocolWithHttpEffect: Effect.Effect<
   },
   never,
   RpcSerialization.RpcSerialization
-> = Effect.gen(function*() {
+> = Effect.fnUntraced(function*(options = {}) {
   const serialization = yield* RpcSerialization.RpcSerialization
   const includesFraming = serialization.includesFraming
   const isBinary = !serialization.contentType.includes("json")
@@ -1014,7 +1023,11 @@ export const makeProtocolWithHttpEffect: Effect.Effect<
       isBinary ? Effect.map(request.arrayBuffer, (buf) => new Uint8Array(buf)) : request.text
     )
     const id = clientId++
-    const queue = yield* Queue.make<Uint8Array | FromServerEncoded, Cause.Done>()
+    const queue = yield* Queue.make<Uint8Array | FromServerEncoded, Cause.Done>({
+      capacity: includesFraming && options.streamBufferSize !== "unbounded"
+        ? options.streamBufferSize ?? 16
+        : undefined
+    })
     const parser = serialization.makeUnsafe()
     const requestIds: Array<RequestId> = []
 
@@ -1022,7 +1035,11 @@ export const makeProtocolWithHttpEffect: Effect.Effect<
       typeof data === "string" ? Queue.offer(queue, encoder.encode(data)) : Queue.offer(queue, data)
     const client: Client = {
       write: !includesFraming
-        ? (response) => Queue.offer(queue, response)
+        ? (response) =>
+          // buffered responses cannot carry notifications, so they are dropped
+          response._tag === "Request" && response.isNotification === true
+            ? Effect.void
+            : Queue.offer(queue, response)
         : (response) => {
           try {
             const encoded = parser.encode(response)
@@ -1108,7 +1125,8 @@ export const makeProtocolWithHttpEffect: Effect.Effect<
       initialMessage: Effect.succeedNone,
       supportsAck: false,
       supportsTransferables: false,
-      supportsSpanPropagation: false
+      supportsSpanPropagation: false,
+      supportsNotifications: includesFraming
     })
   })
 
@@ -1137,12 +1155,13 @@ const mergeUint8Arrays = (arrays: ReadonlyArray<Uint8Array>) => {
  */
 export const makeProtocolHttp: (options: {
   readonly path: HttpRouter.PathInput
+  readonly streamBufferSize?: number | "unbounded" | undefined
 }) => Effect.Effect<
   Protocol["Service"],
   never,
   RpcSerialization.RpcSerialization | HttpRouter.HttpRouter
 > = Effect.fnUntraced(function*(options) {
-  const { httpEffect, protocol } = yield* makeProtocolWithHttpEffect
+  const { httpEffect, protocol } = yield* makeProtocolWithHttpEffect(options)
   const router = yield* HttpRouter.HttpRouter
   yield* router.add("POST", options.path, httpEffect)
   return protocol
@@ -1157,6 +1176,7 @@ export const makeProtocolHttp: (options: {
  */
 export const layerProtocolHttp = (options: {
   readonly path: HttpRouter.PathInput
+  readonly streamBufferSize?: number | "unbounded" | undefined
 }): Layer.Layer<Protocol, never, RpcSerialization.RpcSerialization | HttpRouter.HttpRouter> => {
   return Layer.effect(Protocol)(makeProtocolHttp(options))
 }
@@ -1175,6 +1195,7 @@ export const toHttpEffect: <Rpcs extends Rpc.Any>(
     readonly spanPrefix?: string | undefined
     readonly spanAttributes?: Record<string, unknown> | undefined
     readonly disableFatalDefects?: boolean | undefined
+    readonly streamBufferSize?: number | "unbounded" | undefined
   } | undefined
 ) => Effect.Effect<
   Effect.Effect<HttpServerResponse.HttpServerResponse, never, Scope.Scope | HttpServerRequest.HttpServerRequest>,
@@ -1191,9 +1212,10 @@ export const toHttpEffect: <Rpcs extends Rpc.Any>(
     readonly spanPrefix?: string | undefined
     readonly spanAttributes?: Record<string, unknown> | undefined
     readonly disableFatalDefects?: boolean | undefined
+    readonly streamBufferSize?: number | "unbounded" | undefined
   }
 ) {
-  const { httpEffect, protocol } = yield* makeProtocolWithHttpEffect
+  const { httpEffect, protocol } = yield* makeProtocolWithHttpEffect(options)
   yield* make(group, options).pipe(
     Effect.provideService(Protocol, protocol),
     Effect.forkScoped
@@ -1299,7 +1321,8 @@ export const makeProtocolStdio = Effect.gen(function*() {
       initialMessage: Effect.succeedNone,
       supportsAck: true,
       supportsTransferables: false,
-      supportsSpanPropagation: true
+      supportsSpanPropagation: true,
+      supportsNotifications: true
     }
   }))
 })
@@ -1358,6 +1381,7 @@ export const makeProtocolWorkerRunner: Effect.Effect<
         clientIds.delete(clientId)
         return Queue.offer(disconnects, clientId)
       }),
+      Effect.forever,
       Effect.forkScoped
     )
   }
@@ -1372,7 +1396,8 @@ export const makeProtocolWorkerRunner: Effect.Effect<
     initialMessage: Effect.asSome(Deferred.await(initialMessage)),
     supportsAck: true,
     supportsTransferables: true,
-    supportsSpanPropagation: true
+    supportsSpanPropagation: true,
+    supportsNotifications: true
   }
 }))
 
@@ -1493,7 +1518,8 @@ const makeSocketProtocol: Effect.Effect<
       initialMessage: Effect.succeedNone,
       supportsAck: true,
       supportsTransferables: false,
-      supportsSpanPropagation: true
+      supportsSpanPropagation: true,
+      supportsNotifications: true
     })
   })
 

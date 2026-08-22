@@ -31,9 +31,11 @@ import * as Exit_ from "./Exit.ts"
 import type { Formatter } from "./Formatter.ts"
 import { format, formatPropertyKey } from "./Formatter.ts"
 import { identity, memoize } from "./Function.ts"
+import * as Graph_ from "./Graph.ts"
 import * as HashMap_ from "./HashMap.ts"
 import * as HashSet_ from "./HashSet.ts"
 import * as core from "./internal/core.ts"
+import * as InternalGraph from "./internal/graph.ts"
 import * as InternalRecord from "./internal/record.ts"
 import * as InternalAnnotations from "./internal/schema/annotations.ts"
 import * as InternalSchema from "./internal/schema/schema.ts"
@@ -55,7 +57,6 @@ import * as RegExp_ from "./RegExp.ts"
 import * as Result_ from "./Result.ts"
 import * as Scheduler from "./Scheduler.ts"
 import * as SchemaAST from "./SchemaAST.ts"
-import { isSchemaError, SchemaError } from "./SchemaError.ts"
 import * as SchemaGetter from "./SchemaGetter.ts"
 import * as SchemaIssue from "./SchemaIssue.ts"
 import * as SchemaParser from "./SchemaParser.ts"
@@ -63,7 +64,7 @@ import type * as SchemaRepresentation from "./SchemaRepresentation.ts"
 import * as SchemaTransformation from "./SchemaTransformation.ts"
 import type { Assign, Lambda, Mutable, Simplify } from "./Struct.ts"
 import * as Struct_ from "./Struct.ts"
-import * as FastCheck from "./testing/FastCheck.ts"
+import type * as FastCheck from "./testing/FastCheck.ts"
 import type { RequiredKeys, UnionToIntersection } from "./Types.ts"
 import type { Unify } from "./Unify.ts"
 
@@ -203,7 +204,9 @@ export interface BottomWithoutNew<
    * **Gotchas**
    *
    * Throws an `Error` with the schema issue in its `cause` when validation
-   * fails.
+   * fails. Schema validation failures use the generic message
+   * `"Schema validation failed"`; format the `cause` explicitly with
+   * `SchemaIssue.makeFormatterDefault()` when human-readable details are needed.
    * Causes that contain defects, interruptions, or other non-schema reasons
    * throw with the underlying `Cause` attached instead.
    *
@@ -244,10 +247,15 @@ export interface BottomWithoutNew<
    * Use when constructor input may fail validation and you want to
    * compose that failure with other `Effect` operations instead of throwing.
    *
+   * **Details**
+   *
+   * Validation failures are returned directly as `SchemaIssue.Issue` values
+   * and are not wrapped in `SchemaError`.
+   *
    * @see {@link BottomWithoutNew.make} — construct synchronously when validation failure should throw
    * @see {@link BottomWithoutNew.makeOption} — construct synchronously and discard validation details
    */
-  makeEffect(input: this["~type.make.in"], options?: MakeOptions): Effect.Effect<this["Type"], SchemaError>
+  makeEffect(input: this["~type.make.in"], options?: MakeOptions): Effect.Effect<this["Type"], SchemaIssue.Issue>
 }
 
 /**
@@ -449,7 +457,7 @@ export interface declareConstructor<T, E, TypeParameters extends ReadonlyArray<C
  * **Example** (Schema for a parametric `Box<A>` type)
  *
  * ```ts import.meta.vitest
- * import { Effect, Option, Schema, SchemaIssue as Issue, SchemaParser } from "effect"
+ * import { Effect, Schema, SchemaIssue, SchemaParser } from "effect"
  *
  * interface Box<A> {
  *   readonly value: A
@@ -464,7 +472,7 @@ export interface declareConstructor<T, E, TypeParameters extends ReadonlyArray<C
  *     ([itemCodec]) =>
  *       (u, ast, options) => {
  *         if (!isBox(u)) {
- *           return Effect.fail(new SchemaIssue.InvalidType(ast, Option.some(u)))
+ *           return Effect.fail(new SchemaIssue.InvalidType(ast, u, options))
  *         }
  *         return Effect.map(
  *           SchemaParser.decodeUnknownEffect(itemCodec)(u.value, options),
@@ -552,10 +560,10 @@ export function declare<T, Iso = T>(
 ): declare<T, Iso> {
   return declareConstructor<T, T, Iso>()(
     [],
-    () => (input, ast) =>
+    () => (input, ast, options) =>
       is(input) ?
         Effect.succeed(input) :
-        Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input))),
+        Effect.fail(new SchemaIssue.InvalidType(ast, input, options)),
     annotations
   )
 }
@@ -1135,53 +1143,75 @@ export interface Optic<out T, out Iso> extends Schema<T> {
   readonly "Rebuild": Optic<T, Iso>
 }
 
-export {
-  /**
-   * Returns `true` if `u` is a {@link SchemaError}.
-   *
-   * **Example** (Narrowing Schema errors)
-   *
-   * ```ts import.meta.vitest
-   * import { Result, Schema } from "effect"
-   *
-   * const result = Result.try(() => Schema.decodeUnknownSync(Schema.Number)("oops"))
-   * const error: unknown = Result.isFailure(result) ? result.failure : undefined
-   * Schema.isSchemaError(error) // => true
-   * ```
-   *
-   * @category guards
-   * @since 4.0.0
-   */
-  isSchemaError,
-  /**
-   * Error thrown (or returned as the error channel value) when schema decoding
-   * or encoding fails.
-   *
-   * **Details**
-   *
-   * The `issue` field contains a structured {@link SchemaIssue.Issue} tree describing
-   * every validation failure, including the path to the problematic value,
-   * expected types, and actual values received. `message` renders the issue tree
-   * as a human-readable string.
-   *
-   * Use {@link isSchemaError} to narrow an unknown value to `SchemaError`.
-   *
-   * **Example** (Inspecting a SchemaError)
-   *
-   * ```ts import.meta.vitest
-   * import { Option, Result, Schema, SchemaIssue } from "effect"
-   *
-   * const result = Schema.decodeUnknownResult(Schema.Number)("not a number")
-   * const actual = Result.isFailure(result) && result.failure.issue instanceof SchemaIssue.InvalidType
-   *   ? result.failure.issue.actual
-   *   : Option.none()
-   * actual // => Option.some("not a number")
-   * ```
-   *
-   * @category errors
-   * @since 4.0.0
-   */
-  SchemaError
+const SchemaErrorTypeId = "~effect/SchemaError/SchemaError"
+
+/**
+ * Error thrown or returned when schema decoding or encoding fails.
+ *
+ * **Details**
+ *
+ * The `issue` field contains a structured {@link SchemaIssue.Issue} tree describing
+ * every validation failure, including the path to the problematic value and
+ * the expected type or constraint. The `message` field renders the issue tree
+ * with the default formatter.
+ *
+ * **Gotchas**
+ *
+ * Parsing with `reportInput: true` adds an enumerable `input` field to
+ * value-bearing issues. Built-in messages may include reported input, and
+ * custom annotations or messages are not sanitized.
+ *
+ * **Example** (Inspecting a SchemaError)
+ *
+ * ```ts import.meta.vitest
+ * import { Result, Schema } from "effect"
+ *
+ * const result = Schema.decodeUnknownResult(Schema.Number)("not a number")
+ * const message = Result.isFailure(result) ? result.failure.message : ""
+ * message // => "Expected number"
+ * ```
+ *
+ * @see {@link isSchemaError} for narrowing unknown values
+ * @category errors
+ * @since 4.0.0
+ */
+export class SchemaError extends Data.TaggedError("SchemaError")<{
+  readonly issue: SchemaIssue.Issue
+}> {
+  readonly [SchemaErrorTypeId]: typeof SchemaErrorTypeId = SchemaErrorTypeId
+  constructor(issue: SchemaIssue.Issue) {
+    super({ issue })
+  }
+  override get message() {
+    return SchemaIssue.defaultFormatter(this.issue)
+  }
+  override toString() {
+    return `SchemaError(${this.message})`
+  }
+}
+
+/**
+ * Returns `true` if `u` is a {@link SchemaError}.
+ *
+ * **When to use**
+ *
+ * Use when you need to narrow an unknown value to `SchemaError`.
+ *
+ * **Example** (Narrowing Schema errors)
+ *
+ * ```ts import.meta.vitest
+ * import { Result, Schema } from "effect"
+ *
+ * const result = Result.try(() => Schema.decodeUnknownSync(Schema.Number)("oops"))
+ * const error: unknown = Result.isFailure(result) ? result.failure : undefined
+ * Schema.isSchemaError(error) // => true
+ * ```
+ *
+ * @category guards
+ * @since 4.0.0
+ */
+export function isSchemaError(u: unknown): u is SchemaError {
+  return Predicate.hasProperty(u, SchemaErrorTypeId) && u[SchemaErrorTypeId] === SchemaErrorTypeId
 }
 
 function makeStandardResult<A>(exit: Exit_.Exit<StandardSchemaV1.Result<A>>): StandardSchemaV1.Result<A> {
@@ -1416,6 +1446,9 @@ export const is = SchemaParser.is
  *
  * The input is narrowed if the assertion succeeds. If schema validation fails,
  * the assertion throws an `Error` whose cause is `SchemaIssue.Issue`.
+ * Schema validation failures use the generic message `"Schema validation failed"`.
+ * Format the `cause` explicitly with `SchemaIssue.makeFormatterDefault()` when
+ * human-readable details are needed.
  *
  * **Gotchas**
  *
@@ -1478,8 +1511,17 @@ export function decodeUnknownEffect<S extends Constraint>(schema: S, options?: S
     input: unknown,
     options?: SchemaAST.ParseOptions
   ): Effect.Effect<S["Type"], SchemaError, S["DecodingServices"]> => {
-    return InternalSchema.fromIssueEffect(parser(input, options))
+    return fromIssueEffect(parser(input, options))
   }
+}
+
+function fromIssueEffect<A, R>(
+  self: Effect.Effect<A, SchemaIssue.Issue, R>
+): Effect.Effect<A, SchemaError, R> {
+  return Effect.catchCause(
+    self,
+    (cause) => Effect.failCauseSync(() => Cause_.map(cause, (issue) => new SchemaError(issue)))
+  )
 }
 
 /**
@@ -1939,7 +1981,7 @@ export function encodeUnknownEffect<S extends Constraint>(schema: S, options?: S
     input: unknown,
     options?: SchemaAST.ParseOptions
   ): Effect.Effect<S["Encoded"], SchemaError, S["EncodingServices"]> => {
-    return InternalSchema.fromIssueEffect(parser(input, options))
+    return fromIssueEffect(parser(input, options))
   }
 }
 
@@ -2455,7 +2497,10 @@ interface optionalLambda extends Lambda {
  * @category combinators
  * @since 3.10.0
  */
-export const optional = Struct_.lambda<optionalLambda>((self) => optionalKey(UndefinedOr(self)))
+export const optional = Struct_.lambda<optionalLambda>((self) => {
+  const schema = UndefinedOr(self)
+  return make(SchemaAST.optional(self.ast), { schema })
+})
 
 interface requiredLambda extends Lambda {
   <S extends Constraint>(self: optional<S>): S
@@ -3398,7 +3443,7 @@ export declare namespace Struct {
   type MakeInView<
     F extends Fields,
     O extends keyof F = TypeOptionalKeys<F> | TypeConstructorDefaultedKeys<F>
-  > = [O] extends [never] ? ReadonlyMakeIn<F> : Simplify<SetOptional<ReadonlyMakeIn<F>, O>>
+  > = [O] extends [never] ? Simplify<ReadonlyMakeIn<F>> : Simplify<SetOptional<ReadonlyMakeIn<F>, O>>
 
   /**
    * Computes the input object type accepted when constructing a struct value.
@@ -5596,7 +5641,7 @@ export function decodeTo<To extends Constraint, From extends Constraint, RD = ne
  * ```
  *
  * @category transforming
- * @since 3.10.0
+ * @since 4.0.0
  */
 export function decode<S extends Constraint, RD = never, RE = never>(transformation: {
   readonly decode: SchemaGetter.Getter<S["Type"], S["Type"], RD>
@@ -5685,7 +5730,7 @@ export function encodeTo<To extends Constraint, From extends Constraint, RD = ne
  * ```
  *
  * @category transforming
- * @since 3.10.0
+ * @since 4.0.0
  */
 export function encode<S extends Constraint, RD = never, RE = never>(transformation: {
   readonly decode: SchemaGetter.Getter<S["Encoded"], S["Encoded"], RD>
@@ -5744,7 +5789,7 @@ export interface withConstructorDefault<S extends Constraint & WithoutConstructo
  * **Details**
  *
  * Constructor defaults are applied only during `make*`, not during decoding or
- * encoding.
+ * encoding. Failures are represented directly as `SchemaIssue.Issue` values.
  *
  * **Example** (Defining an optional field with a static default)
  *
@@ -5767,10 +5812,10 @@ export interface withConstructorDefault<S extends Constraint & WithoutConstructo
 export function withConstructorDefault<S extends Constraint & WithoutConstructorDefault>(
   // `S["~type.make.in"]` instead of `S["Type"]` is intentional here because
   // it makes easier to define the default value if there are nested defaults
-  defaultValue: Effect.Effect<S["~type.make.in"], SchemaError>
+  defaultValue: Effect.Effect<S["~type.make.in"], SchemaIssue.Issue>
 ) {
   return (schema: S): withConstructorDefault<S> =>
-    make(SchemaAST.withConstructorDefault(schema.ast, toIssueEffect(defaultValue)), { schema })
+    make(SchemaAST.withConstructorDefault(schema.ast, defaultValue), { schema })
 }
 
 function toIssueEffect<A, R>(
@@ -6551,13 +6596,14 @@ export const makeFilter: <T>(
  * **Details**
  *
  * - `string`: failure with that string as the message. Produces an
- *   {@link SchemaIssue.InvalidValue} wrapping the input, with the string used as
- *   the issue's `message` annotation.
- * - {@link SchemaIssue.Issue}: a fully-formed issue, returned as-is.
+ *   {@link SchemaIssue.InvalidValue} with the string used as the issue's
+ *   `message` annotation and honors `reportInput`.
+ * - {@link SchemaIssue.Issue}: a fully-formed issue, returned as-is. It is not
+ *   enriched when `reportInput` is enabled.
  * - `{ path, issue }`: failure attached to a nested path. `issue` is either
- *   a `string` (wrapped in an {@link SchemaIssue.InvalidValue}) or a full
- *   {@link SchemaIssue.Issue}; the result is wrapped in an {@link SchemaIssue.Pointer}
- *   at the given `path`.
+ *   a `string` (wrapped in an {@link SchemaIssue.InvalidValue} that honors
+ *   `reportInput`) or a full {@link SchemaIssue.Issue} (returned unchanged);
+ *   the result is wrapped in an {@link SchemaIssue.Pointer} at the given `path`.
  *
  * @category models
  * @since 3.10.0
@@ -6578,8 +6624,8 @@ export type FilterIssue = string | SchemaIssue.Issue | {
  * - `undefined`: success. The input satisfies the filter.
  * - `true`: success. Equivalent to `undefined`, useful when the predicate is
  *   a plain boolean expression.
- * - `false`: generic failure. Produces an {@link SchemaIssue.InvalidValue} wrapping
- *   the input, with no custom message.
+ * - `false`: generic failure. Produces an {@link SchemaIssue.InvalidValue}
+ *   with no custom message and honors `reportInput`.
  * - {@link FilterIssue}: a single failure. See {@link FilterIssue} for the
  *   shapes (`string`, {@link SchemaIssue.Issue}, or `{ path, issue }`).
  * - `ReadonlyArray<FilterIssue>`: several failures reported together. An
@@ -9379,7 +9425,7 @@ export function isPropertyNames(keySchema: Constraint, annotations?: Annotations
         }
       }
       if (Arr.isArrayNonEmpty(issues)) {
-        return new SchemaIssue.Composite(ast, Option_.some(input), issues)
+        return new SchemaIssue.Composite(ast, issues, input, options)
       }
       return true
     },
@@ -9580,12 +9626,11 @@ export function Option<A extends Constraint>(value: A): Option<A> {
           SchemaParser.decodeUnknownEffect(value)(input.value, options),
           {
             onSuccess: Option_.some,
-            onFailure: (issue) =>
-              new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["value"], issue)])
+            onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "value", issue, input, options)
           }
         )
       }
-      return Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input)))
+      return Effect.fail(new SchemaIssue.InvalidType(ast, input, options))
     },
     {
       representation: {
@@ -9898,20 +9943,18 @@ export function Result<A extends Constraint, E extends Constraint>(
     [success, failure],
     ([success, failure]) => (input, ast, options) => {
       if (!Result_.isResult(input)) {
-        return Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input)))
+        return Effect.fail(new SchemaIssue.InvalidType(ast, input, options))
       }
       switch (input._tag) {
         case "Success":
           return Effect.mapBothEager(SchemaParser.decodeEffect(success)(input.success, options), {
             onSuccess: Result_.succeed,
-            onFailure: (issue) =>
-              new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["success"], issue)])
+            onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "success", issue, input, options)
           })
         case "Failure":
           return Effect.mapBothEager(SchemaParser.decodeEffect(failure)(input.failure, options), {
             onSuccess: Result_.fail,
-            onFailure: (issue) =>
-              new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["failure"], issue)])
+            onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "failure", issue, input, options)
           })
       }
     },
@@ -10034,13 +10077,7 @@ const RedactedOptionsPayload = declare((input): input is RedactedRepresentationO
 const RedactedRepresentationPayload: Decoder<RedactedRepresentationPayload> = Union([Null, RedactedOptionsPayload])
 
 /**
- * Schema for values that hide sensitive information from error output and
- * inspection.
- *
- * **Details**
- *
- * If the wrapped schema fails, the issue will be redacted to prevent both
- * the actual value and the schema details from being exposed.
+ * Schema for `Redacted` values, which hide their contents from inspection.
  *
  * Options:
  *
@@ -10088,17 +10125,24 @@ export function Redacted<S extends Constraint>(value: S, options?: {
               SchemaParser.decodeUnknownEffect(value)(Redacted_.value(input), poptions),
               {
                 onSuccess: () => input,
-                onFailure: (/** ignore the actual issue because of security reasons */) => {
-                  const oinput = Option_.some(input)
-                  return new SchemaIssue.Composite(ast, oinput, [
-                    new SchemaIssue.Pointer(["value"], new SchemaIssue.InvalidValue(oinput))
-                  ])
+                onFailure: (/** ignore the issue because of security reasons */) => {
+                  return new SchemaIssue.Composite(
+                    ast,
+                    [
+                      new SchemaIssue.Pointer(
+                        ["value"],
+                        new SchemaIssue.InvalidValue(undefined, input, poptions)
+                      )
+                    ],
+                    input,
+                    poptions
+                  )
                 }
               }
             )
         )
       }
-      return Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input)))
+      return Effect.fail(new SchemaIssue.InvalidType(ast, input, poptions))
     },
     {
       representation: {
@@ -10115,7 +10159,7 @@ export function Redacted<S extends Constraint>(value: S, options?: {
       expected: "Redacted",
       toCodecJson: ([value]) =>
         link<Redacted_.Redacted<S["Encoded"]>>()(
-          redact(value),
+          value,
           {
             decode: SchemaGetter.transform((e) => Redacted_.make(e, { label })),
             encode: disallowJsonEncode ?
@@ -10164,21 +10208,8 @@ export const RedactedReviver = InternalSchema.makeDeclarationReviver(
  * @category models
  * @since 4.0.0
  */
-export interface RedactedFromValue<S extends Constraint>
-  extends decodeTo<Redacted<toType<S>>, middlewareDecoding<S, S["DecodingServices"]>>
-{
+export interface RedactedFromValue<S extends Constraint> extends decodeTo<Redacted<toType<S>>, S> {
   readonly "Rebuild": RedactedFromValue<S>
-}
-
-/**
- * Middleware that wraps decoded errors in `Redacted`, preventing sensitive
- * schema details from leaking in error messages.
- *
- * @category transforming
- * @since 4.0.0
- */
-export function redact<S extends Constraint>(schema: S): middlewareDecoding<S, S["DecodingServices"]> {
-  return middlewareDecoding<S, S["DecodingServices"]>(Effect.mapErrorEager(SchemaIssue.redact))(schema)
 }
 
 /**
@@ -10194,23 +10225,21 @@ export function RedactedFromValue<S extends Constraint>(value: S, options?: {
   readonly label?: string | undefined
   readonly disallowEncode?: boolean | undefined
 }): RedactedFromValue<S> {
-  return redact(value).pipe(
-    decodeTo(
-      Redacted(toType(value), {
-        label: options?.label,
-        disallowJsonEncode: options?.disallowEncode
-      }),
-      {
-        decode: SchemaGetter.transform((t) => Redacted_.make(t, { label: options?.label })),
-        encode: options?.disallowEncode ?
-          SchemaGetter.forbidden((oe) =>
-            "Cannot encode Redacted" +
-            (Option_.isSome(oe) && typeof oe.value.label === "string" ? ` with label: "${oe.value.label}"` : "")
-          ) :
-          SchemaGetter.transform(Redacted_.value)
-      }
-    )
-  )
+  return decodeTo<Redacted<toType<S>>, S>(
+    Redacted(toType(value), {
+      label: options?.label,
+      disallowJsonEncode: options?.disallowEncode
+    }),
+    {
+      decode: SchemaGetter.transform((t) => Redacted_.make(t, { label: options?.label })),
+      encode: options?.disallowEncode ?
+        SchemaGetter.forbidden((oe) =>
+          "Cannot encode Redacted" +
+          (Option_.isSome(oe) && typeof oe.value.label === "string" ? ` with label: "${oe.value.label}"` : "")
+        ) :
+        SchemaGetter.transform(Redacted_.value)
+    }
+  )(value)
 }
 
 /**
@@ -10279,7 +10308,7 @@ export function CauseReason<E extends Constraint, D extends Constraint>(error: E
     [error, defect],
     ([error, defect]) => (input, ast, options) => {
       if (!Cause_.isReason(input)) {
-        return Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input)))
+        return Effect.fail(new SchemaIssue.InvalidType(ast, input, options))
       }
       switch (input._tag) {
         case "Fail":
@@ -10287,8 +10316,7 @@ export function CauseReason<E extends Constraint, D extends Constraint>(error: E
             SchemaParser.decodeUnknownEffect(error)(input.error, options),
             {
               onSuccess: Cause_.makeFailReason,
-              onFailure: (issue) =>
-                new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["error"], issue)])
+              onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "error", issue, input, options)
             }
           )
         case "Die":
@@ -10296,8 +10324,7 @@ export function CauseReason<E extends Constraint, D extends Constraint>(error: E
             SchemaParser.decodeUnknownEffect(defect)(input.defect, options),
             {
               onSuccess: Cause_.makeDieReason,
-              onFailure: (issue) =>
-                new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["defect"], issue)])
+              onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "defect", issue, input, options)
             }
           )
         case "Interrupt":
@@ -10472,12 +10499,11 @@ export function Cause<E extends Constraint, D extends Constraint>(error: E, defe
       const failures = ArraySchema(CauseReason(error, defect))
       return (input, ast, options) => {
         if (!Cause_.isCause(input)) {
-          return Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input)))
+          return Effect.fail(new SchemaIssue.InvalidType(ast, input, options))
         }
         return Effect.mapBothEager(SchemaParser.decodeUnknownEffect(failures)(input.reasons, options), {
           onSuccess: Cause_.fromReasons,
-          onFailure: (issue) =>
-            new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["failures"], issue)])
+          onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "failures", issue, input, options)
         })
       }
     },
@@ -10552,17 +10578,17 @@ function causeToFormatter<E>(error: Formatter<E>, defect: Formatter<unknown>) {
 }
 
 /**
- * Type-level representation of {@link Error}.
+ * Type-level representation of {@link ErrorInstance}.
  *
  * @category models
  * @since 4.0.0
  */
-export interface Error extends instanceOf<globalThis.Error> {
-  readonly "Rebuild": Error
+export interface ErrorInstance extends instanceOf<globalThis.Error> {
+  readonly "Rebuild": ErrorInstance
 }
 
 /**
- * Options for {@link Error} and {@link Defect}.
+ * Options for {@link ErrorInstance} and {@link Defect}.
  *
  * @category options
  * @since 4.0.0
@@ -10625,7 +10651,7 @@ const getErrorOptions = (key: ErrorOptionsKey): NormalizedErrorOptions | undefin
   }
 }
 
-const errorSchemaCache: Array<Error | undefined> = []
+const errorSchemaCache: Array<ErrorInstance | undefined> = []
 
 /**
  * Schema for JavaScript `Error` objects.
@@ -10642,7 +10668,7 @@ const errorSchemaCache: Array<Error | undefined> = []
  * @category schemas
  * @since 4.0.0
  */
-export function Error(options?: ErrorOptions): Error {
+export function ErrorInstance(options?: ErrorOptions): ErrorInstance {
   const key = getErrorOptionsKey(options)
   const cached = errorSchemaCache[key]
   if (cached !== undefined) {
@@ -10655,7 +10681,9 @@ export function Error(options?: ErrorOptions): Error {
       payload: normalizedOptions ?? null
     },
     toCode: () => ({
-      runtime: normalizedOptions !== undefined ? `Schema.Error(${format(normalizedOptions)})` : `Schema.Error()`,
+      runtime: normalizedOptions !== undefined
+        ? `Schema.ErrorInstance(${format(normalizedOptions)})`
+        : `Schema.ErrorInstance()`,
       Type: `globalThis.Error`
     }),
     expected: "Error",
@@ -10667,22 +10695,22 @@ export function Error(options?: ErrorOptions): Error {
 }
 
 /**
- * Reviver for persisted {@link Error} declarations.
+ * Reviver for persisted {@link ErrorInstance} declarations.
  *
  * **When to use**
  *
- * Use when reconstructing documents that may contain schemas created by {@link Error}.
+ * Use when reconstructing documents that may contain schemas created by {@link ErrorInstance}.
  *
- * @see {@link Error} for creating the corresponding schema
+ * @see {@link ErrorInstance} for creating the corresponding schema
  *
  * @category schemas
  * @since 4.0.0
  */
-export const ErrorReviver = InternalSchema.makeDeclarationReviver(
+export const ErrorInstanceReviver = InternalSchema.makeDeclarationReviver(
   "effect/schema/Error",
   ErrorRepresentationPayload,
   ({ annotations, payload }) => {
-    const schema = Error(payload ?? undefined)
+    const schema = ErrorInstance(payload ?? undefined)
     return annotations === undefined ? schema : schema.annotate(annotations)
   }
 )
@@ -10736,7 +10764,7 @@ const defectSchemaCache: Array<Defect | undefined> = []
  * - Values that cannot be represented as JSON fall back to Effect's formatted
  *   string representation.
  *
- * @see {@link Error} for a schema that only accepts JavaScript `Error` values.
+ * @see {@link ErrorInstance} for a schema that only accepts JavaScript `Error` values.
  * @category schemas
  * @since 4.0.0
  */
@@ -10817,7 +10845,7 @@ export function Exit<A extends Constraint, E extends Constraint, D extends Const
       const cause = Cause(error, defect)
       return (input, ast, options) => {
         if (!Exit_.isExit(input)) {
-          return Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input)))
+          return Effect.fail(new SchemaIssue.InvalidType(ast, input, options))
         }
         switch (input._tag) {
           case "Success":
@@ -10825,8 +10853,7 @@ export function Exit<A extends Constraint, E extends Constraint, D extends Const
               SchemaParser.decodeUnknownEffect(value)(input.value, options),
               {
                 onSuccess: Exit_.succeed,
-                onFailure: (issue) =>
-                  new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["value"], issue)])
+                onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "value", issue, input, options)
               }
             )
           case "Failure":
@@ -10834,8 +10861,7 @@ export function Exit<A extends Constraint, E extends Constraint, D extends Const
               SchemaParser.decodeUnknownEffect(cause)(input.cause, options),
               {
                 onSuccess: Exit_.failCause,
-                onFailure: (issue) =>
-                  new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["cause"], issue)])
+                onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "cause", issue, input, options)
               }
             )
         }
@@ -11076,12 +11102,11 @@ export function ReadonlyMap<Key extends Constraint, Value extends Constraint>(
             SchemaParser.decodeUnknownEffect(array)([...input], options),
             {
               onSuccess: (array: ReadonlyArray<readonly [Key["Type"], Value["Type"]]>) => new globalThis.Map(array),
-              onFailure: (issue) =>
-                new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["entries"], issue)])
+              onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "entries", issue, input, options)
             }
           )
         }
-        return Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input)))
+        return Effect.fail(new SchemaIssue.InvalidType(ast, input, options))
       }
     },
     {
@@ -11139,6 +11164,284 @@ export const ReadonlyMapReviver = InternalSchema.makeDeclarationReviver(
 )
 
 /**
+ * Encoded representation of an immutable Effect graph.
+ *
+ * @category models
+ * @since 4.0.0
+ */
+export type EncodedGraph<N, E, T extends Graph_.Kind> = Graph_.Snapshot<N, E, T>
+
+/**
+ * Iso representation used for {@link Graph} schemas.
+ *
+ * @category utility types
+ * @since 4.0.0
+ */
+export type GraphIso<T extends Graph_.Kind, Node extends Constraint, Edge extends Constraint> = EncodedGraph<
+  Node["Iso"],
+  Edge["Iso"],
+  T
+>
+
+/**
+ * Type-level representation returned by {@link Graph}.
+ *
+ * @category models
+ * @since 4.0.0
+ */
+export interface Graph<T extends Graph_.Kind, Node extends Constraint, Edge extends Constraint>
+  extends
+    declareConstructor<
+      Graph_.Graph<Node["Type"], Edge["Type"], T>,
+      Graph_.Graph<Node["Encoded"], Edge["Encoded"], T>,
+      readonly [Node, Edge],
+      GraphIso<T, Node, Edge>
+    >
+{
+  readonly "Rebuild": Graph<T, Node, Edge>
+  readonly type: T
+  readonly node: Node
+  readonly edge: Edge
+}
+
+function graphEncodedSchema<T extends Graph_.Kind, Node extends Constraint, Edge extends Constraint>(
+  type: T,
+  node: Node,
+  edge: Edge
+) {
+  return Struct({
+    type: Literal(type),
+    nodes: ArraySchema(Struct({ index: Natural, data: node })),
+    edges: ArraySchema(Struct({ index: Natural, source: Natural, target: Natural, data: edge }))
+  })
+}
+
+function graphDecode<N, E, T extends Graph_.Kind>(
+  input: EncodedGraph<N, E, T>,
+  options: SchemaAST.ParseOptions
+): Effect.Effect<Graph_.Graph<N, E, T>, SchemaIssue.Issue> {
+  let previous = -1
+  const indexes = new Set<Graph_.NodeIndex>()
+  for (let i = 0; i < input.nodes.length; i++) {
+    const index = input.nodes[i].index
+    if (index <= previous) {
+      return Effect.fail(
+        new SchemaIssue.Pointer(
+          ["nodes", i, "index"],
+          new SchemaIssue.InvalidValue({ expected: "a strictly increasing node index" }, index, options)
+        )
+      )
+    }
+    previous = index
+    indexes.add(index)
+  }
+
+  previous = -1
+  for (let i = 0; i < input.edges.length; i++) {
+    const edge = input.edges[i]
+    if (edge.index <= previous) {
+      return Effect.fail(
+        new SchemaIssue.Pointer(
+          ["edges", i, "index"],
+          new SchemaIssue.InvalidValue({ expected: "a strictly increasing edge index" }, edge.index, options)
+        )
+      )
+    }
+    previous = edge.index
+    if (!indexes.has(edge.source)) {
+      return Effect.fail(
+        new SchemaIssue.Pointer(
+          ["edges", i, "source"],
+          new SchemaIssue.InvalidValue({ expected: "an encoded node index" }, edge.source, options)
+        )
+      )
+    }
+    if (!indexes.has(edge.target)) {
+      return Effect.fail(
+        new SchemaIssue.Pointer(
+          ["edges", i, "target"],
+          new SchemaIssue.InvalidValue({ expected: "an encoded node index" }, edge.target, options)
+        )
+      )
+    }
+  }
+
+  return Effect.succeed(InternalGraph.hydrate(input))
+}
+
+function graphEncode<N, E, T extends Graph_.Kind>(
+  input: Graph_.Graph<N, E, T>,
+  type: T,
+  options: SchemaAST.ParseOptions
+): Effect.Effect<EncodedGraph<N, E, T>, SchemaIssue.Issue> {
+  if (!Graph_.isGraph(input) || input.mutable || input.type !== type) {
+    return Effect.fail(new SchemaIssue.InvalidValue({ expected: `an immutable ${type} Graph` }, input, options))
+  }
+  return Effect.succeed(InternalGraph.snapshot(input))
+}
+
+function graphToEquivalence<N, E, T extends Graph_.Kind>(
+  node: Equivalence.Equivalence<N>,
+  edge: Equivalence.Equivalence<E>
+) {
+  return (self: Graph_.Graph<N, E, T>, that: Graph_.Graph<N, E, T>): boolean => {
+    const a = InternalGraph.snapshot(self)
+    const b = InternalGraph.snapshot(that)
+    if (a.type !== b.type || a.nodes.length !== b.nodes.length || a.edges.length !== b.edges.length) return false
+    for (let i = 0; i < a.nodes.length; i++) {
+      if (a.nodes[i].index !== b.nodes[i].index || !node(a.nodes[i].data, b.nodes[i].data)) return false
+    }
+    for (let i = 0; i < a.edges.length; i++) {
+      const ae = a.edges[i]
+      const be = b.edges[i]
+      const sameEndpoints = a.type === "directed"
+        ? ae.source === be.source && ae.target === be.target
+        : (ae.source === be.source && ae.target === be.target) ||
+          (ae.source === be.target && ae.target === be.source)
+      if (
+        ae.index !== be.index || !sameEndpoints || !edge(ae.data, be.data)
+      ) return false
+    }
+    return true
+  }
+}
+
+function graphToArbitrary<N, E, T extends Graph_.Kind>(
+  type: T,
+  node: Annotations.ToArbitrary.TypeParameter<N>,
+  edge: Annotations.ToArbitrary.TypeParameter<E>
+) {
+  return (fc: typeof FastCheck, ctx: Annotations.ToArbitrary.Context) => {
+    const empty = InternalGraph.hydrate<N, E, T>({ type, nodes: [], edges: [] })
+    const terminal = fc.constant(empty)
+    const arbitrary = fc.array(node.arbitrary).chain((values) => {
+      const nodes = values.map((data, index) => ({ index, data }))
+      if (nodes.length === 0) return terminal
+      const endpoint = fc.integer({ min: 0, max: nodes.length - 1 })
+      return fc.array(fc.tuple(endpoint, endpoint, edge.arbitrary)).map((values) =>
+        InternalGraph.hydrate({
+          type,
+          nodes,
+          edges: values.map(([source, target, data], index) => ({ index, source, target, data }))
+        })
+      )
+    })
+    return withRecursion(fc, ctx, terminal, arbitrary)
+  }
+}
+
+/**
+ * Creates a schema for immutable directed or undirected Effect graphs.
+ *
+ * Encoding preserves active node and edge indexes, payloads, endpoints,
+ * isolated nodes, self-loops, parallel edges, and stored edge orientation. It
+ * does not encode removed-ID allocator history; after decoding, future allocation starts
+ * after the highest active decoded index. Encoding rejects mutable graphs.
+ * `Graph.toJSON()` remains an inspection summary and is not this wire format.
+ *
+ * **Example** (Encoding a directed graph as JSON)
+ *
+ * ```ts import.meta.vitest
+ * import { Graph, Schema } from "effect"
+ *
+ * const codec = Schema.toCodecJson(Schema.Graph("directed", Schema.String, Schema.Number))
+ * const graph = Graph.directed<string, number>((mutable) => {
+ *   const source = Graph.addNode(mutable, "A")
+ *   const target = Graph.addNode(mutable, "B")
+ *   Graph.addEdge(mutable, source, target, 1)
+ * })
+ *
+ * const encoded = Schema.encodeSync(codec)(graph)
+ *
+ * encoded.type // => "directed"
+ * encoded.nodes // => [{ index: 0, data: "A" }, { index: 1, data: "B" }]
+ * encoded.edges // => [{ index: 0, source: 0, target: 1, data: 1 }]
+ * ```
+ *
+ * @category schemas
+ * @since 4.0.0
+ */
+export function Graph<Node extends Constraint, Edge extends Constraint>(
+  type: "directed",
+  node: Node,
+  edge: Edge
+): Graph<"directed", Node, Edge>
+export function Graph<Node extends Constraint, Edge extends Constraint>(
+  type: "undirected",
+  node: Node,
+  edge: Edge
+): Graph<"undirected", Node, Edge>
+export function Graph<T extends Graph_.Kind, Node extends Constraint, Edge extends Constraint>(
+  type: T,
+  node: Node,
+  edge: Edge
+): Graph<T, Node, Edge>
+export function Graph<T extends Graph_.Kind, Node extends Constraint, Edge extends Constraint>(
+  type: T,
+  node: Node,
+  edge: Edge
+): Graph<T, Node, Edge> {
+  const schema = declareConstructor<
+    Graph_.Graph<Node["Type"], Edge["Type"], T>,
+    Graph_.Graph<Node["Encoded"], Edge["Encoded"], T>,
+    GraphIso<T, Node, Edge>
+  >()(
+    [node, edge],
+    ([node, edge]) => {
+      const encoded = graphEncodedSchema(type, node, edge)
+      return (input, ast, options) => {
+        if (!Graph_.isGraph(input) || input.mutable || input.type !== type) {
+          return Effect.fail(new SchemaIssue.InvalidType(ast, input, options))
+        }
+        return Effect.flatMap(
+          SchemaParser.decodeUnknownEffect(encoded)(InternalGraph.snapshot(input), options),
+          (snapshot) => graphDecode(snapshot, options)
+        )
+      }
+    },
+    {
+      representation: {
+        id: "effect/schema/Graph",
+        payload: type
+      },
+      toCode: ({ typeParameters }) => ({
+        runtime: `Schema.Graph(${format(type)}, ${typeParameters[0].runtime}, ${typeParameters[1].runtime})`,
+        Type: `Graph.Graph<${typeParameters[0].Type}, ${typeParameters[1].Type}, ${format(type)}>`,
+        importDeclarations: [`import * as Graph from "effect/Graph"`]
+      }),
+      expected: `an immutable ${type} Graph`,
+      toCodec: ([node, edge]) =>
+        link<Graph_.Graph<Node["Encoded"], Edge["Encoded"], T>>()(
+          graphEncodedSchema(type, node, edge),
+          SchemaTransformation.transformOrFail({
+            decode: graphDecode,
+            encode: (graph, options) => graphEncode(graph, type, options)
+          })
+        ),
+      toArbitrary: ([node, edge]) => graphToArbitrary(type, node, edge),
+      toEquivalence: ([node, edge]) => graphToEquivalence(node, edge),
+      toFormatter: () => globalThis.String
+    }
+  )
+  return make(schema.ast, { type, node, edge })
+}
+
+/**
+ * Reviver for persisted {@link Graph} declarations.
+ *
+ * @category schemas
+ * @since 4.0.0
+ */
+export const GraphReviver = InternalSchema.makeDeclarationReviver(
+  "effect/schema/Graph",
+  Literals(["directed", "undirected"]),
+  ({ annotations, payload, typeParameters }) => {
+    const schema = Graph(payload, typeParameters[0], typeParameters[1])
+    return annotations === undefined ? schema : schema.annotate(annotations)
+  }
+)
+
+/**
  * Type-level representation returned by {@link HashMap}.
  *
  * @category models
@@ -11189,12 +11492,11 @@ export function HashMap<Key extends Constraint, Value extends Constraint>(key: K
             SchemaParser.decodeUnknownEffect(entries)(HashMap_.toEntries(input), options),
             {
               onSuccess: HashMap_.fromIterable,
-              onFailure: (issue) =>
-                new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["entries"], issue)])
+              onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "entries", issue, input, options)
             }
           )
         }
-        return Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input)))
+        return Effect.fail(new SchemaIssue.InvalidType(ast, input, options))
       }
     },
     {
@@ -11300,12 +11602,11 @@ export function ReadonlySet<Value extends Constraint>(value: Value): $ReadonlySe
             SchemaParser.decodeUnknownEffect(array)([...input], options),
             {
               onSuccess: (array: ReadonlyArray<Value["Type"]>) => new globalThis.Set(array),
-              onFailure: (issue) =>
-                new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["values"], issue)])
+              onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "values", issue, input, options)
             }
           )
         }
-        return Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input)))
+        return Effect.fail(new SchemaIssue.InvalidType(ast, input, options))
       }
     },
     {
@@ -11411,12 +11712,11 @@ export function HashSet<Value extends Constraint>(value: Value): HashSet<Value> 
             SchemaParser.decodeUnknownEffect(values)(Arr.fromIterable(input), options),
             {
               onSuccess: HashSet_.fromIterable,
-              onFailure: (issue) =>
-                new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["values"], issue)])
+              onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "values", issue, input, options)
             }
           )
         }
-        return Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input)))
+        return Effect.fail(new SchemaIssue.InvalidType(ast, input, options))
       }
     },
     {
@@ -11529,12 +11829,11 @@ export function Chunk<Value extends Constraint>(value: Value): Chunk<Value> {
             SchemaParser.decodeUnknownEffect(values)(Arr.fromIterable(input), options),
             {
               onSuccess: Chunk_.fromIterable,
-              onFailure: (issue) =>
-                new SchemaIssue.Composite(ast, Option_.some(input), [new SchemaIssue.Pointer(["values"], issue)])
+              onFailure: (issue) => SchemaIssue.makeCompositeAtKey(ast, "values", issue, input, options)
             }
           )
         }
-        return Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input)))
+        return Effect.fail(new SchemaIssue.InvalidType(ast, input, options))
       }
     },
     {
@@ -11631,10 +11930,15 @@ export const RegExp: RegExp = instanceOf(
           flags: String
         }),
         SchemaTransformation.transformOrFail({
-          decode: (e) =>
+          decode: (e, options) =>
             Effect.try({
               try: () => new globalThis.RegExp(e.source, e.flags),
-              catch: (e) => new SchemaIssue.InvalidValue(Option_.some(e), { message: globalThis.String(e) })
+              catch: () =>
+                new SchemaIssue.InvalidValue(
+                  { expected: "valid RegExp source and flags" },
+                  e,
+                  options
+                )
             }),
           encode: (regExp) =>
             Effect.succeed({
@@ -12463,13 +12767,15 @@ export const File: File = instanceOf(globalThis.File, {
         lastModified: Int
       }),
       SchemaTransformation.transformOrFail({
-        decode: (e) =>
+        decode: (e, options) =>
           Result_.match(Encoding.decodeBase64(e.data), {
-            onFailure: (error) =>
+            onFailure: () =>
               Effect.fail(
-                new SchemaIssue.InvalidValue(Option_.some(e.data), {
-                  message: error.message
-                })
+                new SchemaIssue.InvalidValue(
+                  { expected: "a valid Base64 string" },
+                  e.data,
+                  options
+                )
               ),
             onSuccess: (bytes) => {
               const buffer = new globalThis.Uint8Array(bytes)
@@ -12478,7 +12784,7 @@ export const File: File = instanceOf(globalThis.File, {
               )
             }
           }),
-        encode: (file) =>
+        encode: (file, options) =>
           Effect.tryPromise({
             try: async () => {
               const bytes = new globalThis.Uint8Array(await file.arrayBuffer())
@@ -12489,10 +12795,12 @@ export const File: File = instanceOf(globalThis.File, {
                 lastModified: file.lastModified
               }
             },
-            catch: (e) =>
-              new SchemaIssue.InvalidValue(Option_.some(file), {
-                message: globalThis.String(e)
-              })
+            catch: () =>
+              new SchemaIssue.InvalidValue(
+                { expected: "a readable File" },
+                file,
+                options
+              )
           })
       })
     )
@@ -14086,7 +14394,7 @@ function makeClass<
     static makeOption(input: S["~type.make.in"], options?: MakeOptions): Option_.Option<Self> {
       return SchemaParser.makeOption(getClassSchema(this) as any)(input ?? {}, options) as any
     }
-    static makeEffect(input: S["~type.make.in"], options?: MakeOptions): Effect.Effect<Self, SchemaError> {
+    static makeEffect(input: S["~type.make.in"], options?: MakeOptions): Effect.Effect<Self, SchemaIssue.Issue> {
       return (getClassSchema(this) as any).makeEffect(input ?? {}, options)
     }
     static annotate(annotations: Annotations.Declaration<Self, readonly [S]>) {
@@ -14164,19 +14472,26 @@ function getClassSchemaFactory<S extends Constraint>(
     if (memo !== undefined) {
       return memo
     }
+    const ClassTypeId = getClassTypeId(identifier)
+    const isClassValue: Predicate.Predicate<unknown> = (input) =>
+      input instanceof self || Predicate.hasProperty(input, ClassTypeId)
     const transformation = getClassTransformation(self)
     const to = make<declareConstructor<Self, S["Encoded"], readonly [S]>>(
       new SchemaAST.Declaration(
         [from.ast],
-        () => (input, ast) => {
-          return input instanceof self ||
-              Predicate.hasProperty(input, getClassTypeId(identifier)) ?
+        () => (input, ast, options) => {
+          return isClassValue(input) ?
             Effect.succeed(input) :
-            Effect.fail(new SchemaIssue.InvalidType(ast, Option_.some(input)))
+            Effect.fail(new SchemaIssue.InvalidType(ast, input, options))
         },
         {
           identifier,
-          [SchemaAST.ClassTypeId]: ([from]: readonly [SchemaAST.AST]) => new SchemaAST.Link(from, transformation),
+          [InternalAnnotations.CONSTRUCTOR_ANNOTATION_KEY]: (
+            [from]: readonly [SchemaAST.AST]
+          ): SchemaAST.ConstructorDescriptor => ({
+            isConstructed: isClassValue,
+            link: new SchemaAST.Link(from, transformation)
+          }),
           toCodec: ([from]: readonly [ConstraintCodec<S["Encoded"], S["Encoded"]>]) =>
             new SchemaAST.Link(from.ast, transformation),
           toArbitrary: ([from]: readonly [Annotations.ToArbitrary.TypeParameter<S["Type"]>]) => () => ({
@@ -14202,8 +14517,8 @@ type MissingSelfGeneric<Usage extends string> =
 
 /**
  * Creates a schema-backed class whose constructor validates input against a
- * {@link Struct} schema. Construction throws a {@link SchemaError} on invalid
- * input.
+ * {@link Struct} schema. Construction throws an `Error` with a
+ * `SchemaIssue.Issue` in its `cause` on invalid input.
  *
  * **When to use**
  *
@@ -14263,8 +14578,8 @@ type MissingSelfGeneric<Usage extends string> =
  * ```
  *
  * @see {@link TaggedClass} for adding a `_tag` literal field to the class schema
- * @see {@link ErrorClass} for defining schema-backed error classes
- * @see {@link TaggedErrorClass} for defining tagged schema-backed error classes
+ * @see {@link Error} for defining schema-backed error classes
+ * @see {@link TaggedError} for defining tagged schema-backed error classes
  *
  * @category constructors
  * @since 3.10.0
@@ -14375,7 +14690,7 @@ export const TaggedClass: {
  * ```ts import.meta.vitest
  * import { Effect, Schema } from "effect"
  *
- * class NotFound extends Schema.ErrorClass<NotFound>("NotFound")({
+ * class NotFound extends Schema.Error<NotFound>("NotFound")({
  *   id: Schema.Number
  * }) {}
  *
@@ -14389,23 +14704,23 @@ export const TaggedClass: {
  * @category constructors
  * @since 4.0.0
  */
-export const ErrorClass: {
+export const Error: {
   <Self = never, Brand = {}>(identifier: string): {
     <const Fields extends Struct.Fields>(
       fields: Fields,
       annotations?: Annotations.Declaration<Self, readonly [Struct<Fields>]>
-    ): [Self] extends [never] ? MissingSelfGeneric<"Schema.ErrorClass">
+    ): [Self] extends [never] ? MissingSelfGeneric<"Schema.Error">
       : Class<Self, Struct<Fields>, Cause_.YieldableError & Brand>
     <S extends Struct<Struct.Fields>>(
       schema: S,
       annotations?: Annotations.Declaration<Self, readonly [S]>
-    ): [Self] extends [never] ? MissingSelfGeneric<"Schema.ErrorClass"> : Class<Self, S, Cause_.YieldableError & Brand>
+    ): [Self] extends [never] ? MissingSelfGeneric<"Schema.Error"> : Class<Self, S, Cause_.YieldableError & Brand>
   }
 } = <Self, Brand = {}>(identifier: string) =>
 (
   schema: Struct.Fields | Struct<Struct.Fields>,
   annotations?: Annotations.Declaration<Self, readonly [Struct<Struct.Fields>]>
-): [Self] extends [never] ? MissingSelfGeneric<"Schema.ErrorClass">
+): [Self] extends [never] ? MissingSelfGeneric<"Schema.Error">
   : Class<Self, Struct<Struct.Fields>, Cause_.YieldableError & Brand> =>
 {
   const struct = isStruct(schema) ? schema : Struct(schema)
@@ -14435,7 +14750,7 @@ export const ErrorClass: {
  * ```ts import.meta.vitest
  * import { Effect, Schema } from "effect"
  *
- * class NotFound extends Schema.TaggedErrorClass<NotFound>()("NotFound", {
+ * class NotFound extends Schema.TaggedError<NotFound>()("NotFound", {
  *   id: Schema.Number
  * }) {}
  *
@@ -14450,13 +14765,13 @@ export const ErrorClass: {
  * @category constructors
  * @since 3.10.0
  */
-export const TaggedErrorClass: {
+export const TaggedError: {
   <Self = never, Brand = {}>(identifier?: string): {
     <Tag extends string, const Fields extends Struct.Fields>(
       tag: Tag,
       fields: Fields,
       annotations?: Annotations.Declaration<Self, readonly [TaggedStruct<Tag, Fields>]>
-    ): [Self] extends [never] ? MissingSelfGeneric<"Schema.TaggedErrorClass">
+    ): [Self] extends [never] ? MissingSelfGeneric<"Schema.TaggedError">
       : Class<Self, TaggedStruct<Tag, Fields>, Cause_.YieldableError & Brand>
     <Tag extends string, S extends Struct<Struct.Fields>>(
       tag: Tag,
@@ -14465,7 +14780,7 @@ export const TaggedErrorClass: {
         Self,
         readonly [Struct<Simplify<{ readonly _tag: tag<Tag> } & S["fields"]>>]
       >
-    ): [Self] extends [never] ? MissingSelfGeneric<"Schema.TaggedErrorClass">
+    ): [Self] extends [never] ? MissingSelfGeneric<"Schema.TaggedError">
       : Class<Self, Struct<Simplify<{ readonly _tag: tag<Tag> } & S["fields"]>>, Cause_.YieldableError & Brand>
   }
 } = (identifier?: string) => {
@@ -14479,7 +14794,7 @@ export const TaggedErrorClass: {
         unsafePreserveChecks: true
       }) :
       TaggedStruct(tagValue, schema)
-    return ErrorClass<any, {}>(identifier ?? tagValue)(
+    return Error<any, {}>(identifier ?? tagValue)(
       struct,
       annotations as Annotations.Declaration<any, readonly [typeof struct]>
     )
@@ -14491,44 +14806,32 @@ export const TaggedErrorClass: {
 // -----------------------------------------------------------------------------
 
 /**
- * A thunk that, given the `fast-check` module, returns an `Arbitrary<T>`.
- * Use this type when you need to defer instantiation of the arbitrary, for
- * example to support recursive schemas.
+ * Represents a function that builds a fast-check `Arbitrary<T>` from the
+ * `fast-check` module.
+ *
+ * **When to use**
+ *
+ * Use as the result type of schema arbitrary derivation.
  *
  * @category utility types
  * @since 4.0.0
  */
-export type LazyArbitrary<T> = (fc: typeof FastCheck) => FastCheck.Arbitrary<T>
+export type Arbitrary<T> = (fc: typeof FastCheck) => FastCheck.Arbitrary<T>
 
 /**
- * Derives a {@link LazyArbitrary} from a schema. The result is memoized so
- * repeated calls with the same schema are cheap.
+ * Returns an {@link Arbitrary} factory derived from a schema. The generated
+ * values satisfy the schema and use its decoded `Type`.
  *
- * **Details**
+ * **When to use**
  *
- * Prefer {@link toArbitrary} when you need the arbitrary directly, or when you
- * want derivation diagnostics via `{ report: true }`. Unsupported schema
- * nodes, impossible constraints, invalid candidates, and recursive schemas
- * without a finite terminal path fail immediately.
- *
- * @category generators
- * @since 4.0.0
- */
-export function toArbitraryLazy<S extends Constraint>(schema: S): LazyArbitrary<S["Type"]> {
-  const lawc = InternalArbitrary.memoized(schema.ast)
-  return (fc) => lawc(fc, {})
-}
-
-/**
- * Derives a `fast-check` `Arbitrary` from a schema for property-based
- * testing. The derived arbitrary generates values that satisfy the schema.
+ * Use when you need a fast-check generator for values accepted by a schema.
  *
  * **Details**
  *
  * Constraints refine base generators; candidates add weighted sources while
- * filters still validate every value. `{ report: true }` returns warnings such
- * as `OpaqueFilter`, while derivation errors remain fail-fast. Recursive
- * schemas use terminal branches and fail when no finite terminal path exists.
+ * filters still validate every value. Recursive schemas use terminal branches
+ * and fail when no finite terminal path exists. The result is memoized so
+ * repeated calls with the same schema are cheap.
  *
  * **Example** (Generating arbitrary values)
  *
@@ -14536,36 +14839,20 @@ export function toArbitraryLazy<S extends Constraint>(schema: S): LazyArbitrary<
  * import { Schema } from "effect"
  * import * as FastCheck from "fast-check"
  *
- * const PersonArb = Schema.toArbitrary(
+ * const makePersonArbitrary = Schema.toArbitrary(
  *   Schema.Struct({ name: Schema.String, age: Schema.Number })
  * )
  *
- * // Sample a random value
- * FastCheck.sample(PersonArb, 1)
+ * const PersonArbitrary = makePersonArbitrary(FastCheck)
+ * FastCheck.sample(PersonArbitrary, 1)
  * ```
  *
  * @category generators
  * @since 4.0.0
  */
-export function toArbitrary<S extends Constraint>(schema: S): FastCheck.Arbitrary<S["Type"]>
-export function toArbitrary<S extends Constraint>(
-  schema: S,
-  options: { readonly report: true }
-): Annotations.ToArbitrary.WithReport<FastCheck.Arbitrary<S["Type"]>>
-export function toArbitrary<S extends Constraint>(
-  schema: S,
-  options?: { readonly report?: boolean }
-): FastCheck.Arbitrary<S["Type"]> | Annotations.ToArbitrary.WithReport<FastCheck.Arbitrary<S["Type"]>> {
-  if (options?.report === true) {
-    const lawc = InternalArbitrary.memoized(schema.ast)
-    const report = InternalArbitrary.makeReport()
-    InternalArbitrary.collectReport(schema.ast, report)
-    return {
-      value: lawc(FastCheck, {}),
-      report: InternalArbitrary.toReport(report)
-    }
-  }
-  return toArbitraryLazy(schema)(FastCheck)
+export function toArbitrary<S extends Constraint>(schema: S): Arbitrary<S["Type"]> {
+  const lawc = InternalArbitrary.memoized(schema.ast)
+  return (fc) => lawc(fc, {})
 }
 
 // -----------------------------------------------------------------------------
@@ -14792,15 +15079,26 @@ export function toEquivalence<T>(schema: Schema<T>): Equivalence.Equivalence<T> 
  * Derives an intermediate `SchemaRepresentation.Document` from the encoded
  * side of a schema.
  *
+ * **When to use**
+ *
+ * Use when you have a `Schema` and need its live structural representation for inspection, persistence, or compilation.
+ *
  * **Details**
  *
  * Use {@link toType} before this function to represent the type side instead.
+ * The optional reference policy controls which candidates are extracted into the document's reference table. By
+ * default, only candidates with a resolved identifier become references; recursive candidates always require one.
+ *
+ * @see {@link SchemaRepresentation.toRepresentation} for converting a `SchemaAST.AST` directly
  *
  * @category converting
  * @since 4.0.0
  */
-export function toRepresentation(schema: Constraint): SchemaRepresentation.Document {
-  return InternalToRepresentation.toRepresentation(schema.ast)
+export function toRepresentation(
+  schema: Constraint,
+  options?: SchemaRepresentation.ToRepresentationOptions
+): SchemaRepresentation.Document {
+  return InternalToRepresentation.toRepresentation(schema.ast, options)
 }
 
 // -----------------------------------------------------------------------------
@@ -14808,12 +15106,23 @@ export function toRepresentation(schema: Constraint): SchemaRepresentation.Docum
 // -----------------------------------------------------------------------------
 
 /**
- * Options for {@link toJsonSchemaDocument}.
+ * Options for reference allocation and JSON Schema generation in {@link toJsonSchemaDocument}.
+ *
+ * **Details**
+ *
+ * The inherited `referencePolicy` runs after the input schema is converted to its canonical JSON codec, so it receives
+ * canonical JSON-encoded ASTs. The remaining options control compilation of the resulting live representation.
+ *
+ * **Gotchas**
+ *
+ * When these options are passed directly to `SchemaRepresentation.toJsonSchemaDocument` or
+ * `SchemaRepresentation.toJsonSchemaMultiDocument`, reference allocation has already happened and `referencePolicy`
+ * has no effect.
  *
  * @category options
  * @since 4.0.0
  */
-export interface ToJsonSchemaOptions {
+export interface ToJsonSchemaOptions extends SchemaRepresentation.ToRepresentationOptions {
   /**
    * Controls how additional properties are handled while resolving the JSON
    * schema.
@@ -14879,20 +15188,37 @@ export interface ToJsonSchemaOptions {
 /**
  * Returns a JSON Schema document using draft 2020-12.
  *
+ * **When to use**
+ *
+ * Use when you need a draft-2020-12 description of the canonical JSON form of a runtime schema.
+ *
  * **Details**
  *
- * The `options` parameter controls generation details such as additional
- * properties and synthesized check descriptions; it does not change the draft
- * target. Declarations are lowered through their `toCodecJson` or `toCodec`
+ * The `options` parameter controls reference extraction and generation details
+ * such as additional properties and synthesized check descriptions; it does
+ * not change the draft target. The reference policy receives canonical JSON
+ * encoded ASTs. By default, anonymous non-recursive candidates remain inline, while candidates with resolved identifiers
+ * become definitions. Declarations are lowered through their `toCodecJson` or `toCodec`
  * annotation when available before the representation document is compiled.
+ * For schemas whose codec JSON AST can be represented exactly in JSON Schema,
+ * importing the emitted document reconstructs a schema that accepts the same
+ * JSON values. This is a semantic round-trip guarantee; the reconstructed AST
+ * may have a different shape.
  *
  * **Gotchas**
  *
  * JSON Schema generation is best-effort. Some Effect schema semantics cannot
  * be represented exactly in JSON Schema, and importing an emitted JSON Schema
  * may produce an equivalent approximation rather than the original schema
- * shape. Opaque declarations without a structural codec are represented by an
- * unconstrained JSON Schema.
+ * shape. Such schemas are outside the exact round-trip subset. When canonical
+ * JSON derivation adds an artificial transformation, checks and annotations on
+ * its source node are not copied to the JSON target, so they do not appear in
+ * the emitted document. Opaque declarations without a structural codec are
+ * represented by an unconstrained JSON Schema. Effect decoding may discard
+ * excess object properties by default; use `onExcessProperty: "error"` when
+ * comparing validation semantics with an emitted JSON Schema.
+ *
+ * @see {@link SchemaRepresentation.toJsonSchemaDocument} for compiling an existing live representation document
  *
  * @category converting
  * @since 4.0.0
@@ -14901,7 +15227,10 @@ export function toJsonSchemaDocument(
   schema: Constraint,
   options?: ToJsonSchemaOptions
 ): JsonSchema.Document<"draft-2020-12"> {
-  const document = InternalToRepresentation.toRepresentation(toCodecJsonAST(schema.ast))
+  const document = InternalToRepresentation.toRepresentation(
+    toCodecJsonAST(schema.ast),
+    options
+  )
   return InternalToJsonSchemaDocument.toJsonSchemaDocument(document, options)
 }
 
@@ -14941,13 +15270,22 @@ export interface toCodecJson<S extends Constraint> extends
  * Derives a canonical JSON codec from a schema. The encoded form is `Json`, and
  * decoding produces the schema's `Type`.
  *
+ * **Details**
+ *
+ * Derivation does not run transformations. Annotation links may be asynchronous,
+ * may fail, and may use optional services; the consuming parser chooses the
+ * execution and failure handling. Because hooks do not widen the returned
+ * service types, links cannot require services not declared by the input schema.
+ *
  * **Gotchas**
  *
  * Declarations without a `toCodecJson` or `toCodec` annotation use `Json` as
  * their encoded schema. This keeps codec construction total, but encoding or
  * decoding can still fail when declaration values are not JSON values. A
  * `toCodecJson` callback can return `undefined` when the declaration is already
- * in canonical JSON form.
+ * in canonical JSON form. When derivation adds an artificial transformation,
+ * checks and annotations remain on its source node rather than being copied to
+ * the JSON target. Source checks still run after the transformation.
  *
  * @category converting
  * @since 4.0.0
@@ -14956,18 +15294,16 @@ export function toCodecJson<S extends Constraint>(schema: S): toCodecJson<S> {
   return make(toCodecJsonAST(schema.ast), { schema })
 }
 
-const toCodecJsonASTBase = SchemaAST.applyToSelfOrLastLinkEncoding((ast) => {
-  const out = toCodecJsonBase(ast, toCodecJsonAST)
+/** @internal */
+export const toCodecJsonAST = SchemaAST.applyToSelfOrLastLinkEncodingIdempotent((ast) => {
+  const out = toCodecJsonASTStep(ast, toCodecJsonAST)
   const context = ast.context
   if (out === ast || context === undefined) return out
   return SchemaAST.replaceContextLastLink(out, withoutConstructorDefault(context))
 })
 
-/** @internal */
-export const toCodecJsonAST = memoize(toCodecJsonASTBase)
-
 function withoutConstructorDefault(context: SchemaAST.Context): SchemaAST.Context {
-  return context.defaultValue === undefined ?
+  return context.constructorDefault === undefined ?
     context :
     new SchemaAST.Context(context.isOptional, context.isMutable, undefined, context.annotations)
 }
@@ -15016,7 +15352,7 @@ const toCodecJsonReorder = makeReorder((ast: SchemaAST.AST) => {
   }
 })
 
-function toCodecJsonBase(ast: SchemaAST.AST, recur: (ast: SchemaAST.AST) => SchemaAST.AST): SchemaAST.AST {
+function toCodecJsonASTStep(ast: SchemaAST.AST, recur: (ast: SchemaAST.AST) => SchemaAST.AST): SchemaAST.AST {
   switch (ast._tag) {
     case "Declaration": {
       const getLink = ast.annotations?.toCodecJson ?? ast.annotations?.toCodec
@@ -15068,24 +15404,34 @@ function toCodecJsonBase(ast: SchemaAST.AST, recur: (ast: SchemaAST.AST) => Sche
 }
 
 /**
- * Derives an isomorphism codec from a schema. The encoded form is the
- * schema's `Iso` type — the intermediate representation used for round-tripping.
+ * Derives an isomorphism codec from a schema. The encoded form is the schema's
+ * `Iso` type — the intermediate representation used for round-tripping.
+ *
+ * **Details**
+ *
+ * Annotation links may be asynchronous, may fail, and may use optional services;
+ * the consuming parser chooses the execution and failure handling.
+ *
+ * **Gotchas**
+ *
+ * Links cannot require services because the returned `Codec` does not expose
+ * service requirements.
  *
  * @category converting
  * @since 4.0.0
  */
 export function toCodecIso<S extends Constraint>(schema: S): Codec<S["Type"], S["Iso"]> {
-  return make(toCodecIsoTop(SchemaAST.toType(schema.ast)))
+  return make(toCodecIsoAST(SchemaAST.toType(schema.ast)))
 }
 
-const toCodecIsoTop = memoize((ast: SchemaAST.AST): SchemaAST.AST => {
-  const out = toCodecIsoBase(ast, toCodecIsoTop)
+const toCodecIsoAST = memoize((ast: SchemaAST.AST): SchemaAST.AST => {
+  const out = toCodecIsoASTStep(ast, toCodecIsoAST)
   return out !== ast && ast.context !== undefined ?
     SchemaAST.replaceContextLastLink(out, withoutConstructorDefault(ast.context)) :
     out
 })
 
-function toCodecIsoBase(ast: SchemaAST.AST, recur: (ast: SchemaAST.AST) => SchemaAST.AST): SchemaAST.AST {
+function toCodecIsoASTStep(ast: SchemaAST.AST, recur: (ast: SchemaAST.AST) => SchemaAST.AST): SchemaAST.AST {
   switch (ast._tag) {
     case "Declaration": {
       const getLink = ast.annotations?.toCodecIso ?? ast.annotations?.toCodec
@@ -15145,6 +15491,13 @@ export interface toCodecStringTree<S extends Constraint> extends
  * Converts a schema to the StringTree canonical codec, where every leaf value
  * becomes a string while preserving the original structure.
  *
+ * **Details**
+ *
+ * Derivation does not run transformations. Annotation links may be asynchronous,
+ * may fail, and may use optional services; the consuming parser chooses the
+ * execution and failure handling. Links cannot require services not declared by
+ * the input schema because hooks do not widen the returned service types.
+ *
  * **Gotchas**
  *
  * Declarations must provide a structural `toCodecStringTree`, `toCodecJson`, or
@@ -15155,7 +15508,7 @@ export interface toCodecStringTree<S extends Constraint> extends
  * @since 4.0.0
  */
 export function toCodecStringTree<S extends Constraint>(schema: S): toCodecStringTree<S> {
-  return make(serializerStringTree(schema.ast), { schema })
+  return make(toCodecStringTreeAST(schema.ast), { schema })
 }
 
 /**
@@ -15204,7 +15557,7 @@ export interface toCodecArrayFromSingle<S extends Constraint> extends
  * @since 4.0.0
  */
 export function toCodecArrayFromSingle<S extends Constraint>(schema: S): toCodecArrayFromSingle<S> {
-  return make(toCodecArrayFromSingleTop(schema.ast))
+  return make(toCodecArrayFromSingleAST(schema.ast))
 }
 
 type XmlEncoderOptions = {
@@ -15341,7 +15694,7 @@ const toStringTreeReorder = makeReorder((ast: SchemaAST.AST) => {
   }
 })
 
-function serializerTree(
+function toCodecStringTreeASTStep(
   ast: SchemaAST.AST,
   recur: (ast: SchemaAST.AST) => SchemaAST.AST,
   onMissingAnnotation: (ast: SchemaAST.AST) => SchemaAST.AST
@@ -15420,37 +15773,29 @@ const booleanToString = new SchemaAST.Link(
   )
 )
 
-const SERIALIZER_ENSURE_ARRAY = "~effect/Schema/SERIALIZER_ENSURE_ARRAY"
+const arrayFromSingleTransformation = new SchemaTransformation.Transformation(
+  SchemaGetter.transform((input: ReadonlyArray<unknown> | string) => typeof input === "string" ? [input] : input),
+  SchemaGetter.passthrough()
+)
 
-const isSerializerArrayFromSingle = (ast: SchemaAST.AST): boolean =>
-  SchemaAST.isUnion(ast) && ast.annotations?.[SERIALIZER_ENSURE_ARRAY] === true
+const isCodecArrayFromSingleLink = (link: SchemaAST.Link): boolean =>
+  link.transformation === arrayFromSingleTransformation
 
-const serializerStringTree = SchemaAST.applyToSelfOrLastLinkEncoding((ast) => {
-  if (isSerializerArrayFromSingle(ast)) {
-    return ast
-  }
-  const out = serializerTree(ast, serializerStringTree, (ast) => {
+const toCodecStringTreeAST = SchemaAST.applyToSelfOrLastLinkEncodingIdempotent((ast) => {
+  const out = toCodecStringTreeASTStep(ast, toCodecStringTreeAST, (ast) => {
     throw new globalThis.Error("Missing structural codec for StringTree", { cause: ast })
   })
   if (out !== ast && ast.context !== undefined) {
     return SchemaAST.replaceContextLastLink(out, withoutConstructorDefault(ast.context))
   }
   return out
-})
+}, { stopAt: isCodecArrayFromSingleLink })
 
 const toArrayFromSingleInputElement = (ast: SchemaAST.AST): SchemaAST.AST =>
   SchemaAST.isOptional(ast) ? SchemaAST.optionalKey(SchemaAST.unknown) : SchemaAST.unknown
 
-const arrayFromSingleTransformation = new SchemaTransformation.Transformation(
-  SchemaGetter.transform((input: ReadonlyArray<unknown> | string) => typeof input === "string" ? [input] : input),
-  SchemaGetter.passthrough()
-)
-
-const toCodecArrayFromSingleTop = SchemaAST.applyToSelfOrLastLinkEncoding((ast) => {
-  if (isSerializerArrayFromSingle(ast)) {
-    return ast
-  }
-  const out = onSerializerArrayFromSingle(ast)
+const toCodecArrayFromSingleAST = SchemaAST.applyToSelfOrLastLinkEncodingIdempotent((ast) => {
+  const out = toCodecArrayFromSingleASTStep(ast)
   if (SchemaAST.isArrays(out)) {
     const ensure = SchemaAST.decodeTo(
       new SchemaAST.Union(
@@ -15462,8 +15807,7 @@ const toCodecArrayFromSingleTop = SchemaAST.applyToSelfOrLastLinkEncoding((ast) 
           ),
           SchemaAST.string
         ],
-        "anyOf",
-        { [SERIALIZER_ENSURE_ARRAY]: true }
+        "anyOf"
       ),
       out,
       arrayFromSingleTransformation
@@ -15471,12 +15815,12 @@ const toCodecArrayFromSingleTop = SchemaAST.applyToSelfOrLastLinkEncoding((ast) 
     return SchemaAST.isOptional(ast) ? SchemaAST.optionalKey(ensure) : ensure
   }
   return out
-})
+}, { stopAt: isCodecArrayFromSingleLink })
 
-function onSerializerArrayFromSingle(ast: SchemaAST.AST): SchemaAST.AST {
+function toCodecArrayFromSingleASTStep(ast: SchemaAST.AST): SchemaAST.AST {
   return ast._tag === "Declaration" || ast._tag === "Arrays" || ast._tag === "Objects" || ast._tag === "Union" ||
       ast._tag === "Suspend"
-    ? ast.recur(toCodecArrayFromSingleTop)
+    ? ast.recur(toCodecArrayFromSingleAST)
     : ast
 }
 
@@ -15704,6 +16048,19 @@ export const isBetweenBigIntReviver: SchemaRepresentation.FilterReviver<{
  * Derives an `Iso` optic from a schema that isomorphically converts between
  * the schema's `Type` and its `Iso` (intermediate / serialized form).
  *
+ * **Details**
+ *
+ * Reading through the `Iso` encodes the schema value, while replacing through
+ * it decodes the new focus.
+ *
+ * **Gotchas**
+ *
+ * This API runs synchronously, so failing, asynchronous, or service-dependent
+ * transformations can throw. Schema failures use `"Schema validation failed"`
+ * with a `SchemaIssue.Issue` in `cause`; format it with
+ * `SchemaIssue.makeFormatterDefault()`. Consume {@link toCodecIso} with an
+ * effectful parser for asynchronous execution or explicit failure handling.
+ *
  * @category converting
  * @since 4.0.0
  */
@@ -15802,6 +16159,19 @@ export function overrideToCodecIso<S extends Constraint, Iso>(
  * Derives a JSON Patch differ from a codec. Serializes values to JSON (via
  * {@link toCodecJson}), computes RFC 6902 JSON Patch operations between old
  * and new values, and can apply patches back to the typed value.
+ *
+ * **Details**
+ *
+ * `diff` encodes both values before computing the patch. `patch` encodes the old
+ * value, applies the patch to its JSON representation, and decodes the result.
+ *
+ * **Gotchas**
+ *
+ * This API runs synchronously, so failing, asynchronous, or service-dependent
+ * transformations can throw. Schema failures use `"Schema validation failed"`
+ * with a `SchemaIssue.Issue` in `cause`; format it with
+ * `SchemaIssue.makeFormatterDefault()`. Invalid patch operations instead produce
+ * {@link JsonPatch.apply} errors.
  *
  * @category converting
  * @since 4.0.0
@@ -15914,6 +16284,28 @@ export const Json: Codec<Json> = make(SchemaAST.annotate(SchemaAST.Json, {
     Type: "Schema.Json"
   })
 }))
+
+/**
+ * Schema for readonly string-keyed records whose values are JSON-compatible.
+ *
+ * **When to use**
+ *
+ * Use when you need to validate a JSON object rather than any JSON value.
+ *
+ * **Example** (Validating a JSON object)
+ *
+ * ```ts import.meta.vitest
+ * import { Option, Schema } from "effect"
+ *
+ * Schema.decodeUnknownOption(Schema.JsonObject)({ key: [1, true, null] }) // => Option.some({ key: [1, true, null] })
+ * Schema.decodeUnknownOption(Schema.JsonObject)([1, 2, 3]) // => Option.none()
+ * ```
+ *
+ * @see {@link Json} for a schema that also accepts JSON arrays and primitive values
+ * @category schemas
+ * @since 4.0.0
+ */
+export const JsonObject = Record(String, Json)
 
 /**
  * Reviver for persisted `Json` declarations.
@@ -16104,7 +16496,7 @@ export declare namespace Annotations {
      * `message` first, then `expected`, and finally falls back to `<filter>`.
      *
      * Use this to name a failed filter in the default message:
-     * `Expected <expected>, got <actual>`.
+     * `Expected <expected>`.
      */
     readonly expected?: string | undefined
     readonly title?: string | undefined
@@ -16163,7 +16555,7 @@ export declare namespace Annotations {
      * only changing the expected label. For a filter or refinement failure,
      * annotate the filter with `message` to replace the whole filter failure
      * message, or `expected` to keep the default
-     * `Expected <expected>, got <actual>` shape.
+     * `Expected <expected>` shape.
      */
     readonly message?: string | undefined
     /**
@@ -16178,7 +16570,7 @@ export declare namespace Annotations {
      * Identifiers are used by schema tooling, including JSON Schema
      * generation, to name references. The default formatter also uses
      * `identifier` as the expected label for type-level failures, such as
-     * `Expected UserId, got null`.
+     * `Expected UserId`.
      *
      * `identifier` does not name a failed filter or refinement. If the base
      * type matches and a filter fails, put `expected` or `message` on the
@@ -16239,15 +16631,41 @@ export declare namespace Annotations {
     readonly representation?:
       | SchemaRepresentation.RepresentationAnnotation
       | undefined
+    /**
+     * Returns the fallback link used by canonical codec derivations.
+     *
+     * Transformations may be asynchronous, may fail, and may use optional
+     * services, but cannot require services absent from the derived codec type.
+     */
     readonly toCodec?:
       | ((typeParameters: TypeParameters.Encoded<TypeParameters>) => SchemaAST.Link)
       | undefined
+    /**
+     * Returns the link used to derive the declaration's JSON representation, or
+     * `undefined` when the declaration is already in canonical JSON form.
+     *
+     * Transformations follow the execution and service constraints of `toCodec`.
+     */
     readonly toCodecJson?:
       | ((typeParameters: TypeParameters.Encoded<TypeParameters>) => SchemaAST.Link | undefined)
       | undefined
+    /**
+     * Returns the link used to derive the declaration's StringTree
+     * representation, or `undefined` when it is already canonical.
+     *
+     * Transformations follow the execution and service constraints of `toCodec`.
+     */
     readonly toCodecStringTree?:
       | ((typeParameters: TypeParameters.Encoded<TypeParameters>) => SchemaAST.Link | undefined)
       | undefined
+    /**
+     * Returns the link used to derive the declaration's isomorphism
+     * representation.
+     *
+     * Transformations may be asynchronous, may fail, and may use optional
+     * services, but cannot require services because the derived `Codec` exposes
+     * none.
+     */
     readonly toCodecIso?:
       | ((typeParameters: TypeParameters.Type<TypeParameters>) => SchemaAST.Link)
       | undefined
@@ -16258,9 +16676,7 @@ export declare namespace Annotations {
     /**
      * Used to collect sentinels from a Declaration SchemaAST.
      *
-     * **Details**
-     *
-     * Reserved to internal use only.
+     * @internal
      */
     readonly "~sentinels"?: ReadonlyArray<SchemaAST.Sentinel> | undefined
   }
@@ -16277,6 +16693,15 @@ export declare namespace Annotations {
     readonly representation?:
       | SchemaRepresentation.CheckRepresentationAnnotation<SchemaAST.AST>
       | undefined
+    /**
+     * Compiles this filter to a JSON Schema fragment.
+     *
+     * **Gotchas**
+     *
+     * Treat the input schemas as immutable. The returned value must be a valid JSON Schema object graph and must not be
+     * mutated after this function returns. Return a new object graph to produce different output during a later
+     * compilation.
+     */
     readonly toJsonSchema?: SchemaRepresentation.ToJsonSchema.Check | undefined
     readonly toCode?: SchemaRepresentation.Generation.Check | undefined
     /**
@@ -16327,8 +16752,7 @@ export declare namespace Annotations {
 
   /**
    * Types used by arbitrary-derivation annotations to configure `toArbitrary`
-   * hooks, filter hints, candidate sources, diagnostics, and merged generation
-   * constraints.
+   * hooks, filter hints, candidate sources, and merged generation constraints.
    *
    * @since 4.0.0
    */
@@ -16341,8 +16765,7 @@ export declare namespace Annotations {
      * `constraint` refines the schema node's base generator. `candidate` adds a
      * weighted source before all filters run. If neither hint is provided, the
      * filter does not guide generation; generated values are still checked by
-     * the filter predicate. With `{ report: true }`, this is reported as
-     * `OpaqueFilter`.
+     * the filter predicate.
      *
      * @category models
      * @since 4.0.0
@@ -16530,58 +16953,6 @@ export declare namespace Annotations {
         typeParameters: { readonly [K in keyof TypeParameters]: TypeParameter<TypeParameters[K]["Type"]> }
       ): (fc: typeof FastCheck, context: Context) => Output<T>
     }
-
-    /**
-     * Wraps a derived value together with arbitrary-derivation diagnostics.
-     *
-     * @category models
-     * @since 4.0.0
-     */
-    export interface WithReport<A> {
-      readonly value: A
-      readonly report: Report
-    }
-
-    /**
-     * Diagnostics collected while deriving an arbitrary.
-     *
-     * **Details**
-     *
-     * Reports contain warnings only. Unsupported schema nodes, impossible
-     * constraints, invalid candidate weights, and throwing candidate factories
-     * fail immediately.
-     *
-     * @category models
-     * @since 4.0.0
-     */
-    export interface Report {
-      readonly warnings: ReadonlyArray<Warning>
-    }
-
-    /**
-     * Non-fatal arbitrary-derivation warning.
-     *
-     * @category models
-     * @since 4.0.0
-     */
-    export type Warning = OpaqueFilterWarning
-
-    /**
-     * Warning emitted when a filter is handled only by the final `.filter`.
-     *
-     * **Details**
-     *
-     * The filter is still enforced. The warning means it did not contribute
-     * a constraint or candidate, so generation may rely on fast-check discards.
-     *
-     * @category models
-     * @since 4.0.0
-     */
-    export interface OpaqueFilterWarning {
-      readonly _tag: "OpaqueFilter"
-      readonly path: ReadonlyArray<PropertyKey>
-      readonly description?: string | undefined
-    }
   }
 
   /**
@@ -16639,12 +17010,22 @@ export declare namespace Annotations {
    *
    * **Details**
    *
-   * The optional `message` field overrides the default issue message.
+   * For `InvalidValue` issues, `message` overrides the complete formatted
+   * message. When `message` is absent, `expected` uses the default expected
+   * value policy, including reported input when available. Other issue types
+   * ignore `expected`.
    *
    * @category models
    * @since 4.0.0
    */
   export interface Issue extends Annotations {
+    /**
+     * The expected value description for an `InvalidValue` issue.
+     */
+    readonly expected?: string | undefined
+    /**
+     * The complete formatted message for the issue.
+     */
     readonly message?: string | undefined
   }
 }

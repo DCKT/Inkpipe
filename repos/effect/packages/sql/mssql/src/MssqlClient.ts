@@ -373,6 +373,7 @@ export const make = (
 
           conn.cancel()
           conn.execSql(req)
+          return Effect.sync(() => conn.cancel())
         })
 
       const runProcedure = (
@@ -396,7 +397,7 @@ export const make = (
                 }
                 resume(
                   Effect.succeed({
-                    params: result,
+                    output: result,
                     rows
                   })
                 )
@@ -421,6 +422,7 @@ export const make = (
 
           conn.cancel()
           conn.callProcedure(req)
+          return Effect.sync(() => conn.cancel())
         })
 
       const connection = identity<MssqlConnection>({
@@ -711,8 +713,8 @@ function numberToParamName(n: number) {
  * @since 4.0.0
  */
 export const defaultParameterTypes: Record<Statement.PrimitiveKind, DataType> = {
-  string: Tedious.TYPES.VarChar,
-  number: Tedious.TYPES.Int,
+  string: Tedious.TYPES.NVarChar,
+  number: Tedious.TYPES.Float,
   bigint: Tedious.TYPES.BigInt,
   boolean: Tedious.TYPES.Bit,
   Date: Tedious.TYPES.DateTime,

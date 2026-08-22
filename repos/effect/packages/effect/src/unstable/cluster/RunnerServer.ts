@@ -42,15 +42,6 @@ const serializeDefectReply = <R extends Rpc.Any>(
     defect
   })))
 
-const serializeReply = <R extends Rpc.Any>(
-  reply: Reply.ReplyWithContext<R>
-): Effect.Effect<Reply.Encoded> =>
-  Effect.catchTag(
-    Reply.serialize(reply),
-    "MalformedMessage",
-    (error) => serializeDefectReply(reply, error)
-  )
-
 /**
  * Layer that handles runner protocol RPCs by forwarding requests to `Sharding`
  * and `MessageStorage`.
@@ -64,16 +55,16 @@ export const layerHandlers = Runners.Rpcs.toLayer(Effect.gen(function*() {
 
   return {
     Ping: () => Effect.void,
-    Notify: ({ envelope }) =>
-      sharding.notify(
-        envelope._tag === "Request"
-          ? new Message.IncomingRequest({
-            envelope,
-            respond: constVoid,
-            lastSentReply: Option.none()
-          })
-          : new Message.IncomingEnvelope({ envelope })
-      ),
+    Notify: ({ envelope, persisted }) => {
+      const message = envelope._tag === "Request"
+        ? new Message.IncomingRequest({
+          envelope,
+          respond: constVoid,
+          lastSentReply: Option.none()
+        })
+        : new Message.IncomingEnvelope({ envelope })
+      return persisted ? sharding.notify(message) : sharding.send(message)
+    },
     Effect: ({ persisted, request }) => {
       let replyEncoded: Option.Option<Effect.Effect<Reply.Encoded, ClusterError.EntityNotAssignedToRunner>> = Option
         .none()
@@ -84,7 +75,7 @@ export const layerHandlers = Runners.Rpcs.toLayer(Effect.gen(function*() {
         envelope: request,
         lastSentReply: Option.none(),
         respond(reply) {
-          resume(serializeReply(reply))
+          resume(Reply.serializeOrDefect(reply))
           return Effect.void
         }
       })
@@ -138,6 +129,9 @@ export const layerHandlers = Runners.Rpcs.toLayer(Effect.gen(function*() {
               return Reply.serialize(reply).pipe(
                 Effect.flatMap((reply) => {
                   Queue.offerUnsafe(queue, reply)
+                  if (reply._tag === "WithExit") {
+                    Queue.endUnsafe(queue)
+                  }
                   return Effect.void
                 }),
                 Effect.catchTag("MalformedMessage", (error) =>

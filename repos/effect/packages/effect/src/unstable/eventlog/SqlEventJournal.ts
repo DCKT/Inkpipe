@@ -8,8 +8,8 @@
  *
  * @since 4.0.0
  */
-import * as Uuid from "uuid"
 import * as Effect from "../../Effect.ts"
+import * as Uuid from "../../internal/uuid.ts"
 import * as Layer from "../../Layer.ts"
 import * as PubSub from "../../PubSub.ts"
 import * as Schema from "../../Schema.ts"
@@ -220,10 +220,12 @@ export const make = (options?: {
             primaryKey,
             payload
           }, { disableChecks: true })
-          yield* insertEntry(toEntryRow(entry))
-          const value = yield* effect(entry)
-          yield* PubSub.publish(pubsub, entry)
-          return value
+          return yield* Effect.uninterruptibleMask((restore) =>
+            restore(effect(entry)).pipe(
+              Effect.tap(insertEntry(toEntryRow(entry))),
+              Effect.tap(PubSub.publish(pubsub, entry))
+            )
+          )
         },
         withTracerDisabled,
         Effect.mapError((cause) => new EventJournal.EventJournalError({ cause, method: "write" }))

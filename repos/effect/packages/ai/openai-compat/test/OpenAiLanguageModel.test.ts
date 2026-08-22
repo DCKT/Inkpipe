@@ -419,13 +419,15 @@ describe("OpenAiLanguageModel", () => {
                   id: "call_1",
                   name: "TestTool",
                   isFailure: false,
-                  result: { output: "first" }
+                  result: { output: "first" },
+                  providerExecuted: false
                 }),
                 Prompt.toolResultPart({
                   id: "call_2",
                   name: "TestTool",
                   isFailure: false,
-                  result: { output: "second" }
+                  result: { output: "second" },
+                  providerExecuted: false
                 })
               ]
             }
@@ -899,6 +901,48 @@ describe("OpenAiLanguageModel", () => {
         }
       }))
 
+    it.effect("emits text when streamed tool_calls is null", () =>
+      Effect.gen(function*() {
+        const layer = OpenAiClient.layer({ apiKey: Redacted.make("sk-test-key") }).pipe(
+          Layer.provide(Layer.succeed(
+            HttpClient.HttpClient,
+            makeHttpClient((request) =>
+              Effect.succeed(sseResponse(request, [
+                {
+                  id: "chatcmpl_nullable_tool_calls",
+                  object: "chat.completion.chunk",
+                  model: "inception/mercury-2",
+                  created: 1,
+                  choices: [{
+                    index: 0,
+                    delta: {
+                      content: "Hello",
+                      role: "assistant",
+                      tool_calls: null
+                    },
+                    finish_reason: null
+                  }]
+                },
+                "[DONE]"
+              ]))
+            )
+          ))
+        )
+
+        const partsChunk = yield* LanguageModel.streamText({ prompt: "test" }).pipe(
+          Stream.runCollect,
+          Effect.provide(OpenAiLanguageModel.model("inception/mercury-2")),
+          Effect.provide(layer)
+        )
+
+        const text = Array.from(partsChunk)
+          .filter((part) => part.type === "text-delta")
+          .map((part) => part.delta)
+          .join("")
+
+        assert.strictEqual(text, "Hello")
+      }))
+
     it.effect("decodes streamed tool call params with the OpenAI codec", () =>
       Effect.gen(function*() {
         const layer = OpenAiClient.layer({ apiKey: Redacted.make("sk-test-key") }).pipe(
@@ -1024,7 +1068,8 @@ describe("OpenAiLanguageModel", () => {
                 id: toolCall.id,
                 name: toolCall.name,
                 isFailure: false,
-                result: "done"
+                result: "done",
+                providerExecuted: false
               })]
             }
           ]),

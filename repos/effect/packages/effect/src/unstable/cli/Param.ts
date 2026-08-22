@@ -12,7 +12,7 @@
  */
 import * as Config from "../../Config.ts"
 import * as Effect from "../../Effect.ts"
-import { dual, identity } from "../../Function.ts"
+import { dual, identity, type LazyArg } from "../../Function.ts"
 import * as Option from "../../Option.ts"
 import { type Pipeable, pipeArguments } from "../../Pipeable.ts"
 import * as Predicate from "../../Predicate.ts"
@@ -226,7 +226,11 @@ export interface Transform<Kind extends ParamKind, in out A, out B> extends Para
   readonly _tag: "Transform"
   readonly kind: Kind
   readonly param: Param<Kind, A>
-  readonly f: (parse: Parse<A>) => Parse<B>
+  readonly alternatives: ReadonlyArray<LazyArg<Param<Kind, unknown>>>
+  readonly f: (
+    parse: Parse<A>,
+    alternatives: ReadonlyArray<LazyArg<Parse<unknown>>>
+  ) => Parse<B>
 }
 
 /**
@@ -396,8 +400,9 @@ export const string = <const Kind extends ParamKind>(
  * // Create a boolean argument
  * const enableArg = Param.boolean(Param.argumentKind, "enable")
  *
- * // Usage in CLI: --verbose (defaults to true when present, false when absent)
- * // or as positional: true/false
+ * // Usage in CLI: --verbose (true) or --no-verbose (false).
+ * // The flag is required unless made optional or given a fallback.
+ * // Boolean positional arguments accept true/false.
  * const kinds = [verboseFlag.kind, enableArg.kind] // => ["flag", "argument"]
  * ```
  *
@@ -1061,15 +1066,22 @@ export const map: {
 
 const transform = <Kind extends ParamKind, A, B>(
   self: Param<Kind, A>,
-  f: (parse: Parse<A>) => Parse<B>
-) =>
-  Object.assign(Object.create(Proto), {
+  f: (
+    parse: Parse<A>,
+    alternatives: ReadonlyArray<LazyArg<Parse<unknown>>>
+  ) => Parse<B>,
+  alternatives: ReadonlyArray<LazyArg<Param<Kind, unknown>>> = []
+): Transform<Kind, A, B> => {
+  const alternativeParsers = alternatives.map((alternative) => () => alternative().parse)
+  return Object.assign(Object.create(Proto), {
     _tag: "Transform",
     kind: self.kind,
     param: self,
+    alternatives,
     f,
-    parse: f(self.parse)
+    parse: f(self.parse, alternativeParsers)
   })
+}
 
 /**
  * Transforms the parsed value of an option using an effectful mapping function.
@@ -1261,18 +1273,7 @@ export const optional = <Kind extends ParamKind, A>(
   param: Param<Kind, A>
 ): Param<Kind, Option.Option<A>> => {
   const parse: Parse<Option.Option<A>> = Effect.fnUntraced(function*(args) {
-    const single = getUnderlyingSingleOrThrow(param)
-
-    // Handle boolean params that are explicitly marked as optional (i.e. the
-    // end user wants to return `Option.none()` instead of `false` when the
-    // flag (or its negated variant) are not present on the command line
-    if (
-      isFlagParam(single) &&
-      Primitive.isBoolean(single.primitiveType) &&
-      ![single.name, ...single.aliases].some((name) => (args.flags[name] ?? []).length > 0)
-    ) {
-      return [args.arguments, Option.none()] as const
-    }
+    getUnderlyingSingleOrThrow(param)
 
     return yield* param.parse(args).pipe(
       Effect.map(([leftover, value]) => [leftover, Option.some(value)] as const),
@@ -1845,20 +1846,20 @@ export const withSchema: {
  * @since 4.0.0
  */
 export const orElse: {
-  <B, Kind extends ParamKind>(
-    orElse: (error: CliError.CliError) => Param<Kind, B>
-  ): <A>(self: Param<Kind, A>) => Param<Kind, A | B>
+  <B, Kind extends ParamKind>(orElse: LazyArg<Param<Kind, B>>): <A>(self: Param<Kind, A>) => Param<Kind, A | B>
   <Kind extends ParamKind, A, B>(
     self: Param<Kind, A>,
-    orElse: (error: CliError.CliError) => Param<Kind, B>
+    orElse: LazyArg<Param<Kind, B>>
   ): Param<Kind, A | B>
 } = dual(2, <Kind extends ParamKind, A, B>(
   self: Param<Kind, A>,
-  orElse: (error: CliError.CliError) => Param<Kind, B>
+  orElse: LazyArg<Param<Kind, B>>
 ) =>
   transform(
     self,
-    (parse: Parse<A>): Parse<A | B> => (args: ParsedArgs) => Effect.catch(parse(args), (err) => orElse(err).parse(args))
+    (parse: Parse<A>, alternatives): Parse<A | B> => (args: ParsedArgs) =>
+      Effect.catch(parse(args), () => (alternatives[0]!() as Parse<B>)(args)),
+    [orElse]
   ))
 
 /**
@@ -1887,27 +1888,28 @@ export const orElse: {
  */
 export const orElseResult: {
   <Kind extends ParamKind, B>(
-    orElse: (error: CliError.CliError) => Param<Kind, B>
+    orElse: LazyArg<Param<Kind, B>>
   ): <A>(self: Param<Kind, A>) => Param<Kind, Result.Result<A, B>>
   <Kind extends ParamKind, A, B>(
     self: Param<Kind, A>,
-    orElse: (error: CliError.CliError) => Param<Kind, B>
+    orElse: LazyArg<Param<Kind, B>>
   ): Param<Kind, Result.Result<A, B>>
 } = dual(2, <Kind extends ParamKind, A, B>(
   self: Param<Kind, A>,
-  orElse: (error: CliError.CliError) => Param<Kind, B>
+  orElse: LazyArg<Param<Kind, B>>
 ) => {
   return transform(
     self,
-    (parse: Parse<A>): Parse<Result.Result<A, B>> => (args: ParsedArgs) =>
+    (parse: Parse<A>, alternatives): Parse<Result.Result<A, B>> => (args: ParsedArgs) =>
       Effect.catch(
         Effect.map(parse(args), ([leftover, value]) => [leftover, Result.succeed(value)] as const),
-        (err) =>
+        () =>
           Effect.map(
-            orElse(err).parse(args),
+            (alternatives[0]!() as Parse<B>)(args),
             ([leftover, value]) => [leftover, Result.fail(value)] as const
           )
-      )
+      ),
+    [orElse]
   )
 })
 
@@ -1955,13 +1957,7 @@ const parseFlag: <A>(
   const providedValues = args.flags[name]
 
   if (providedValues === undefined || providedValues.length === 0) {
-    // Option not provided (empty array due to initialization)
-    if (Primitive.isBoolean(primitiveType)) {
-      // Boolean params default to false when not present
-      return [args.arguments, false as any] as const
-    } else {
-      return yield* new CliError.MissingOption({ option: name })
-    }
+    return yield* new CliError.MissingOption({ option: name })
   }
 
   // Parse the first value (later we can handle multiple)
@@ -2124,7 +2120,12 @@ const transformSingle = <Kind extends ParamKind, A>(
   return matchParam(param, {
     Single: (single) => f(single),
     Map: (mapped) => map(transformSingle(mapped.param, f), mapped.f),
-    Transform: (mapped) => transform(transformSingle(mapped.param, f), mapped.f),
+    Transform: (mapped) =>
+      transform(
+        transformSingle(mapped.param, f),
+        mapped.f,
+        mapped.alternatives.map((alternative) => () => transformSingle(alternative(), f))
+      ),
     Optional: (p) => optional(transformSingle(p.param, f)) as Param<Kind, A>,
     Variadic: (p) =>
       variadic(transformSingle(p.param, f), {
@@ -2146,7 +2147,10 @@ export const extractSingleParams = <Kind extends ParamKind, A>(
   return matchParam(param, {
     Single: (single) => [single as Single<Kind, unknown>],
     Map: (mapped) => extractSingleParams(mapped.param),
-    Transform: (mapped) => extractSingleParams(mapped.param),
+    Transform: (mapped) => [
+      ...extractSingleParams(mapped.param),
+      ...mapped.alternatives.flatMap((alternative) => extractSingleParams(alternative()))
+    ],
     Optional: (optional) => extractSingleParams(optional.param),
     Variadic: (variadic) => extractSingleParams(variadic.param)
   })

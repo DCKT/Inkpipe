@@ -11,12 +11,12 @@
  *
  * @since 4.0.0
  */
-import * as Uuid from "uuid"
 import type { Brand } from "../../Brand.ts"
 import * as Context from "../../Context.ts"
 import * as Data from "../../Data.ts"
 import * as DateTime from "../../DateTime.ts"
 import * as Effect from "../../Effect.ts"
+import * as Uuid from "../../internal/uuid.ts"
 import * as Layer from "../../Layer.ts"
 import * as Order from "../../Order.ts"
 import * as PubSub from "../../PubSub.ts"
@@ -86,7 +86,7 @@ export class EventJournal extends Context.Service<EventJournal, {
   ) => Effect.Effect<A, EventJournalError | E, R>
 
   /**
-   * Retrieve the last known sequence number for a remote source.
+   * Retrieve the first unused sequence number for a remote source.
    */
   readonly nextRemoteSequence: (remoteId: RemoteId) => Effect.Effect<number, EventJournalError>
 
@@ -178,7 +178,7 @@ export const RemoteId = Schema.Uint8Array.pipe(Schema.brand(RemoteIdTypeId))
  * @category unsafe
  * @since 4.0.0
  */
-export const makeRemoteIdUnsafe = (): RemoteId => Uuid.v4({}, new globalThis.Uint8Array(16)) as RemoteId
+export const makeRemoteIdUnsafe = (): RemoteId => Uuid.v4Bytes() as RemoteId
 
 /**
  * Runtime brand identifier used for `EntryId` values.
@@ -247,7 +247,7 @@ export const EntryIdOrder = Order.make<EntryId>((a, b) => {
  * @since 4.0.0
  */
 export const makeEntryIdUnsafe = (options: { msecs?: number } = {}): EntryId =>
-  Uuid.v7(options, new globalThis.Uint8Array(16)) as EntryId
+  Uuid.v7Bytes(options.msecs ?? DateTime.nowUnsafe().epochMilliseconds) as EntryId
 
 /**
  * Extracts the millisecond timestamp encoded in a UUID v7 `EntryId`.
@@ -417,8 +417,8 @@ export const makeMemory: Effect.Effect<EventJournal["Service"]> = Effect.gen(fun
       for (const remoteEntry of options.entries) {
         if (byId.has(remoteEntry.entry.idString)) {
           duplicateEntries.push(remoteEntry.entry)
-          if (remoteEntry.remoteSequence > remote.sequence) {
-            remote.sequence = remoteEntry.remoteSequence
+          if (remoteEntry.remoteSequence >= remote.sequence) {
+            remote.sequence = remoteEntry.remoteSequence + 1
           }
           continue
         }
@@ -438,7 +438,7 @@ export const makeMemory: Effect.Effect<EventJournal["Service"]> = Effect.gen(fun
           if (entry !== undefined && entry.createdAtMillis > entryMillis) {
             continue
           }
-          for (let j = i + 2; j < journal.length; j++) {
+          for (let j = i + 1; j < journal.length; j++) {
             const scannedEntry = journal[j]!
             if (scannedEntry.event === originEntry.event && scannedEntry.primaryKey === originEntry.primaryKey) {
               conflicts.push(scannedEntry)
@@ -451,11 +451,19 @@ export const makeMemory: Effect.Effect<EventJournal["Service"]> = Effect.gen(fun
       for (const remoteEntry of uncommittedRemotes) {
         journal.push(remoteEntry.entry)
         byId.set(remoteEntry.entry.idString, remoteEntry.entry)
-        if (remoteEntry.remoteSequence > remote.sequence) {
-          remote.sequence = remoteEntry.remoteSequence
+        remotes.forEach((target) => {
+          if (target !== remote) {
+            target.missing.push(remoteEntry.entry)
+          }
+        })
+        if (remoteEntry.remoteSequence >= remote.sequence) {
+          remote.sequence = remoteEntry.remoteSequence + 1
         }
       }
       journal.sort((a, b) => a.createdAtMillis - b.createdAtMillis)
+      remotes.forEach((remote) => {
+        remote.missing.sort((a, b) => a.createdAtMillis - b.createdAtMillis)
+      })
       return {
         duplicateEntries
       }

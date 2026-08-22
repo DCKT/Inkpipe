@@ -19,6 +19,7 @@ import * as Predicate from "effect/Predicate"
 import * as Redactable from "effect/Redactable"
 import * as Schema from "effect/Schema"
 import * as AST from "effect/SchemaAST"
+import * as SchemaIssue from "effect/SchemaIssue"
 import * as Stream from "effect/Stream"
 import type { Span } from "effect/Tracer"
 import type { DeepMutable, Mutable, Simplify } from "effect/Types"
@@ -38,6 +39,8 @@ import { OpenAiClient } from "./OpenAiClient.ts"
 import type * as OpenAiSchema from "./OpenAiSchema.ts"
 import { addGenAIAnnotations } from "./OpenAiTelemetry.ts"
 import type * as OpenAiTool from "./OpenAiTool.ts"
+
+const formatIssue = SchemaIssue.makeFormatterDefault()
 
 const ResponseModelIds = Generated.ModelIdsResponses.members[1]
 const SharedModelIds = Generated.ModelIdsShared.members[1]
@@ -587,7 +590,7 @@ export const make = Effect.fnUntraced(function*({ model, config: providerConfig 
 
   const makeConfig = Effect.gen(function*() {
     const services = yield* Effect.context<never>()
-    return { model, ...providerConfig, ...services.mapUnsafe.get(Config.key) }
+    return { model, ...providerConfig, ...Context.getOrUndefined(services, Config) }
   })
 
   const makeRequest = Effect.fnUntraced(
@@ -782,7 +785,7 @@ const prepareMessages = Effect.fnUntraced(
       Tool.isProviderDefined(tool) && tool.name === "OpenAiCodeInterpreter"
     )
     const shellTool = options.tools.find((tool): tool is ReturnType<typeof OpenAiTool.Shell> =>
-      Tool.isProviderDefined(tool) && tool.name === "OpenAiFunctionShell"
+      Tool.isProviderDefined(tool) && tool.name === "OpenAiShell"
     )
     const localShellTool = options.tools.find((tool): tool is ReturnType<typeof OpenAiTool.LocalShell> =>
       Tool.isProviderDefined(tool) && tool.name === "OpenAiLocalShell"
@@ -1130,6 +1133,7 @@ const prepareMessages = Effect.fnUntraced(
                 call_id: part.id,
                 ...(part.result as any)
               })
+              continue
             }
 
             if (Predicate.isNotUndefined(shellTool) && toolName === "shell") {
@@ -1140,6 +1144,7 @@ const prepareMessages = Effect.fnUntraced(
                 output: part.result as any,
                 ...(Predicate.isNotNull(status) ? { status } : {})
               })
+              continue
             }
 
             if (Predicate.isNotUndefined(localShellTool) && toolName === "local_shell") {
@@ -1150,6 +1155,7 @@ const prepareMessages = Effect.fnUntraced(
                 output: part.result as any,
                 ...(Predicate.isNotNull(status) ? { status } : {})
               })
+              continue
             }
 
             messages.push({
@@ -1615,7 +1621,9 @@ const makeResponse = Effect.fnUntraced(
             type: "tool-call",
             id: part.id,
             name: toolName,
-            params: {},
+            params: webSearchTool?.name === "OpenAiWebSearchPreview"
+              ? {}
+              : { action: part.action },
             providerExecuted: true
           })
           parts.push({
@@ -1754,14 +1762,27 @@ const makeStreamResponse = Effect.fnUntraced(
           }
 
           case "response.completed":
-          case "response.incomplete":
-          case "response.failed": {
+          case "response.incomplete": {
             parts.push({
               type: "finish",
               reason: InternalUtilities.resolveFinishReason(
                 event.response.incomplete_details?.reason,
                 hasToolCalls
               ),
+              usage: getUsage(event.response.usage),
+              response: buildHttpResponseDetails(response),
+              ...toServiceTier(event.response.service_tier)
+            })
+            break
+          }
+
+          case "response.failed": {
+            if (event.response.error) {
+              parts.push({ type: "error", error: event.response.error })
+            }
+            parts.push({
+              type: "finish",
+              reason: "error",
               usage: getUsage(event.response.usage),
               response: buildHttpResponseDetails(response),
               ...toServiceTier(event.response.service_tier)
@@ -1942,6 +1963,9 @@ const makeStreamResponse = Effect.fnUntraced(
                 activeToolCalls[event.output_index] = {
                   id: event.item.id,
                   name: toolName
+                }
+                if (webSearchTool?.name === "OpenAiWebSearch") {
+                  break
                 }
                 parts.push({
                   type: "tool-params-start",
@@ -2256,6 +2280,15 @@ const makeStreamResponse = Effect.fnUntraced(
                 const toolName = toolNameMapper.getCustomName(
                   webSearchTool?.name ?? "web_search"
                 )
+                if (webSearchTool?.name === "OpenAiWebSearch") {
+                  parts.push({
+                    type: "tool-call",
+                    id: event.item.id,
+                    name: toolName,
+                    params: { action: event.item.action },
+                    providerExecuted: true
+                  })
+                }
                 parts.push({
                   type: "tool-result",
                   id: event.item.id,
@@ -3128,7 +3161,7 @@ const transformToolCallParams = Effect.fnUntraced(function*<Tools extends Readon
       reason: new AiError.ToolParameterValidationError({
         toolName,
         toolParams,
-        description: error.issue.toString()
+        description: formatIssue(error.issue)
       })
     })
   ))

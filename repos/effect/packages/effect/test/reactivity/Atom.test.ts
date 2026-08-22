@@ -200,6 +200,106 @@ describe.sequential("Atom", () => {
     expect(result.value).toEqual(1)
   })
 
+  it("runtime layers are disposed with their registry", () => {
+    interface Service {
+      readonly id: number
+      readonly isAlive: () => boolean
+      readonly finalize: () => void
+    }
+    const Service = Context.Service<Service>("Atom.test/RegistryScopedService")
+    const finalized: Array<number> = []
+    let builds = 0
+    const layer = Layer.effect(
+      Service,
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          const id = ++builds
+          let alive = true
+          return Service.of({ id, isAlive: () => alive, finalize: () => alive = false })
+        }),
+        (service) =>
+          Effect.sync(() => {
+            service.finalize()
+            finalized.push(service.id)
+          })
+      )
+    )
+    const runtime = Atom.runtime(layer)
+    const service = runtime.atom(Service)
+    const registryA = AtomRegistry.make()
+    const registryB = AtomRegistry.make()
+
+    const resultA = registryA.get(service)
+    const resultB = registryB.get(service)
+    assert(AsyncResult.isSuccess(resultA))
+    assert(AsyncResult.isSuccess(resultB))
+    expect(resultA.value.id).not.toEqual(resultB.value.id)
+
+    registryA.dispose()
+
+    expect(finalized).toEqual([resultA.value.id])
+    expect(resultA.value.isAlive()).toEqual(false)
+    expect(resultB.value.isAlive()).toEqual(true)
+    assert(AsyncResult.isSuccess(registryB.get(service)))
+
+    registryB.dispose()
+  })
+
+  it("default runtime factories build layers once per registry", () => {
+    const Service = Context.Service<number>("Atom.test/DefaultRegistryScopedService")
+    let builds = 0
+    const runtime = Atom.runtime(Layer.sync(Service, () => ++builds))
+    const service = runtime.atom(Service)
+    const registryA = AtomRegistry.make()
+    const registryB = AtomRegistry.make()
+
+    expect(registryA.get(service)).toEqual(AsyncResult.success(1))
+    expect(registryB.get(service)).toEqual(AsyncResult.success(2))
+    expect(builds).toEqual(2)
+
+    registryA.dispose()
+    registryB.dispose()
+  })
+
+  it("concrete runtime memo maps share layers across registries", () => {
+    const Service = Context.Service<number>("Atom.test/SharedRuntimeService")
+    let builds = 0
+    const factory = Atom.context({ memoMap: Layer.makeMemoMapUnsafe() })
+    const runtime = factory(Layer.sync(Service, () => ++builds))
+    const service = runtime.atom(Service)
+    const registryA = AtomRegistry.make()
+    const registryB = AtomRegistry.make()
+
+    expect(registryA.get(service)).toEqual(AsyncResult.success(1))
+    expect(registryB.get(service)).toEqual(AsyncResult.success(1))
+    expect(builds).toEqual(1)
+
+    registryA.dispose()
+    registryB.dispose()
+  })
+
+  it("shared memo map atoms share within a registry and isolate across registries", () => {
+    const Service = Context.Service<number>("Atom.test/SharedRegistryScopedService")
+    let builds = 0
+    const layer = Layer.sync(Service, () => ++builds)
+    const memoMap = Atom.make(() => Layer.makeMemoMapUnsafe())
+    const factoryA = Atom.context({ memoMap })
+    const factoryB = Atom.context({ memoMap })
+    const serviceA = factoryA(layer).atom(Service)
+    const serviceB = factoryB(layer).atom(Service)
+    const registryA = AtomRegistry.make()
+    const registryB = AtomRegistry.make()
+
+    expect(registryA.get(serviceA)).toEqual(AsyncResult.success(1))
+    expect(registryA.get(serviceB)).toEqual(AsyncResult.success(1))
+    expect(registryB.get(serviceA)).toEqual(AsyncResult.success(2))
+    expect(registryB.get(serviceB)).toEqual(AsyncResult.success(2))
+    expect(builds).toEqual(2)
+
+    registryA.dispose()
+    registryB.dispose()
+  })
+
   it("runtime replacement", async () => {
     const count = counterRuntime.atom(Counter.use((_) => _.get))
     const r = AtomRegistry.make({
@@ -2303,6 +2403,34 @@ describe.sequential("Atom", () => {
   })
 
   describe("Reactivity", () => {
+    it("does not broadcast mutations across registries", () => {
+      let reads = 0
+      const query = Atom.make(() => ++reads).pipe(
+        Atom.withReactivity(["counter"]),
+        Atom.keepAlive
+      )
+      const runtime = Atom.runtime(Layer.empty)
+      const mutation = runtime.fn(
+        Effect.fn(function*() {
+        }),
+        { reactivityKeys: ["counter"] }
+      )
+      const registryA = AtomRegistry.make()
+      const registryB = AtomRegistry.make()
+
+      expect(registryA.get(query)).toEqual(1)
+      expect(registryB.get(query)).toEqual(2)
+
+      registryA.set(mutation, void 0)
+
+      expect(reads).toEqual(3)
+      expect(registryA.get(query)).toEqual(3)
+      expect(registryB.get(query)).toEqual(2)
+
+      registryA.dispose()
+      registryB.dispose()
+    })
+
     it("rebuilds on mutation", async () => {
       const r = AtomRegistry.make()
       let rebuilds = 0
@@ -2656,7 +2784,7 @@ interface BuildCounter {
   readonly inc: Effect.Effect<void>
 }
 const BuildCounter = Context.Service<BuildCounter>("BuildCounter")
-const BuildCounterLive = Layer.sync(BuildCounter, () => {
+const BuildCounterLayer = Layer.sync(BuildCounter, () => {
   let count = 0
   return BuildCounter.of({
     get: Effect.sync(() => count),
@@ -2671,7 +2799,7 @@ interface Counter {
   readonly inc: Effect.Effect<void>
 }
 const Counter = Context.Service<Counter>("Counter")
-const CounterLive = Layer.effect(
+const CounterLayer = Layer.effect(
   Counter,
   Effect.gen(function*() {
     const buildCounter = yield* BuildCounter
@@ -2685,7 +2813,7 @@ const CounterLive = Layer.effect(
     })
   })
 ).pipe(
-  Layer.provide(BuildCounterLive)
+  Layer.provide(BuildCounterLayer)
 )
 
 const CounterTest = Layer.effect(
@@ -2702,14 +2830,14 @@ const CounterTest = Layer.effect(
     })
   })
 ).pipe(
-  Layer.provide(BuildCounterLive)
+  Layer.provide(BuildCounterLayer)
 )
 
 interface Multiplier {
   readonly times: (n: number) => Effect.Effect<number>
 }
 const Multiplier = Context.Service<Multiplier>("Multiplier")
-const MultiplierLive = Layer.effect(
+const MultiplierLayer = Layer.effect(
   Multiplier,
   Effect.gen(function*() {
     const counter = yield* Counter
@@ -2719,9 +2847,9 @@ const MultiplierLive = Layer.effect(
     })
   })
 ).pipe(
-  Layer.provideMerge(CounterLive)
+  Layer.provideMerge(CounterLayer)
 )
 
-const buildCounterRuntime = Atom.runtime(BuildCounterLive)
-const counterRuntime = Atom.runtime(CounterLive)
-const multiplierRuntime = Atom.runtime(MultiplierLive)
+const buildCounterRuntime = Atom.runtime(BuildCounterLayer)
+const counterRuntime = Atom.runtime(CounterLayer)
+const multiplierRuntime = Atom.runtime(MultiplierLayer)

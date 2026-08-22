@@ -447,11 +447,13 @@ class MemoMapImpl implements MemoMap {
     scope: Scope.Scope,
     build: (memoMap: MemoMap, scope: Scope.Scope) => Effect<Context.Context<ROut>, E, RIn>
   ): Effect<Context.Context<ROut>, E, RIn> {
-    const existing = this.get(layer, scope)
-    if (existing) {
-      return existing
-    }
-    return memoMapBuild(this, layer, scope, build)
+    return internalEffect.suspend(() => {
+      const existing = this.get(layer, scope)
+      if (existing) {
+        return existing
+      }
+      return memoMapBuild(this, layer, scope, build)
+    })
   }
 }
 
@@ -790,11 +792,11 @@ export const buildWithScope: {
  *   readonly query: (sql: string) => Effect.Effect<string>
  * }>()("Database") {}
  *
- * const DatabaseLive = Layer.succeed(Database, {
+ * const DatabaseLayer = Layer.succeed(Database, {
  *   query: Effect.fn("Database.query")((sql: string) => Effect.succeed(`Query result: ${sql}`))
  * })
  * const program = Database.use((database) => database.query("SELECT 1"))
- * Effect.runSync(Effect.provide(program, DatabaseLive)) // => "Query result: SELECT 1"
+ * Effect.runSync(Effect.provide(program, DatabaseLayer)) // => "Query result: SELECT 1"
  * ```
  *
  * @see {@link sync} for constructing layers from lazy values
