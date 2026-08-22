@@ -23,11 +23,11 @@ Monorepo: five packages managed by Bun workspaces.
 
 | Package | Description | Stack |
 |---------|-------------|-------|
-| `packages/shared` | Domain types, API contracts, errors | Effect Schema v3 |
-| `packages/db` | SQLite database layer (WAL mode) | Bun SQLite, Effect v3 |
-| `packages/server` | HTTP API + pipeline orchestration | Bun.serve, Effect v3, @effect/platform |
-| `packages/watcher` | Background watch process | Effect v3, web-push, Telegram Bot API |
-| `packages/web` | React SPA frontend | React 19, React Router v7, Ark UI v5, Tailwind v4, TanStack Query v5, ky |
+| `packages/shared` | Domain types, API contracts, errors | Effect Schema v4 |
+| `packages/db` | SQLite database layer (WAL mode) | Bun SQLite, Effect v4 |
+| `packages/server` | HTTP API + pipeline orchestration | Bun.serve, Effect v4, @effect/platform-bun |
+| `packages/watcher` | Background watch process | Effect v4, web-push, Telegram Bot API |
+| `packages/web` | React SPA frontend | React 19, React Router v7, Ark UI v5, Tailwind v4, TanStack Query v5 |
 
 ## Local development
 
