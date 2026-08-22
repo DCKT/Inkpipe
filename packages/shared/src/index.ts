@@ -2,6 +2,7 @@ export * from "./schemas";
 export * from "./api";
 export * from "./errors";
 export * from "./titleMatch";
+export * from "./watchAlert";
 export * from "./prowlarr-client";
 export * from "./annas-archive-client";
 export * from "./httpApi/index";

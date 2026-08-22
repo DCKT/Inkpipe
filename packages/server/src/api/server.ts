@@ -17,6 +17,7 @@ import { KomgaGroupLive } from "./handlers/komga"
 import { CopypartyGroupLive } from "./handlers/copyparty"
 import { WatchesGroupLive } from "./handlers/watches"
 import { PushGroupLive } from "./handlers/push"
+import { TelegramGroupLive } from "./handlers/telegram"
 import { JobsWsRouteLive, StaticFallbackRouteLive } from "./raw"
 import { SchemaErrorMiddlewareLive } from "@inkpipe/shared"
 
@@ -37,6 +38,7 @@ const HandlersLive = Layer.mergeAll(
   CopypartyGroupLive,
   WatchesGroupLive,
   PushGroupLive,
+  TelegramGroupLive,
 ).pipe(Layer.provide(SchemaErrorMiddlewareLive))
 
 const CorsLive = HttpRouter.cors({

@@ -42,6 +42,10 @@ export const WatchSchema = Schema.Struct({
   query: Schema.String,
   intervalSeconds: Schema.Finite,
   filterGroups: Schema.Array(FilterGroupSchema),
+  // Copyparty destination folder — presence is the book/non-book
+  // discriminant: set means run the full pipeline into this folder,
+  // empty means just save the magnet to AllDebrid.
+  subfolder: Schema.NullOr(Schema.String),
   createdAt: Schema.String,
   updatedAt: Schema.String,
   unreadCount: Schema.optional(Schema.Finite),
@@ -60,6 +64,7 @@ export const WatchAlertSchema = Schema.Struct({
   guid: Schema.String,
   title: Schema.String,
   magnetUrl: Schema.NullOr(Schema.String),
+  downloadUrl: Schema.NullOr(Schema.String),
   size: Schema.Finite,
   seeders: Schema.Finite,
   indexer: Schema.String,
@@ -175,6 +180,21 @@ export const KomgaConfigSchema = Schema.Struct({
 })
 export type KomgaConfig = typeof KomgaConfigSchema.Type
 
+export const TelegramConfigSchema = Schema.Struct({
+  botToken: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
+  chatId: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
+})
+export type TelegramConfig = typeof TelegramConfigSchema.Type
+
+export const GeneralConfigSchema = Schema.Struct({
+  // The app's own externally-reachable URL (e.g. behind a reverse proxy) —
+  // used to build links back into the web UI from places that can't infer
+  // it themselves, like Telegram notifications. Empty means "unknown"; such
+  // links are omitted rather than built with a wrong guess.
+  publicUrl: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
+})
+export type GeneralConfig = typeof GeneralConfigSchema.Type
+
 export const AppConfigSchema = Schema.Struct({
   prowlarr: ProwlarrConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ url: "", apiKey: "" }))),
   alldebrid: AlldebridConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ apiKey: "" }))),
@@ -182,6 +202,8 @@ export const AppConfigSchema = Schema.Struct({
   copyparty: CopypartyConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ url: "", uploadPath: "/", password: "" }))),
   komga: KomgaConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ url: "", apiKey: "", defaultLibraryId: "" }))),
   annasArchive: AnnasArchiveConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ apiKey: "", baseUrl: "https://annas-archive.gl" }))),
+  telegram: TelegramConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ botToken: "", chatId: "" }))),
+  general: GeneralConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ publicUrl: "" }))),
 })
 export type AppConfig = typeof AppConfigSchema.Type
 

@@ -7,6 +7,7 @@ import { Dialog } from "../ui/dialog";
 import { Field } from "../ui/field";
 import { Input } from "../ui/input";
 import { ToastGroup } from "../ui/toast";
+import FolderSelect from "./FolderSelect";
 
 export function WatchFormDialog({
   existing,
@@ -24,6 +25,7 @@ export function WatchFormDialog({
   const [filterGroups, setFilterGroups] = useState<FilterGroup[]>(
     existing?.filterGroups ? [...existing.filterGroups] : [],
   );
+  const [subfolder, setSubfolder] = useState(existing?.subfolder ?? "");
 
   useEffect(() => {
     if (existing) {
@@ -31,6 +33,7 @@ export function WatchFormDialog({
       setQuery(existing.query);
       setIntervalSeconds(String(existing.intervalSeconds));
       setFilterGroups([...existing.filterGroups]);
+      setSubfolder(existing.subfolder ?? "");
     }
   }, [existing]);
 
@@ -42,6 +45,7 @@ export function WatchFormDialog({
       query: string;
       intervalSeconds: number;
       filterGroups: FilterGroup[];
+      subfolder: string | null;
     }) => runApi((client) => client.watches.create({ payload: body })),
     onSuccess: () => {
       ToastGroup.create.success("Watch created");
@@ -49,6 +53,7 @@ export function WatchFormDialog({
       setQuery("");
       setIntervalSeconds("3600");
       setFilterGroups([]);
+      setSubfolder("");
       setOpen(false);
       onCreated();
     },
@@ -63,6 +68,7 @@ export function WatchFormDialog({
       query: string;
       intervalSeconds: number;
       filterGroups: FilterGroup[];
+      subfolder: string | null;
     }) =>
       runApi((client) =>
         client.watches.update({ params: { id: existing!.id }, payload: body }),
@@ -135,6 +141,7 @@ export function WatchFormDialog({
       setQuery("");
       setIntervalSeconds("3600");
       setFilterGroups([]);
+      setSubfolder("");
     }
     setOpen(details.open);
   };
@@ -151,6 +158,7 @@ export function WatchFormDialog({
           substrings: g.substrings.filter((s) => s.trim() !== ""),
         }))
         .filter((g) => g.substrings.length > 0),
+      subfolder: subfolder.trim() || null,
     };
     if (isEdit) {
       updateMutation.mutate(body);
@@ -209,6 +217,17 @@ export function WatchFormDialog({
                   placeholder="3600"
                 />
               </Field.Root>
+
+              <div>
+                <FolderSelect
+                  value={subfolder}
+                  onChange={(value) => setSubfolder(value)}
+                />
+                <p className="mt-1 text-xs text-secondary">
+                  Set a folder to download and convert matches into it. Leave
+                  empty to just save matches to AllDebrid instead.
+                </p>
+              </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">

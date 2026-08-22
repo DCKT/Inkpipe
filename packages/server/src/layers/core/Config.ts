@@ -95,13 +95,22 @@ interface AnnasArchiveRow {
   baseUrl: string
 }
 
+interface TelegramRow {
+  botToken: string
+  chatId: string
+}
+
+interface GeneralRow {
+  publicUrl: string
+}
+
 export const ConfigServiceLive = Layer.effect(
   ConfigService,
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
 
     const loadConfig = Effect.gen(function* () {
-      const [prowlarrRows, alldebridRows, kccRows, copypartyRows, komgaRows, annasArchiveRows] =
+      const [prowlarrRows, alldebridRows, kccRows, copypartyRows, komgaRows, annasArchiveRows, telegramRows, generalRows] =
         yield* Effect.all([
           sql<ProwlarrRow>`SELECT url, api_key FROM prowlarr_config WHERE id = 1`,
           sql<AlldebridRow>`SELECT api_key FROM alldebrid_config WHERE id = 1`,
@@ -109,6 +118,8 @@ export const ConfigServiceLive = Layer.effect(
           sql<CopypartyRow>`SELECT url, upload_path, password FROM copyparty_config WHERE id = 1`,
           sql<KomgaRow>`SELECT url, api_key, default_library_id FROM komga_config WHERE id = 1`,
           sql<AnnasArchiveRow>`SELECT api_key, base_url FROM annas_archive_config WHERE id = 1`,
+          sql<TelegramRow>`SELECT bot_token, chat_id FROM telegram_config WHERE id = 1`,
+          sql<GeneralRow>`SELECT public_url FROM general_config WHERE id = 1`,
         ], { concurrency: "unbounded" })
 
       const prowlarr = prowlarrRows[0]
@@ -117,6 +128,8 @@ export const ConfigServiceLive = Layer.effect(
       const copyparty = copypartyRows[0]
       const komga = komgaRows[0]
       const annasArchive = annasArchiveRows[0]
+      const telegram = telegramRows[0]
+      const general = generalRows[0]
 
       return {
         prowlarr: { url: prowlarr?.url ?? "", apiKey: prowlarr?.apiKey ?? "" },
@@ -163,6 +176,13 @@ export const ConfigServiceLive = Layer.effect(
           apiKey: annasArchive?.apiKey ?? "",
           baseUrl: annasArchive?.baseUrl ?? "https://annas-archive.gl",
         },
+        telegram: {
+          botToken: telegram?.botToken ?? "",
+          chatId: telegram?.chatId ?? "",
+        },
+        general: {
+          publicUrl: general?.publicUrl ?? "",
+        },
       } satisfies AppConfig
     }).pipe(
       Effect.mapError((e) =>
@@ -208,6 +228,8 @@ export const ConfigServiceLive = Layer.effect(
         yield* sql`UPDATE copyparty_config SET url = ${config.copyparty.url}, upload_path = ${config.copyparty.uploadPath}, password = ${config.copyparty.password} WHERE id = 1`
         yield* sql`UPDATE komga_config SET url = ${config.komga.url}, api_key = ${config.komga.apiKey}, default_library_id = ${config.komga.defaultLibraryId} WHERE id = 1`
         yield* sql`UPDATE annas_archive_config SET api_key = ${config.annasArchive.apiKey}, base_url = ${config.annasArchive.baseUrl} WHERE id = 1`
+        yield* sql`UPDATE telegram_config SET bot_token = ${config.telegram.botToken}, chat_id = ${config.telegram.chatId} WHERE id = 1`
+        yield* sql`UPDATE general_config SET public_url = ${config.general.publicUrl} WHERE id = 1`
       }).pipe(
         Effect.mapError((e) =>
           new ConfigSaveError({

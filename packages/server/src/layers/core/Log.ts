@@ -36,6 +36,7 @@ const NAMESPACE_COLORS: Record<string, (s: string) => string> = {
   komga: ansi.blue,
   copyparty: ansi.blue,
   kcc: ansi.blue,
+  telegram: ansi.blue,
   files: ansi.blue,
   http: ansi.dim,
 }

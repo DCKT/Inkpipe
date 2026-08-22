@@ -11,14 +11,14 @@ export class WatchStoreService extends Context.Service<
     readonly listWatches: Effect.Effect<WatchWithUnread[], WatchStoreError>
     readonly listEnabledWatches: Effect.Effect<Watch[], WatchStoreError>
     readonly getWatch: (id: WatchId) => Effect.Effect<Watch, WatchNotFoundError | WatchStoreError>
-    readonly createWatch: (input: { name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"] }) => Effect.Effect<Watch, WatchStoreError>
-    readonly updateWatch: (id: WatchId, updates: Partial<{ name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"] }>) => Effect.Effect<Watch, WatchNotFoundError | WatchStoreError>
+    readonly createWatch: (input: { name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"]; subfolder: string | null }) => Effect.Effect<Watch, WatchStoreError>
+    readonly updateWatch: (id: WatchId, updates: Partial<{ name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"]; subfolder: string | null }>) => Effect.Effect<Watch, WatchNotFoundError | WatchStoreError>
     readonly deleteWatch: (id: WatchId) => Effect.Effect<void, WatchNotFoundError | WatchStoreError>
     readonly listAlerts: (watchId: WatchId) => Effect.Effect<WatchAlert[], WatchStoreError>
     readonly getAlert: (watchId: WatchId, alertId: WatchAlertId) => Effect.Effect<WatchAlert, WatchNotFoundError | WatchStoreError>
     readonly acknowledgeAlert: (watchId: WatchId, alertId: WatchAlertId) => Effect.Effect<void, WatchNotFoundError | WatchStoreError>
     readonly acknowledgeAllAlerts: (watchId: WatchId) => Effect.Effect<void, WatchStoreError>
-    readonly insertAlert: (alert: { watchId: WatchId; guid: string; title: string; magnetUrl: string | null; size: number; seeders: number; indexer: string; matchedAt: number; acknowledged: boolean }) => Effect.Effect<void, WatchStoreError>
+    readonly insertAlert: (alert: { watchId: WatchId; guid: string; title: string; magnetUrl: string | null; downloadUrl: string | null; size: number; seeders: number; indexer: string; matchedAt: number; acknowledged: boolean }) => Effect.Effect<WatchAlertId, WatchStoreError>
     readonly hasAlertForGuid: (watchId: WatchId, guid: string) => Effect.Effect<boolean, WatchStoreError>
     readonly getUnreadCount: Effect.Effect<number, WatchStoreError>
   }
@@ -31,6 +31,7 @@ interface WatchRow {
   query: string
   intervalSeconds: number
   filterGroups: string
+  subfolder: string | null
   createdAt: string
   updatedAt: string
 }
@@ -43,6 +44,7 @@ function toWatch(row: WatchRow): Watch {
     query: row.query,
     intervalSeconds: row.intervalSeconds,
     filterGroups: JSON.parse(row.filterGroups) as Watch["filterGroups"],
+    subfolder: row.subfolder,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
@@ -63,6 +65,7 @@ interface AlertRow {
   guid: string
   title: string
   magnetUrl: string | null
+  downloadUrl: string | null
   size: number
   seeders: number
   indexer: string
@@ -77,6 +80,7 @@ function toAlert(row: AlertRow): WatchAlert {
     guid: row.guid,
     title: row.title,
     magnetUrl: row.magnetUrl,
+    downloadUrl: row.downloadUrl,
     size: row.size,
     seeders: row.seeders,
     indexer: row.indexer,
@@ -128,7 +132,7 @@ export const WatchStoreServiceLive = Layer.effect(
         }),
       )
 
-    const createWatch = (input: { name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"] }) =>
+    const createWatch = (input: { name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"]; subfolder: string | null }) =>
       Effect.gen(function* () {
         const dbInput = {
           name: input.name,
@@ -136,6 +140,7 @@ export const WatchStoreServiceLive = Layer.effect(
           query: input.query,
           intervalSeconds: input.intervalSeconds,
           filterGroups: JSON.stringify(input.filterGroups),
+          subfolder: input.subfolder,
         }
         const rows = yield* sql<WatchRow>`INSERT INTO watches ${sql.insert(dbInput).returning("*")}`
         return toWatch(rows[0])
@@ -143,7 +148,7 @@ export const WatchStoreServiceLive = Layer.effect(
         Effect.mapError((e) => new WatchStoreError({ message: `Failed to create watch: ${String(e)}` })),
       )
 
-    const updateWatch = (id: WatchId, updates: Partial<{ name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"] }>) =>
+    const updateWatch = (id: WatchId, updates: Partial<{ name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"]; subfolder: string | null }>) =>
       Effect.gen(function* () {
         yield* getWatch(id)
         const dbUpdate: Record<string, unknown> = {}
@@ -152,6 +157,7 @@ export const WatchStoreServiceLive = Layer.effect(
         if (updates.query !== undefined) dbUpdate.query = updates.query
         if (updates.intervalSeconds !== undefined) dbUpdate.intervalSeconds = updates.intervalSeconds
         if (updates.filterGroups !== undefined) dbUpdate.filterGroups = JSON.stringify(updates.filterGroups)
+        if (updates.subfolder !== undefined) dbUpdate.subfolder = updates.subfolder
         if (Object.keys(dbUpdate).length > 0) {
           const rows = yield* sql<WatchRow>`UPDATE watches SET ${sql.update(dbUpdate, ["id"])} WHERE id = ${id} returning *`
           return toWatch(rows[0])
@@ -218,19 +224,37 @@ export const WatchStoreServiceLive = Layer.effect(
         Effect.mapError((e) => new WatchStoreError({ message: `Failed to acknowledge alerts: ${String(e)}` })),
       )
 
-    const insertAlert = (alert: { watchId: WatchId; guid: string; title: string; magnetUrl: string | null; size: number; seeders: number; indexer: string; matchedAt: number; acknowledged: boolean }) =>
-      sql`INSERT OR IGNORE INTO watch_alerts ${sql.insert({
-        watchId: alert.watchId,
-        guid: alert.guid,
-        title: alert.title,
-        magnetUrl: alert.magnetUrl,
-        size: alert.size,
-        seeders: alert.seeders,
-        indexer: alert.indexer,
-        matchedAt: alert.matchedAt,
-        acknowledged: alert.acknowledged ? 1 : 0,
-      })}`.pipe(
-        Effect.mapError((e) => new WatchStoreError({ message: `Failed to insert alert: ${String(e)}` })),
+    const insertAlert = (alert: { watchId: WatchId; guid: string; title: string; magnetUrl: string | null; downloadUrl: string | null; size: number; seeders: number; indexer: string; matchedAt: number; acknowledged: boolean }) =>
+      Effect.gen(function* () {
+        const rows = yield* sql<{ id: number }>`INSERT OR IGNORE INTO watch_alerts ${sql.insert({
+          watchId: alert.watchId,
+          guid: alert.guid,
+          title: alert.title,
+          magnetUrl: alert.magnetUrl,
+          downloadUrl: alert.downloadUrl,
+          size: alert.size,
+          seeders: alert.seeders,
+          indexer: alert.indexer,
+          matchedAt: alert.matchedAt,
+          acknowledged: alert.acknowledged ? 1 : 0,
+        }).returning("id")}`
+        if (rows.length > 0) {
+          return WatchAlertId.make(rows[0].id)
+        }
+        // `INSERT OR IGNORE` was ignored (duplicate `(watchId, guid)`), so
+        // `RETURNING` yielded no row — callers normally check
+        // `hasAlertForGuid` first, so this is a race-safety fallback, not
+        // the common path.
+        const existing = yield* sql<{ id: number }>`SELECT id FROM watch_alerts WHERE watch_id = ${alert.watchId} AND guid = ${alert.guid}`
+        if (existing.length === 0) {
+          return yield* new WatchStoreError({ message: "Failed to insert alert: insert was ignored but no existing row was found" })
+        }
+        return WatchAlertId.make(existing[0].id)
+      }).pipe(
+        Effect.mapError((e) => {
+          if (e instanceof WatchStoreError) return e
+          return new WatchStoreError({ message: `Failed to insert alert: ${String(e)}` })
+        }),
       )
 
     const hasAlertForGuid = (watchId: WatchId, guid: string) =>

@@ -39,6 +39,8 @@ const testConfig: AppConfig = {
   copyparty: { url: "http://cp:3923", uploadPath: "/", password: "" },
   komga: { url: "", apiKey: "", defaultLibraryId: "" },
   annasArchive: { apiKey: "", baseUrl: "https://annas-archive.gl" },
+  telegram: { botToken: "", chatId: "" },
+  general: { publicUrl: "" },
 }
 
 const testFile: DebridFile = { filename: "one-piece-v01.cbz", link: "https://debrid/link", size: 1000 }

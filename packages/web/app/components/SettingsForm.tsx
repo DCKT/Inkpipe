@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { AppConfig } from "../lib/types";
 import { runApi } from "../lib/apiClient";
 import { Button } from "../ui/button";
 import { Select, createListCollection } from "../ui/select";
 import { Field } from "../ui/field";
+import { ToastGroup } from "../ui/toast";
 import KccOptionsFields from "./KccOptionsFields";
 
 interface SettingsFormProps {
@@ -104,6 +105,16 @@ export default function SettingsForm({
   isSaving,
 }: SettingsFormProps) {
   const [form, setForm] = useState<AppConfig>(config);
+
+  const testTelegramMutation = useMutation({
+    mutationFn: () => runApi((client) => client.telegram.test({})),
+    onSuccess: () => {
+      ToastGroup.create.success("Telegram test message sent.");
+    },
+    onError: (err) => {
+      ToastGroup.create.error("Failed to send Telegram test message", err.message);
+    },
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -298,6 +309,76 @@ export default function SettingsForm({
               })
             }
           />
+        </div>
+      </fieldset>
+
+      <fieldset className="island-shell rounded-2xl p-6">
+        <legend className="island-kicker mb-3 px-1">General</legend>
+        <Field.Root>
+          <Field.Label>Public URL</Field.Label>
+          <Field.Input
+            type="url"
+            placeholder="https://inkpipe.example.com"
+            value={form.general.publicUrl}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                general: { ...form.general, publicUrl: e.target.value },
+              })
+            }
+          />
+          <p className="mt-1 text-xs text-secondary">
+            The address this app is reachable at from outside — used to build
+            links (e.g. "see the web UI" in Telegram notifications). Leave
+            empty to skip those links.
+          </p>
+        </Field.Root>
+      </fieldset>
+
+      <fieldset className="island-shell rounded-2xl p-6">
+        <legend className="island-kicker mb-3 px-1">Telegram</legend>
+        <div className="space-y-4">
+          <Field.Root>
+            <Field.Label>Bot Token</Field.Label>
+            <Field.Input
+              type="password"
+              placeholder="123456:ABC-DEF..."
+              value={form.telegram.botToken}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  telegram: { ...form.telegram, botToken: e.target.value },
+                })
+              }
+            />
+          </Field.Root>
+          <Field.Root>
+            <Field.Label>Chat ID</Field.Label>
+            <Field.Input
+              type="text"
+              placeholder="123456789"
+              value={form.telegram.chatId}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  telegram: { ...form.telegram, chatId: e.target.value },
+                })
+              }
+            />
+          </Field.Root>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={testTelegramMutation.isPending}
+              onClick={() => testTelegramMutation.mutate()}
+            >
+              {testTelegramMutation.isPending ? "Sending..." : "Send Test Message"}
+            </Button>
+            <p className="text-sm text-secondary">
+              Save settings first — the test uses the saved bot token and chat ID.
+            </p>
+          </div>
         </div>
       </fieldset>
 

@@ -9,7 +9,7 @@ import { describe, it, expect } from "@effect/vitest"
 import { HttpApi, HttpApiBuilder } from "effect/unstable/httpapi"
 import { HttpRouter } from "effect/unstable/http"
 import * as BunHttpServer from "@effect/platform-bun/BunHttpServer"
-import { WatchId, WatchNotFoundError, WatchStoreError } from "@inkpipe/shared"
+import { WatchId, WatchAlertId, WatchNotFoundError, WatchStoreError } from "@inkpipe/shared"
 import type { Watch, WatchWithUnread } from "@inkpipe/shared"
 import { WatchStoreService } from "../layers/storage/WatchStore"
 import { WatchesGroup } from "@inkpipe/shared/httpApi/groups/watches"
@@ -23,6 +23,7 @@ const watch: Watch = {
   query: "test",
   intervalSeconds: 600,
   filterGroups: [],
+  subfolder: null,
   createdAt: now,
   updatedAt: now,
 }
@@ -43,7 +44,7 @@ function makeStore(overrides: Partial<WatchStoreShape> = {}) {
     getAlert: () => Effect.fail(new WatchNotFoundError({ message: "not found" })),
     acknowledgeAlert: () => Effect.void,
     acknowledgeAllAlerts: () => Effect.void,
-    insertAlert: () => Effect.void,
+    insertAlert: () => Effect.succeed(WatchAlertId.make(1)),
     hasAlertForGuid: () => Effect.succeed(false),
     getUnreadCount: Effect.succeed(3),
     ...overrides,

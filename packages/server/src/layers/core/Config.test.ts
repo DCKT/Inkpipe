@@ -69,6 +69,8 @@ describe("ConfigService", () => {
         copyparty: { url: "http://copyparty.local", uploadPath: "/books", password: "secret" },
         komga: { url: "http://komga.local", apiKey: "komga-key", defaultLibraryId: "lib-1" },
         annasArchive: { apiKey: "aa-key", baseUrl: "https://annas-archive.example" },
+        telegram: { botToken: "telegram-token", chatId: "12345" },
+        general: { publicUrl: "https://inkpipe.example.com" },
       }
 
       const roundTripped = yield* makeProgram((svc) =>
@@ -99,6 +101,8 @@ describe("ConfigService", () => {
         copyparty: { url: "", uploadPath: "/", password: "" },
         komga: { url: "", apiKey: "", defaultLibraryId: "" },
         annasArchive: { apiKey: "", baseUrl: "https://annas-archive.gl" },
+        telegram: { botToken: "", chatId: "" },
+        general: { publicUrl: "" },
       }
 
       const final = yield* makeProgram((svc) =>

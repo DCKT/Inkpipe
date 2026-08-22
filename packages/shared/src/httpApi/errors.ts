@@ -16,6 +16,8 @@ import {
   AnnasArchiveDownloadError,
   KomgaNotConfigured,
   KomgaHttpError,
+  TelegramNotConfigured,
+  TelegramHttpError,
   CopypartyNotConfigured,
   CopypartyHttpError,
   CopypartyFolderError,
@@ -54,6 +56,9 @@ export const AnnasArchiveDownloadErrorS = AnnasArchiveDownloadError.pipe(HttpApi
 
 export const KomgaNotConfiguredS = KomgaNotConfigured.pipe(HttpApiSchema.status(503))
 export const KomgaHttpErrorS = KomgaHttpError.pipe(HttpApiSchema.status(502))
+
+export const TelegramNotConfiguredS = TelegramNotConfigured.pipe(HttpApiSchema.status(503))
+export const TelegramHttpErrorS = TelegramHttpError.pipe(HttpApiSchema.status(502))
 
 export const CopypartyNotConfiguredS = CopypartyNotConfigured.pipe(HttpApiSchema.status(503))
 export const CopypartyHttpErrorS = CopypartyHttpError.pipe(HttpApiSchema.status(502))

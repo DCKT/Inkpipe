@@ -18,6 +18,7 @@ const newWatch = {
   query: "one piece",
   intervalSeconds: 600,
   filterGroups: [] as Watch["filterGroups"],
+  subfolder: null as string | null,
 }
 
 describe("WatchStoreService", () => {
@@ -81,7 +82,7 @@ describe("WatchStoreService", () => {
         Effect.gen(function* () {
           const created = yield* svc.createWatch(newWatch)
           yield* svc.insertAlert({
-            watchId: created.id, guid: "g1", title: "t", magnetUrl: null,
+            watchId: created.id, guid: "g1", title: "t", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: false,
           })
           yield* svc.deleteWatch(created.id)
@@ -101,16 +102,16 @@ describe("WatchStoreService", () => {
           const withAlerts = yield* svc.createWatch({ ...newWatch, name: "Has Alerts" })
           yield* svc.createWatch({ ...newWatch, name: "No Alerts" })
           yield* svc.insertAlert({
-            watchId: withAlerts.id, guid: "g1", title: "t1", magnetUrl: null,
+            watchId: withAlerts.id, guid: "g1", title: "t1", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: false,
           })
           yield* svc.insertAlert({
-            watchId: withAlerts.id, guid: "g2", title: "t2", magnetUrl: null,
+            watchId: withAlerts.id, guid: "g2", title: "t2", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: false,
           })
           // acknowledged alerts don't count as unread
           yield* svc.insertAlert({
-            watchId: withAlerts.id, guid: "g3", title: "t3", magnetUrl: null,
+            watchId: withAlerts.id, guid: "g3", title: "t3", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: true,
           })
           return yield* svc.listWatches
@@ -140,7 +141,7 @@ describe("WatchStoreService", () => {
         Effect.gen(function* () {
           const watch = yield* svc.createWatch(newWatch)
           const alert = {
-            watchId: watch.id, guid: "dup", title: "t", magnetUrl: null,
+            watchId: watch.id, guid: "dup", title: "t", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: false,
           }
           yield* svc.insertAlert(alert)
@@ -151,6 +152,26 @@ describe("WatchStoreService", () => {
       expect(alerts.length).toBe(1)
     }))
 
+  it.effect("insertAlert returns the new alert's id, and the same id again on a deduped insert", () =>
+    Effect.gen(function* () {
+      const { firstId, secondId, alerts } = yield* makeProgram((svc) =>
+        Effect.gen(function* () {
+          const watch = yield* svc.createWatch(newWatch)
+          const alert = {
+            watchId: watch.id, guid: "dup-id", title: "t", magnetUrl: null, downloadUrl: null,
+            size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: false,
+          }
+          const firstId = yield* svc.insertAlert(alert)
+          const secondId = yield* svc.insertAlert(alert)
+          const alerts = yield* svc.listAlerts(watch.id)
+          return { firstId, secondId, alerts }
+        }),
+      )
+      expect(secondId).toBe(firstId)
+      expect(alerts).toHaveLength(1)
+      expect(alerts[0]?.id).toBe(firstId)
+    }))
+
   it.effect("hasAlertForGuid reflects dedup state", () =>
     Effect.gen(function* () {
       const { before, after } = yield* makeProgram((svc) =>
@@ -158,7 +179,7 @@ describe("WatchStoreService", () => {
           const watch = yield* svc.createWatch(newWatch)
           const before = yield* svc.hasAlertForGuid(watch.id, "g1")
           yield* svc.insertAlert({
-            watchId: watch.id, guid: "g1", title: "t", magnetUrl: null,
+            watchId: watch.id, guid: "g1", title: "t", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: false,
           })
           const after = yield* svc.hasAlertForGuid(watch.id, "g1")
@@ -175,11 +196,11 @@ describe("WatchStoreService", () => {
         Effect.gen(function* () {
           const watch = yield* svc.createWatch(newWatch)
           yield* svc.insertAlert({
-            watchId: watch.id, guid: "g1", title: "t1", magnetUrl: null,
+            watchId: watch.id, guid: "g1", title: "t1", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: false,
           })
           yield* svc.insertAlert({
-            watchId: watch.id, guid: "g2", title: "t2", magnetUrl: null,
+            watchId: watch.id, guid: "g2", title: "t2", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: false,
           })
           const [first] = yield* svc.listAlerts(watch.id)
@@ -209,11 +230,11 @@ describe("WatchStoreService", () => {
           const target = yield* svc.createWatch({ ...newWatch, name: "Target" })
           const other = yield* svc.createWatch({ ...newWatch, name: "Other" })
           yield* svc.insertAlert({
-            watchId: target.id, guid: "g1", title: "t", magnetUrl: null,
+            watchId: target.id, guid: "g1", title: "t", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: false,
           })
           yield* svc.insertAlert({
-            watchId: other.id, guid: "g2", title: "t", magnetUrl: null,
+            watchId: other.id, guid: "g2", title: "t", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: false,
           })
           yield* svc.acknowledgeAllAlerts(target.id)
@@ -234,15 +255,15 @@ describe("WatchStoreService", () => {
           const a = yield* svc.createWatch({ ...newWatch, name: "A" })
           const b = yield* svc.createWatch({ ...newWatch, name: "B" })
           yield* svc.insertAlert({
-            watchId: a.id, guid: "g1", title: "t", magnetUrl: null,
+            watchId: a.id, guid: "g1", title: "t", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: false,
           })
           yield* svc.insertAlert({
-            watchId: b.id, guid: "g2", title: "t", magnetUrl: null,
+            watchId: b.id, guid: "g2", title: "t", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: false,
           })
           yield* svc.insertAlert({
-            watchId: b.id, guid: "g3", title: "t", magnetUrl: null,
+            watchId: b.id, guid: "g3", title: "t", magnetUrl: null, downloadUrl: null,
             size: 0, seeders: 0, indexer: "x", matchedAt: Date.now(), acknowledged: true,
           })
           return yield* svc.getUnreadCount

@@ -10,7 +10,9 @@ import {
   WatchStoreServiceLive,
   WatchStoreService,
 } from "@inkpipe/server/layers/storage/WatchStore"
-import { PushServiceLive, PushService } from "@inkpipe/server/layers/pipeline/Push"
+import { PushServiceLive } from "@inkpipe/server/layers/pipeline/Push"
+import { TelegramServiceLive } from "@inkpipe/server/layers/integrations/Telegram"
+import { notifyWatchMatches, type MatchedAlert } from "@inkpipe/server/layers/pipeline/WatchNotifier"
 import { matchesFilter, type Watch } from "@inkpipe/shared"
 
 const BaseLayer = Layer.mergeAll(
@@ -23,19 +25,23 @@ const ProwlarrLayer = ProwlarrServiceLive.pipe(
   Layer.provide(ConfigLayer),
   Layer.provide(BaseLayer),
 )
+const TelegramLayer = TelegramServiceLive.pipe(
+  Layer.provide(ConfigLayer),
+  Layer.provide(BaseLayer),
+)
 
 const WatcherLayer = Layer.mergeAll(
   BaseLayer,
   ConfigLayer,
   WatchLayer,
   ProwlarrLayer,
+  TelegramLayer,
 )
 
 function runWatch(watch: Watch) {
   return Effect.gen(function* () {
     const prowlarr = yield* ProwlarrService
     const store = yield* WatchStoreService
-    const push = yield* PushService
     const log = yield* LogService
 
     const results = yield* prowlarr
@@ -48,7 +54,7 @@ function runWatch(watch: Watch) {
         ),
       )
 
-    let newAlerts = 0
+    const matchedAlerts: MatchedAlert[] = []
 
     for (const result of results) {
       if (
@@ -60,28 +66,23 @@ function runWatch(watch: Watch) {
       const exists = yield* store.hasAlertForGuid(watch.id, result.guid)
       if (exists) continue
 
-      yield* store.insertAlert({
+      const alertId = yield* store.insertAlert({
         watchId: watch.id,
         guid: result.guid,
         title: result.title,
         magnetUrl: result.magnetUrl,
+        downloadUrl: result.downloadUrl,
         size: result.size,
         seeders: result.seeders,
         indexer: result.indexer,
         matchedAt: Date.now(),
         acknowledged: false,
       })
-      newAlerts++
+      matchedAlerts.push({ id: alertId, title: result.title, indexer: result.indexer, seeders: result.seeders })
       yield* log.info(`[watcher]`, `"${watch.name}": new match "${result.title}"`)
     }
 
-    if (newAlerts > 0) {
-      yield* push.sendNotification({
-        title: `Watch: ${watch.name}`,
-        body: `${newAlerts} new match${newAlerts !== 1 ? "es" : ""} found`,
-        tag: `watch-${watch.id}`,
-      })
-    }
+    yield* notifyWatchMatches(watch, matchedAlerts)
   })
 }
 

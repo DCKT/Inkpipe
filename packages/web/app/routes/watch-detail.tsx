@@ -1,19 +1,16 @@
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
+import { alertToProwlarrResult } from "@inkpipe/shared";
 import { runApi } from "../lib/apiClient";
-import type { WatchAlert, ProwlarrResult } from "../lib/types";
+import type { WatchAlert } from "../lib/types";
 import { ToastGroup } from "../ui/toast";
 import { WatchFormDialog } from "../components/WatchForm";
-import DownloadModal from "../components/DownloadModal";
 import { PageHeader } from "../components/PageHeader";
 
 export default function WatchDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-
-  const [modalItems, setModalItems] = useState<ProwlarrResult[] | null>(null);
 
   const watchQuery = useQuery({
     queryKey: ["watches", id],
@@ -50,26 +47,23 @@ export default function WatchDetailPage() {
     },
   });
 
+  // Book watches (a folder assigned) go through the full pipeline into that
+  // folder; non-book watches only get their magnet saved to AllDebrid.
+  // `watch.subfolder` is the same discriminant the Telegram buttons use.
   const downloadMutation = useMutation({
-    mutationFn: (vars: {
-      items: ProwlarrResult[];
-      subfolder?: string;
-      newFolder?: boolean;
-      alertId: number;
-    }) =>
+    mutationFn: (alert: WatchAlert) =>
       runApi((client) =>
         client.download.download({
           payload: {
-            items: vars.items,
-            subfolder: vars.subfolder,
-            newFolder: vars.newFolder,
+            items: [alertToProwlarrResult(alert)],
+            subfolder: watchQuery.data?.subfolder ?? undefined,
           },
         }),
       ),
-    onSuccess: (data, { alertId }) => {
+    onSuccess: (data, alert) => {
       queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] });
       runApi((client) =>
-        client.watches.acknowledgeAlert({ params: { id: Number(id), alertId } }),
+        client.watches.acknowledgeAlert({ params: { id: Number(id), alertId: alert.id } }),
       );
       queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
       queryClient.invalidateQueries({ queryKey: ["unread-count"] });
@@ -83,34 +77,29 @@ export default function WatchDetailPage() {
     },
   });
 
-  const alerts = alertsQuery.data?.alerts ?? [];
-  const unacknowledgedCount = alerts.filter((a) => !a.acknowledged).length;
-
-  const alertToProwlarrResult = (alert: WatchAlert): ProwlarrResult => ({
-    title: alert.title,
-    guid: alert.guid,
-    magnetUrl: alert.magnetUrl,
-    downloadUrl: null,
-    size: alert.size,
-    seeders: alert.seeders,
-    indexer: alert.indexer,
-    categories: [],
-    publishDate: null,
+  const saveMagnetMutation = useMutation({
+    mutationFn: (alert: WatchAlert) =>
+      runApi((client) =>
+        client.alldebrid.saveMagnet({
+          payload: { magnetUrl: alert.magnetUrl, downloadUrl: alert.downloadUrl },
+        }),
+      ),
+    onSuccess: (_data, alert) => {
+      runApi((client) =>
+        client.watches.acknowledgeAlert({ params: { id: Number(id), alertId: alert.id } }),
+      );
+      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
+      queryClient.invalidateQueries({ queryKey: ["unread-count"] });
+      ToastGroup.create.success("Saved to AllDebrid");
+    },
+    onError: (err) => {
+      ToastGroup.create.error("Failed to save to AllDebrid", err.message);
+    },
   });
 
-  const handleModalClose = () => setModalItems(null);
-
-  const handleModalConfirm = (
-    items: ProwlarrResult[],
-    subfolder?: string,
-    newFolder?: boolean,
-  ) => {
-    const alertId = alerts.find((a) => a.guid === items[0]?.guid)?.id;
-    if (alertId) {
-      downloadMutation.mutate({ items, subfolder, newFolder, alertId });
-    }
-    setModalItems(null);
-  };
+  const alerts = alertsQuery.data?.alerts ?? [];
+  const unacknowledgedCount = alerts.filter((a) => !a.acknowledged).length;
+  const isBookWatch = !!watchQuery.data?.subfolder;
 
   return (
     <main className="page-wrap sm:px-4 pb-8 pt-8">
@@ -157,6 +146,17 @@ export default function WatchDetailPage() {
                 >
                   {watchQuery.data.enabled ? "Active" : "Paused"}
                 </span>
+                {" · "}
+                {watchQuery.data.subfolder ? (
+                  <>
+                    Downloads to{" "}
+                    <code className="text-xs bg-surface px-1.5 py-0.5 rounded">
+                      {decodeURIComponent(watchQuery.data.subfolder)}
+                    </code>
+                  </>
+                ) : (
+                  "Saves matches to AllDebrid"
+                )}
               </p>
               {watchQuery.data.filterGroups.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2">
@@ -241,12 +241,24 @@ export default function WatchDetailPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 sm:ml-3 sm:shrink-0">
-              <button
-                className="text-xs text-accent hover:text-accent/80 px-2 py-1 rounded-lg hover:bg-surface transition-colors"
-                onClick={() => setModalItems([alertToProwlarrResult(alert)])}
-              >
-                Download
-              </button>
+              {isBookWatch ? (
+                <button
+                  className="text-xs text-accent hover:text-accent/80 px-2 py-1 rounded-lg hover:bg-surface transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                  onClick={() => downloadMutation.mutate(alert)}
+                  disabled={downloadMutation.isPending}
+                >
+                  Download
+                </button>
+              ) : (
+                <button
+                  className="text-xs text-accent hover:text-accent/80 px-2 py-1 rounded-lg hover:bg-surface transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                  onClick={() => saveMagnetMutation.mutate(alert)}
+                  disabled={saveMagnetMutation.isPending || (!alert.magnetUrl && !alert.downloadUrl)}
+                  title={!alert.magnetUrl && !alert.downloadUrl ? "No magnet or download URL for this alert" : undefined}
+                >
+                  Save to Magnet
+                </button>
+              )}
               {!alert.acknowledged && (
                 <button
                   className="text-xs text-secondary hover:text-primary px-2 py-1 rounded-lg hover:bg-surface transition-colors"
@@ -259,14 +271,6 @@ export default function WatchDetailPage() {
           </div>
         ))}
       </div>
-
-      {modalItems && (
-        <DownloadModal
-          items={modalItems}
-          onConfirm={handleModalConfirm}
-          onClose={handleModalClose}
-        />
-      )}
     </main>
   );
 }

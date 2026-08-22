@@ -1,4 +1,4 @@
-import { Layer } from "effect"
+import { Effect, Layer } from "effect"
 import { BunHttpServer, BunRuntime } from "@effect/platform-bun"
 import { DbMigratedLayer } from "@inkpipe/db"
 import { ConfigServiceLive } from "./layers/core/Config"
@@ -13,6 +13,8 @@ import { AllDebridServiceLive } from "./layers/integrations/AllDebrid"
 import type { AllDebridService } from "./layers/integrations/AllDebrid"
 import { KomgaServiceLive } from "./layers/integrations/Komga"
 import type { KomgaService } from "./layers/integrations/Komga"
+import { TelegramServiceLive } from "./layers/integrations/Telegram"
+import type { TelegramService } from "./layers/integrations/Telegram"
 import { CopypartyServiceLive } from "./layers/integrations/Copyparty"
 import type { CopypartyService } from "./layers/integrations/Copyparty"
 import { KccServiceLive } from "./layers/integrations/Kcc"
@@ -29,9 +31,11 @@ import { WatchStoreServiceLive } from "./layers/storage/WatchStore"
 import type { WatchStoreService } from "./layers/storage/WatchStore"
 import { PushServiceLive } from "./layers/pipeline/Push"
 import type { PushService } from "./layers/pipeline/Push"
+import { TelegramCallbackListenerServiceLive } from "./layers/pipeline/TelegramCallbackListener"
+import { TelegramCallbackListenerService } from "./layers/pipeline/TelegramCallbackListener"
 import { HttpServerLive } from "./api/server"
 
-type AllServices = PushService | LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService | AnnasArchiveService | AnnasArchivePipelineService
+type AllServices = PushService | LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService | AnnasArchiveService | AnnasArchivePipelineService | TelegramService
 
 // Base layer — services with no dependencies of their own.
 // PushServiceLive requires LogService; use provideMerge to satisfy it
@@ -50,6 +54,7 @@ const JobStoreLayer = Layer.provide(JobStoreServiceLive, BaseLayer)
 const ProwlarrLayer = Layer.provide(ProwlarrServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
 const AllDebridLayer = Layer.provide(AllDebridServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
 const KomgaLayer = Layer.provide(KomgaServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
+const TelegramLayer = Layer.provide(TelegramServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
 const CopypartyLayer = Layer.provide(CopypartyServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
 const KccLayer = Layer.provide(KccServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
 const AnnasArchiveLayer = Layer.provide(AnnasArchiveServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
@@ -67,6 +72,28 @@ const AnnasArchivePipelineLayer = Layer.provide(
 
 const WatchStoreLayer = Layer.provide(WatchStoreServiceLive, BaseLayer)
 
+// Receives Telegram button taps (long-polling) and triggers pipeline
+// downloads or AllDebrid magnet saves, depending on the tapped button;
+// needs ConfigService (chat/bot credentials), TelegramService,
+// WatchStoreService, PipelineService, and AllDebridService, so it must be
+// built after those.
+const TelegramCallbackListenerLayer = Layer.provide(
+  TelegramCallbackListenerServiceLive,
+  Layer.mergeAll(BaseLayer, ConfigLayer, TelegramLayer, WatchStoreLayer, PipelineLayer, AllDebridLayer),
+)
+
+// The listener's `run` is an infinite loop, so it must be forked via
+// `forkDetach` (v4's daemon fork — attached to the global scope, survives
+// this effect and the layer's own scope) rather than awaited — otherwise
+// building this layer would never complete and the HTTP server would
+// never start.
+const TelegramCallbackListenerRunnerLive = Layer.effectDiscard(
+  Effect.gen(function* () {
+    const listener = yield* TelegramCallbackListenerService
+    yield* Effect.forkDetach(listener.run)
+  }),
+).pipe(Layer.provide(TelegramCallbackListenerLayer))
+
 const MainLayer = Layer.mergeAll(
   BaseLayer,
   ConfigLayer,
@@ -74,12 +101,14 @@ const MainLayer = Layer.mergeAll(
   ProwlarrLayer,
   AllDebridLayer,
   KomgaLayer,
+  TelegramLayer,
   CopypartyLayer,
   KccLayer,
   PipelineLayer,
   WatchStoreLayer,
   AnnasArchiveLayer,
   AnnasArchivePipelineLayer,
+  TelegramCallbackListenerRunnerLive,
 ) as Layer.Layer<AllServices, never, never>
 
 const PORT = Number(process.env.PORT || 3000)

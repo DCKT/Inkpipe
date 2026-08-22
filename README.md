@@ -15,6 +15,7 @@ Manga/comic pipeline: search, download, convert, and upload to your e-reader.
 - **Convert** CBZ/CBR/ZIP/RAR/PDF to EPUB using KCC (Kindle Comic Converter)
 - **Upload** to Copyparty file server
 - **Browse** your Komga library with covers and filters
+- **Watch** for new releases and get notified via web push and/or Telegram
 
 ## Architecture
 
@@ -25,7 +26,7 @@ Monorepo: five packages managed by Bun workspaces.
 | `packages/shared` | Domain types, API contracts, errors | Effect Schema v3 |
 | `packages/db` | SQLite database layer (WAL mode) | Bun SQLite, Effect v3 |
 | `packages/server` | HTTP API + pipeline orchestration | Bun.serve, Effect v3, @effect/platform |
-| `packages/watcher` | Background watch process | Effect v3, web-push |
+| `packages/watcher` | Background watch process | Effect v3, web-push, Telegram Bot API |
 | `packages/web` | React SPA frontend | React 19, React Router v7, Ark UI v5, Tailwind v4, TanStack Query v5, ky |
 
 ## Local development
@@ -72,3 +73,14 @@ Settings are persisted to `~/.inkpipe/inkpipe.db` (Bun SQLite). Set `INKPIPE_DAT
 - **KCC** — Docker image for comic conversion
 - **Copyparty** (optional) — URL for file uploads
 - **Komga** (optional) — URL + API key for library browsing
+- **Telegram** (optional) — bot token + chat ID for watch notifications
+
+### Telegram notifications
+
+Watches notify over web push by default; add a Telegram bot to also get alerts on your phone.
+
+1. Message [@BotFather](https://t.me/BotFather) on Telegram, run `/newbot`, and copy the bot token it gives you.
+2. Message [@userinfobot](https://t.me/userinfobot) (or your new bot itself) to get your numeric chat ID.
+3. In Inkpipe, go to **Settings → Telegram**, paste the bot token and chat ID, save, then click **Send Test Message** to confirm it works.
+
+The watcher process sends a Telegram message (alongside the existing push notification) whenever a watch finds new matches.

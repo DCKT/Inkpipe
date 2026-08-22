@@ -36,6 +36,8 @@ const testConfig: AppConfig = {
   copyparty: { url: "http://cp:3923", uploadPath: "/", password: "" },
   komga: { url: "", apiKey: "", defaultLibraryId: "" },
   annasArchive: { apiKey: "test-key", baseUrl: "https://annas-archive.gl" },
+  telegram: { botToken: "", chatId: "" },
+  general: { publicUrl: "" },
 }
 
 function makeJob(overrides: Partial<Job> = {}): Job {

@@ -68,6 +68,7 @@ export const CreateWatchRequestSchema = Schema.Struct({
     mode: Schema.Literals(["AND", "OR"]),
     substrings: Schema.Array(Schema.String),
   })),
+  subfolder: Schema.optional(Schema.NullOr(Schema.String)),
 })
 export type CreateWatchRequest = typeof CreateWatchRequestSchema.Type
 
@@ -80,6 +81,7 @@ export const UpdateWatchRequestSchema = Schema.Struct({
     mode: Schema.Literals(["AND", "OR"]),
     substrings: Schema.Array(Schema.String),
   }))),
+  subfolder: Schema.optional(Schema.NullOr(Schema.String)),
 })
 export type UpdateWatchRequest = typeof UpdateWatchRequestSchema.Type
 

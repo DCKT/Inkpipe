@@ -9,6 +9,7 @@ export {
   type Job,
   type AppConfig,
   type KccConfig,
+  type TelegramConfig,
   type Watch,
   type FilterGroup,
   type FilterGroupMode,

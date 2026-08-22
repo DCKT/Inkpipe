@@ -65,6 +65,16 @@ export class KomgaHttpError extends Schema.TaggedErrorClass<KomgaHttpError>()(
   { message: Schema.String, status: Schema.optional(Schema.Finite) },
 ) {}
 
+export class TelegramNotConfigured extends Schema.TaggedErrorClass<TelegramNotConfigured>()(
+  "TelegramNotConfigured",
+  { message: Schema.String },
+) {}
+
+export class TelegramHttpError extends Schema.TaggedErrorClass<TelegramHttpError>()(
+  "TelegramHttpError",
+  { message: Schema.String, status: Schema.optional(Schema.Finite) },
+) {}
+
 export class CopypartyNotConfigured extends Schema.TaggedErrorClass<CopypartyNotConfigured>()(
   "CopypartyNotConfigured",
   { message: Schema.String },

@@ -11,6 +11,7 @@ import { KomgaGroup } from "./groups/komga"
 import { CopypartyGroup } from "./groups/copyparty"
 import { WatchesGroup } from "./groups/watches"
 import { PushGroup } from "./groups/push"
+import { TelegramGroup } from "./groups/telegram"
 import { SchemaErrorMiddleware } from "./middleware"
 
 export const InkpipeApi = HttpApi.make("InkpipeApi")
@@ -26,4 +27,5 @@ export const InkpipeApi = HttpApi.make("InkpipeApi")
   .add(CopypartyGroup)
   .add(WatchesGroup)
   .add(PushGroup)
+  .add(TelegramGroup)
   .middleware(SchemaErrorMiddleware)

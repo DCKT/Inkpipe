@@ -21,6 +21,8 @@ const testConfig: AppConfig = {
   copyparty: { url: "", uploadPath: "/", password: "" },
   komga: { url: "", apiKey: "", defaultLibraryId: "" },
   annasArchive: { apiKey: "", baseUrl: "https://annas-archive.org" },
+  telegram: { botToken: "", chatId: "" },
+  general: { publicUrl: "" },
 }
 
 function makeConfigLayer(config: Partial<AppConfig> = {}) {
