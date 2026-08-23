@@ -86,6 +86,7 @@ interface Deps {
   runPipelineSpy?: ReturnType<typeof vi.fn>
   uploadMagnetSpy?: ReturnType<typeof vi.fn>
   acknowledgeAlertSpy?: ReturnType<typeof vi.fn>
+  updateWatchSpy?: ReturnType<typeof vi.fn>
   answerCallbackQuerySpy?: ReturnType<typeof vi.fn>
   editMessageTextSpy?: ReturnType<typeof vi.fn>
   sendMessageSpy?: ReturnType<typeof vi.fn>
@@ -107,6 +108,7 @@ function makeLayer(deps: Deps = {}) {
   const runPipelineSpy = deps.runPipelineSpy ?? vi.fn((..._args: unknown[]) => Effect.void)
   const uploadMagnetSpy = deps.uploadMagnetSpy ?? vi.fn((_magnetOrUrl: string) => Effect.succeed({ id: 1, ready: true }))
   const acknowledgeAlertSpy = deps.acknowledgeAlertSpy ?? vi.fn(() => Effect.void)
+  const updateWatchSpy = deps.updateWatchSpy ?? vi.fn(() => Effect.succeed(testWatch))
   const answerCallbackQuerySpy = deps.answerCallbackQuerySpy ?? vi.fn(() => Effect.void)
   const editMessageTextSpy = deps.editMessageTextSpy ?? vi.fn(() => Effect.void)
   const sendMessageSpy = deps.sendMessageSpy ?? vi.fn((_payload: { text: string }) => Effect.succeed({ messageId: 1 }))
@@ -127,6 +129,7 @@ function makeLayer(deps: Deps = {}) {
       getAlert: deps.getAlertImpl ?? (() => Effect.succeed(testAlert)),
       getWatch: deps.getWatchImpl ?? (() => Effect.succeed(testWatch)),
       acknowledgeAlert: acknowledgeAlertSpy,
+      updateWatch: updateWatchSpy,
     } as any),
     Layer.succeed(PipelineService, {
       runPipeline: runPipelineSpy,
