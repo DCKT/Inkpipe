@@ -44,6 +44,16 @@ function runWatch(watch: Watch) {
     const store = yield* WatchStoreService
     const log = yield* LogService
 
+    // Re-read enabled state on every tick (not just at startup) so that
+    // disabling a watch - e.g. auto-pause after downloading/saving a
+    // magnet from Telegram - takes effect on the next scheduled run
+    // instead of requiring a watcher restart.
+    const current = yield* store.getWatch(watch.id)
+    if (!current.enabled) {
+      yield* log.info(`[watcher]`, `"${watch.name}": skipped, disabled`)
+      return
+    }
+
     const results = yield* prowlarr
       .search(watch.query)
       .pipe(

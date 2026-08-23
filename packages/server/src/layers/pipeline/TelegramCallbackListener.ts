@@ -110,6 +110,7 @@ export const TelegramCallbackListenerServiceLive = Layer.effect(
             ),
           )
           yield* watchStore.acknowledgeAlert(watchId, alertId)
+          yield* watchStore.updateWatch(watchId, { enabled: false })
           yield* telegram.answerCallbackQuery(cb.id, "Download request sent")
           yield* telegram.editMessageText(
             messageId,
@@ -127,6 +128,7 @@ export const TelegramCallbackListenerServiceLive = Layer.effect(
 
         yield* allDebrid.uploadMagnet(magnetOrUrl)
         yield* watchStore.acknowledgeAlert(watchId, alertId)
+        yield* watchStore.updateWatch(watchId, { enabled: false })
         yield* telegram.answerCallbackQuery(cb.id, "Saved to magnet")
         yield* telegram.editMessageText(
           messageId,
