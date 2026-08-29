@@ -20,6 +20,7 @@ import { PushGroupLive } from "./handlers/push"
 import { TelegramGroupLive } from "./handlers/telegram"
 import { JobsWsRouteLive, StaticFallbackRouteLive } from "./raw"
 import { SchemaErrorMiddlewareLive } from "@inkpipe/shared"
+import { metrics } from "./Metrics"
 
 // Every group layer's build effect resolves endpoint middleware (including
 // SchemaErrorMiddleware, applied API-wide in index.ts) from its own context
@@ -67,4 +68,4 @@ const HttpAppLayer = Layer.mergeAll(
 // it into a `Layer` that needs only `HttpServer.HttpServer` (provided by
 // BunHttpServer in main.ts) plus this app's own service dependencies
 // (provided by MainLayer).
-export const HttpServerLive = HttpRouter.serve(HttpAppLayer)
+export const HttpServerLive = HttpRouter.serve(HttpAppLayer, { middleware: metrics })

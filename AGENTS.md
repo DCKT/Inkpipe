@@ -77,6 +77,10 @@ inkpipe/
     └── effect/          # Vendored Effect-TS source (read-only reference)
 ```
 
+## 🚨 CRITICAL: ALWAYS RUN THE TEST SUITE 🚨
+
+**`bun run test` MUST be run before any change is reported as done — every time, no exceptions.** Typechecking is not a substitute: `bun run typecheck` catches type errors, not runtime/module-resolution breakage (e.g. a Node-incompatible import newly reachable from a widely-imported module) or logic regressions. Run both `bun run test` and `bun run typecheck` as the last step of every change, however small it looks.
+
 ## 🚨 CRITICAL: BACKEND AND FRONTEND MUST STAY ALIGNED 🚨
 
 **This is a HARD REQUIREMENT. When implementing features:**

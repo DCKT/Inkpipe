@@ -1,5 +1,10 @@
 import { Context, Effect, Layer } from "effect"
 
+// Read directly (rather than importing from ./Otel) so LogService — depended on
+// by virtually every layer, including in tests run under Node/vitest — never
+// pulls in Otel.ts's @effect/platform-bun import, which fails to load outside Bun.
+const otelEnabled = Boolean(process.env.OTEL_EXPORTER_OTLP_ENDPOINT)
+
 // ---------------------------------------------------------------------------
 // ANSI helpers (zero-dependency)
 // ---------------------------------------------------------------------------
@@ -93,16 +98,45 @@ function format(level: "INFO" | "WARN" | "ERROR", namespace: string, prefix: str
 }
 
 // ---------------------------------------------------------------------------
+// Effect logger bridge (feeds OTLP export — see layers/core/Otel.ts)
+// ---------------------------------------------------------------------------
+
+const otelLogFn: Record<"INFO" | "WARN" | "ERROR", (...message: unknown[]) => Effect.Effect<void>> = {
+  INFO: Effect.logInfo,
+  WARN: Effect.logWarning,
+  ERROR: Effect.logError,
+}
+
+/** Writes the colored console line (unchanged) and, when OTLP export is
+ * configured, also emits through Effect's Logger so the OTLP layer can export
+ * it — LogService otherwise never touches Effect.log*, so without this bridge
+ * no log line would reach Loki. Gated on `otelEnabled`: Effect's default
+ * logger is always active regardless of OTLP, so calling Effect.log*
+ * unconditionally would double-print every line to the console even when
+ * nothing is exporting. */
+function emit(level: "INFO" | "WARN" | "ERROR", namespace: string, jobId: string | undefined, message: unknown[]) {
+  const prefix = jobId ? `[job ${jobId}]` : ""
+  const consoleEffect = Effect.sync(() => format(level, namespace, prefix, ...message))
+  if (!otelEnabled) return consoleEffect
+  return Effect.andThen(
+    consoleEffect,
+    otelLogFn[level](...message).pipe(
+      Effect.annotateLogs(jobId ? { namespace, jobId } : { namespace }),
+    ),
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Live layer
 // ---------------------------------------------------------------------------
 
 export const LogServiceLive = Layer.succeed(LogService, {
-  info: (ns, ...msg) => Effect.sync(() => format("INFO", ns, "", ...msg)),
-  warn: (ns, ...msg) => Effect.sync(() => format("WARN", ns, "", ...msg)),
-  error: (ns, ...msg) => Effect.sync(() => format("ERROR", ns, "", ...msg)),
+  info: (ns, ...msg) => emit("INFO", ns, undefined, msg),
+  warn: (ns, ...msg) => emit("WARN", ns, undefined, msg),
+  error: (ns, ...msg) => emit("ERROR", ns, undefined, msg),
   withJob: (jobId: string) => ({
-    info: (ns, ...msg) => Effect.sync(() => format("INFO", ns, `[job ${jobId}]`, ...msg)),
-    warn: (ns, ...msg) => Effect.sync(() => format("WARN", ns, `[job ${jobId}]`, ...msg)),
-    error: (ns, ...msg) => Effect.sync(() => format("ERROR", ns, `[job ${jobId}]`, ...msg)),
+    info: (ns, ...msg) => emit("INFO", ns, jobId, msg),
+    warn: (ns, ...msg) => emit("WARN", ns, jobId, msg),
+    error: (ns, ...msg) => emit("ERROR", ns, jobId, msg),
   }),
 })
