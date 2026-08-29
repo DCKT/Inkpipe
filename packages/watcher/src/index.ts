@@ -1,6 +1,7 @@
 import { Effect, Layer, ManagedRuntime, Schedule } from "effect"
 import { DbMigratedLayer } from "@inkpipe/db"
 import { LogService, LogServiceLive } from "@inkpipe/server/layers/core/Log"
+import { makeOtelLive } from "@inkpipe/server/layers/core/Otel"
 import { ConfigServiceLive } from "@inkpipe/server/layers/core/Config"
 import {
   ProwlarrServiceLive,
@@ -36,7 +37,7 @@ const WatcherLayer = Layer.mergeAll(
   WatchLayer,
   ProwlarrLayer,
   TelegramLayer,
-)
+).pipe(Layer.provide(makeOtelLive("inkpipe-watcher")))
 
 function runWatch(watch: Watch) {
   return Effect.gen(function* () {

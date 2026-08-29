@@ -7,6 +7,7 @@ import { JobStoreServiceLive } from "./layers/storage/JobStore"
 import type { JobStoreService } from "./layers/storage/JobStore"
 import { LogServiceLive } from "./layers/core/Log"
 import type { LogService } from "./layers/core/Log"
+import { makeOtelLive } from "./layers/core/Otel"
 import { ProwlarrServiceLive } from "./layers/integrations/Prowlarr"
 import type { ProwlarrService } from "./layers/integrations/Prowlarr"
 import { AllDebridServiceLive } from "./layers/integrations/AllDebrid"
@@ -118,6 +119,7 @@ const PORT = Number(process.env.PORT || 3000)
 const ServerLive = HttpServerLive.pipe(
   Layer.provide(MainLayer),
   Layer.provide(BunHttpServer.layer({ port: PORT })),
+  Layer.provide(makeOtelLive("inkpipe-server")),
 )
 
 BunRuntime.runMain(Layer.launch(ServerLive))

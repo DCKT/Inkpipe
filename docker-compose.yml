@@ -5,12 +5,15 @@ services:
     restart: unless-stopped
     ports:
       - "3001:3000"
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel:4318
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - inkpipe-temp:/tmp/inkpipe
       - inkpipe-data:/data
     depends_on:
       - kcc
+      - otel
 
   kcc:
     image: ghcr.io/ciromattia/kcc:latest
@@ -19,6 +22,14 @@ services:
     volumes:
       - inkpipe-temp:/data
     entrypoint: ["sleep", "infinity"]
+
+  otel:
+    image: grafana/otel-lgtm:latest
+    container_name: inkpipe-otel
+    restart: unless-stopped
+    ports:
+      - "3002:3000" # Grafana UI
+      - "4318:4318" # OTLP HTTP
 
 volumes:
   inkpipe-temp:
