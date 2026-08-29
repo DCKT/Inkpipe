@@ -117,8 +117,8 @@ const app = Effect.gen(function* () {
       )
       yield* Effect.repeat(
         runWatch(watch).pipe(
-          Effect.catch((e) =>
-            log.error(`[watcher]`, `"${watch.name}": runtime error:`, e),
+          Effect.catchCause((cause) =>
+            log.error(`[watcher]`, `"${watch.name}": runtime error:`, cause),
           ),
         ),
         Schedule.spaced(intervalMs),
