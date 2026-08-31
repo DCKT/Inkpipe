@@ -28,6 +28,11 @@ interface FolderSelectProps {
   onChange: (value: string, isNewFolder: boolean) => void;
   label?: string;
   placeholder?: string;
+  // Parent's dialog open state. FolderSelect can live inside a dialog that
+  // never unmounts on close (e.g. WatchForm), so mount-time fetching alone
+  // won't pick up folders created since the last time it was open — refetch
+  // explicitly whenever the dialog opens.
+  open?: boolean;
 }
 
 export default function FolderSelect({
@@ -35,12 +40,18 @@ export default function FolderSelect({
   onChange,
   label = "Subfolder",
   placeholder = "e.g. manga/action or leave empty",
+  open,
 }: FolderSelectProps) {
   const foldersQuery = useQuery({
     queryKey: ["copyparty-folders"],
     queryFn: () =>
       runApi((client) => client.copyparty.listFolders({})).then((r) => r.folders),
   });
+
+  useEffect(() => {
+    if (open) foldersQuery.refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const folders = foldersQuery.data ?? [];
 

@@ -222,6 +222,7 @@ export function WatchFormDialog({
                 <FolderSelect
                   value={subfolder}
                   onChange={(value) => setSubfolder(value)}
+                  open={open}
                 />
                 <p className="mt-1 text-xs text-secondary">
                   Set a folder to download and convert matches into it. Leave
