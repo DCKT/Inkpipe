@@ -17,6 +17,39 @@ Manga/comic pipeline: search, download, convert, and upload to your e-reader.
 - **Browse** your Komga library with covers and filters
 - **Watch** for new releases and get notified via web push and/or Telegram
 
+## Pipeline
+
+Each job runs through the following stages (`packages/server/src/layers/pipeline/Pipeline.ts`):
+
+```mermaid
+flowchart TD
+    A[Create job] --> B[UPLOADING\nUpload magnet/URL to AllDebrid]
+    B --> C{Ready?}
+    C -- no --> D[DEBRID_PROCESSING\nPoll AllDebrid every 3s]
+    D --> C
+    C -- yes --> E[DOWNLOADING\nUnlock + download files]
+    E --> F{.epub already\npresent in job dir?}
+    F -- yes --> H[Skip conversion]
+    F -- no --> G{Comic files found?\n.cbz/.cbr/.zip/.rar/.pdf}
+    G -- yes --> G1[Extract .cbr/.rar if needed]
+    G1 --> G2[CONVERTING\nkcc.convert -> EPUB]
+    G -- no --> H
+    G2 --> H
+    H --> I{Copyparty\nconfigured?}
+    I -- no --> K[DONE]
+    I -- yes --> J[UPLOADING_COPYPARTY\nupload .epub, else .cbz/.cbr,\nelse .zip/.rar/.pdf]
+    J --> K[DONE]
+    K --> L[Cleanup job dir + delete magnet]
+
+    C -- error/status>=5 --> X[FAILED]
+    X --> L
+```
+
+Notes:
+- If an `.epub` file already exists in the job directory, KCC conversion is skipped entirely.
+- Copyparty upload prefers `.epub`, then falls back to `.cbz`/`.cbr`, then `.zip`/`.rar`/`.pdf`, and is skipped if Copyparty isn't configured.
+- On failure at any stage, the job is marked `FAILED` and cleanup (temp files + AllDebrid magnet) always runs.
+
 ## Architecture
 
 Monorepo: five packages managed by Bun workspaces.
