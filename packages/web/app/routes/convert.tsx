@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowDown, RefreshCw } from "lucide-react"
-import { runApi } from "../lib/apiClient"
+import { runCapability, runApi } from "../lib/apiClient"
 import FileDrop from "../components/FileDrop"
 import KccOptionsFields from "../components/KccOptionsFields"
 import { PageHeader } from "../components/PageHeader"
@@ -27,7 +27,7 @@ export default function ConvertPage() {
   const [overrides, setOverrides] = useState<KccConfig | null>(null)
 
   useEffect(() => {
-    runApi((client) => client.settings.get({}))
+    runCapability((client) => client.getSettings({}))
       .then((config) => {
         if (!config.kcc.dockerImage) {
           navigate("/settings")

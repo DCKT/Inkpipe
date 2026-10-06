@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useParams, useNavigate } from "react-router-dom"
 import { alertToProwlarrResult } from "@inkpipe/shared"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 import type { WatchAlert } from "../lib/types"
 import { ToastGroup } from "../ui/toast"
 import { WatchFormDialog } from "../components/WatchForm"
@@ -14,20 +14,20 @@ export default function WatchDetailPage() {
 
   const watchQuery = useQuery({
     queryKey: ["watches", id],
-    queryFn: () => runApi((client) => client.watches.get({ params: { id: Number(id) } })),
+    queryFn: () => runCapability((client) => client.getWatch({ id: Number(id) })),
     enabled: !!id,
   })
 
   const alertsQuery = useQuery({
     queryKey: ["watch-alerts", id],
-    queryFn: () => runApi((client) => client.watches.listAlerts({ params: { id: Number(id) } })),
+    queryFn: () => runCapability((client) => client.listWatchAlerts({ id: Number(id) })),
     enabled: !!id,
     refetchInterval: 60_000,
   })
 
   const ackMutation = useMutation({
     mutationFn: (alertId: number) =>
-      runApi((client) => client.watches.acknowledgeAlert({ params: { id: Number(id), alertId } })),
+      runCapability((client) => client.acknowledgeAlert({ id: Number(id), alertId })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
       queryClient.invalidateQueries({ queryKey: ["unread-count"] })
@@ -35,8 +35,7 @@ export default function WatchDetailPage() {
   })
 
   const ackAllMutation = useMutation({
-    mutationFn: () =>
-      runApi((client) => client.watches.acknowledgeAllAlerts({ params: { id: Number(id) } })),
+    mutationFn: () => runCapability((client) => client.acknowledgeAllAlerts({ id: Number(id) })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
       queryClient.invalidateQueries({ queryKey: ["unread-count"] })
@@ -49,19 +48,15 @@ export default function WatchDetailPage() {
   // `watch.subfolder` is the same discriminant the Telegram buttons use.
   const downloadMutation = useMutation({
     mutationFn: (alert: WatchAlert) =>
-      runApi((client) =>
-        client.download.download({
-          payload: {
-            items: [alertToProwlarrResult(alert)],
-            subfolder: watchQuery.data?.subfolder ?? undefined,
-          },
+      runCapability((client) =>
+        client.download({
+          items: [alertToProwlarrResult(alert)],
+          subfolder: watchQuery.data?.subfolder ?? undefined,
         }),
       ),
     onSuccess: (data, alert) => {
       queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] })
-      runApi((client) =>
-        client.watches.acknowledgeAlert({ params: { id: Number(id), alertId: alert.id } }),
-      )
+      runCapability((client) => client.acknowledgeAlert({ id: Number(id), alertId: alert.id }))
       queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
       queryClient.invalidateQueries({ queryKey: ["unread-count"] })
       ToastGroup.create.success(
@@ -76,15 +71,11 @@ export default function WatchDetailPage() {
 
   const saveMagnetMutation = useMutation({
     mutationFn: (alert: WatchAlert) =>
-      runApi((client) =>
-        client.alldebrid.saveMagnet({
-          payload: { magnetUrl: alert.magnetUrl, downloadUrl: alert.downloadUrl },
-        }),
+      runCapability((client) =>
+        client.saveMagnet({ magnetUrl: alert.magnetUrl, downloadUrl: alert.downloadUrl }),
       ),
     onSuccess: (_data, alert) => {
-      runApi((client) =>
-        client.watches.acknowledgeAlert({ params: { id: Number(id), alertId: alert.id } }),
-      )
+      runCapability((client) => client.acknowledgeAlert({ id: Number(id), alertId: alert.id }))
       queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
       queryClient.invalidateQueries({ queryKey: ["unread-count"] })
       ToastGroup.create.success("Saved to AllDebrid")

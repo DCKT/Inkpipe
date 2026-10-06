@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useMutation } from "@tanstack/react-query"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 import type { Watch, FilterGroup, FilterGroupMode } from "../lib/types"
 import { Button } from "../ui/button"
 import { Dialog } from "../ui/dialog"
@@ -44,7 +44,7 @@ export function WatchFormDialog({
       intervalSeconds: number
       filterGroups: FilterGroup[]
       subfolder: string | null
-    }) => runApi((client) => client.watches.create({ payload: body })),
+    }) => runCapability((client) => client.createWatch(body)),
     onSuccess: () => {
       ToastGroup.create.success("Watch created")
       setName("")
@@ -67,8 +67,7 @@ export function WatchFormDialog({
       intervalSeconds: number
       filterGroups: FilterGroup[]
       subfolder: string | null
-    }) =>
-      runApi((client) => client.watches.update({ params: { id: existing!.id }, payload: body })),
+    }) => runCapability((client) => client.updateWatch({ id: existing!.id, ...body })),
     onSuccess: () => {
       ToastGroup.create.success("Watch updated. Restart scheduled.")
       setOpen(false)

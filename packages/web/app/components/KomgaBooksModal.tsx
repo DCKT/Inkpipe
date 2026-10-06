@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { BookOpen, Hash, Calendar } from "lucide-react"
 import type { KomgaSeries } from "../lib/types"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 import { Dialog } from "../ui/dialog"
 
 interface KomgaBooksModalProps {
@@ -24,7 +24,7 @@ function formatDate(dateStr: string): string {
 export default function KomgaBooksModal({ series, onClose }: KomgaBooksModalProps) {
   const booksQuery = useQuery({
     queryKey: ["komga-books", series.id],
-    queryFn: () => runApi((client) => client.komga.books({ payload: { seriesId: series.id } })),
+    queryFn: () => runCapability((client) => client.listKomgaBooks({ seriesId: series.id })),
     staleTime: 5 * 60 * 1000,
   })
 

@@ -1,19 +1,15 @@
 // Integration tests for the HTTP mechanics introduced by the Bun.serve() ->
 // HttpApi migration: schema-validation error bodies, CORS, error-status
 // mapping, and path-param disambiguation (e.g. /api/watches/unread-count vs
-// /api/watches/:id). Exercises the real WatchesGroup route declarations and
-// SchemaErrorMiddleware wired the same way as production (see server.ts),
+// /api/watches/:id). Exercises the real watch capabilities (contracts and handlers) through
+// the same HTTP projection production serves (see server.ts),
 // against a mocked WatchStoreService so no database is needed.
 import { Effect, Layer } from "effect"
 import { describe, it, expect } from "@effect/vitest"
-import { HttpApi, HttpApiBuilder } from "effect/http-api"
-import { HttpRouter } from "effect/http"
-import * as BunHttpServer from "@effect/platform-bun/BunHttpServer"
 import { WatchId, WatchAlertId, WatchNotFoundError, WatchStoreError } from "@inkpipe/shared"
 import type { Watch, WatchWithUnread } from "@inkpipe/shared"
 import { WatchStoreService } from "../layers/storage/WatchStore"
-import { WatchesGroup } from "@inkpipe/shared/httpApi/groups/watches"
-import { SchemaErrorMiddleware, SchemaErrorMiddlewareLive } from "@inkpipe/shared"
+import { makeCapabilityHandler } from "./testing"
 
 const now = new Date().toISOString()
 const watch: Watch = {
@@ -53,59 +49,9 @@ function makeStore(overrides: Partial<WatchStoreShape> = {}) {
   })
 }
 
-const TestApi = HttpApi.make("test").add(WatchesGroup).middleware(SchemaErrorMiddleware)
-
-const WatchesGroupLive = HttpApiBuilder.group(TestApi, "watches", (handlers) =>
-  handlers
-    .handle("list", () =>
-      Effect.gen(function* () {
-        const store = yield* WatchStoreService
-        return { watches: yield* store.listWatches }
-      }),
-    )
-    .handle("unreadCount", () =>
-      Effect.gen(function* () {
-        const store = yield* WatchStoreService
-        return { count: yield* store.getUnreadCount }
-      }),
-    )
-    .handle("create", () => Effect.succeed(watch))
-    .handle("get", ({ params }) =>
-      Effect.gen(function* () {
-        const store = yield* WatchStoreService
-        return yield* store.getWatch(WatchId.make(params.id))
-      }),
-    )
-    .handle("update", () => Effect.succeed(watch))
-    .handle("delete", () => Effect.succeed({ success: true }))
-    .handle("listAlerts", () => Effect.succeed({ alerts: [] }))
-    .handle("acknowledgeAlert", () => Effect.succeed({ success: true }))
-    .handle("acknowledgeAllAlerts", () => Effect.succeed({ success: true }))
-    .handle("trigger", () => Effect.succeed({ matches: 0 })),
-)
-
-function makeHandler(store = makeStore()) {
-  const CorsLive = HttpRouter.cors({
-    allowedOrigins: ["*"],
-    allowedMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
-  })
-  const WatchesGroupWithDeps = WatchesGroupLive.pipe(
-    Layer.provide(SchemaErrorMiddlewareLive),
-    Layer.provide(store),
-  )
-  const ApiLive = HttpApiBuilder.layer(TestApi).pipe(Layer.provide(WatchesGroupWithDeps))
-  const AppLayer = Layer.mergeAll(ApiLive, CorsLive).pipe(
-    Layer.provide(BunHttpServer.layerHttpServices),
-  )
-  // TS's inference for this beta's generic Layer.provide chaining doesn't
-  // fully collapse ReqR to `never` here even though WatchStoreService is
-  // genuinely satisfied at runtime (verified: every test below exercises
-  // real store calls and gets real data back) — cast past the false positive
-  // rather than chase a beta typing quirk in test-only code.
-  const { handler } = HttpRouter.toWebHandler(AppLayer)
-  return { handler: handler as (request: Request) => Promise<Response> }
-}
+const makeHandler = (store = makeStore()) => ({
+  handler: makeCapabilityHandler(store, { cors: true }),
+})
 
 describe("watches HTTP mechanics", () => {
   it("returns a real JSON message (not an empty body) for a schema-validation failure", async () => {
@@ -130,7 +76,7 @@ describe("watches HTTP mechanics", () => {
     expect(res.status).toBe(400)
     const body = (await res.json()) as { _tag: string; message: string }
     expect(body._tag).toBe("RequestValidationError")
-    expect(body.message).toContain("id")
+    expect(body.message).toMatch(/\bid\b/)
   })
 
   it("maps WatchNotFoundError to 404 with a message", async () => {

@@ -5,7 +5,7 @@ import SearchBar from "../components/SearchBar"
 import ResultsTable from "../components/ResultsTable"
 import DownloadModal from "../components/DownloadModal"
 import { PageHeader } from "../components/PageHeader"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 import type { ProwlarrResult } from "../lib/types"
 import { ToastGroup } from "../ui/toast"
 
@@ -16,7 +16,7 @@ export default function HomePage() {
 
   const searchQuery = useQuery({
     queryKey: ["search", query],
-    queryFn: () => runApi((client) => client.search.search({ query: { q: query } })),
+    queryFn: () => runCapability((client) => client.searchProwlarr({ q: query })),
     enabled: query.length > 0,
   })
 
@@ -31,8 +31,7 @@ export default function HomePage() {
       items: ProwlarrResult[]
       subfolder?: string
       newFolder?: boolean
-    }) =>
-      runApi((client) => client.download.download({ payload: { items, subfolder, newFolder } })),
+    }) => runCapability((client) => client.download({ items, subfolder, newFolder })),
     onSuccess: (data) => {
       setSelected(new Set())
       queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] })

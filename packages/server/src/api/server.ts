@@ -5,18 +5,8 @@ import { Layer } from "effect"
 import { HttpApiBuilder, HttpApiSwagger } from "effect/http-api"
 import { HttpRouter } from "effect/http"
 import { InkpipeApi } from "@inkpipe/shared"
-import { SearchGroupLive } from "./handlers/search"
-import { LatestGroupLive } from "./handlers/latest"
-import { DownloadGroupLive } from "./handlers/download"
-import { AllDebridGroupLive } from "./handlers/alldebrid"
-import { AnnasArchiveGroupLive } from "./handlers/annas-archive"
-import { JobsGroupLive } from "./handlers/jobs"
 import { SettingsGroupLive } from "./handlers/settings"
 import { ConvertGroupLive } from "./handlers/convert"
-import { KomgaGroupLive } from "./handlers/komga"
-import { WatchesGroupLive } from "./handlers/watches"
-import { PushGroupLive } from "./handlers/push"
-import { TelegramGroupLive } from "./handlers/telegram"
 import { JobsWsRouteLive, StaticFallbackRouteLive } from "./raw"
 import { SchemaErrorMiddlewareLive } from "@inkpipe/shared"
 import { metrics } from "./Metrics"
@@ -26,20 +16,9 @@ import { CapabilityHttp } from "./capabilityApi"
 // SchemaErrorMiddleware, applied API-wide in index.ts) from its own context
 // at build time, so SchemaErrorMiddlewareLive must be provided to each group
 // individually — merging it alongside them wouldn't cross-satisfy anything.
-const HandlersLive = Layer.mergeAll(
-  SearchGroupLive,
-  LatestGroupLive,
-  DownloadGroupLive,
-  AllDebridGroupLive,
-  AnnasArchiveGroupLive,
-  JobsGroupLive,
-  SettingsGroupLive,
-  ConvertGroupLive,
-  KomgaGroupLive,
-  WatchesGroupLive,
-  PushGroupLive,
-  TelegramGroupLive,
-).pipe(Layer.provide(SchemaErrorMiddlewareLive))
+const HandlersLive = Layer.mergeAll(SettingsGroupLive, ConvertGroupLive).pipe(
+  Layer.provide(SchemaErrorMiddlewareLive),
+)
 
 const CorsLive = HttpRouter.cors({
   allowedOrigins: ["*"],

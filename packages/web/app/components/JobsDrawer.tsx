@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import JobCard from "./JobCard"
-import { runApi, WS_BASE } from "../lib/apiClient"
+import { runCapability, WS_BASE } from "../lib/apiClient"
 import type { Job } from "../lib/types"
 import { ToastGroup } from "../ui/toast"
 
@@ -13,7 +13,7 @@ export function JobsDrawer() {
 
   const jobsQuery = useQuery({
     queryKey: ["jobs"],
-    queryFn: () => runApi((client) => client.jobs.list({})).then((r) => r.jobs),
+    queryFn: () => runCapability((client) => client.listJobs({})).then((r) => r.jobs),
     // Backstop for the WebSocket connection above: if `/api/jobs/ws` can't
     // establish (e.g. a proxy that doesn't forward Upgrade), this keeps the
     // drawer live instead of freezing at its initial fetch.
@@ -60,7 +60,7 @@ export function JobsDrawer() {
   }, [queryClient])
 
   const clearMutation = useMutation({
-    mutationFn: () => runApi((client) => client.jobs.clear({})),
+    mutationFn: () => runCapability((client) => client.clearJobs({})),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["jobs"] })
       ToastGroup.create.success("Cleared completed jobs")

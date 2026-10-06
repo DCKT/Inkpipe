@@ -6,12 +6,20 @@ import { Effect, Schema } from "effect"
 import { HttpServerResponse } from "effect/http"
 import { capabilities } from "../capabilities"
 
+const detailOf = (cause: unknown): string =>
+  typeof cause === "object" &&
+  cause !== null &&
+  "message" in cause &&
+  typeof cause.message === "string"
+    ? cause.message
+    : String(cause)
+
 // Same JSON shape the hand-written API's SchemaErrorMiddleware returns for bad requests.
 export const CapabilityHttp = toHttpApi("InkpipeCapabilities", capabilities, {
   decodeRefusal: (refusal) =>
     Schema.encodeEffect(RequestValidationError)(
       new RequestValidationError({
-        message: `Invalid request ${refusal.kind.toLowerCase()}: ${refusal.message}`,
+        message: `Invalid request ${refusal.kind.toLowerCase()}: ${detailOf(refusal.cause)}`,
       }),
     ).pipe(
       Effect.flatMap((body) => HttpServerResponse.json(body, { status: 400 })),

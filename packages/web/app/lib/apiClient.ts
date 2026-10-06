@@ -2,7 +2,7 @@ import { Cause, Effect, Exit, Layer } from "effect"
 import { HttpApiClient } from "effect/http-api"
 import { FetchHttpClient, HttpClient } from "effect/http"
 import { toHttpClient } from "@inkpipe/capability/to-http-client"
-import { InkpipeApi, copypartyContracts } from "@inkpipe/shared"
+import { InkpipeApi, allContracts } from "@inkpipe/shared"
 
 // The client's outgoing requests otherwise carry a `b3` trace-propagation
 // header by default; the server's CORS config doesn't allow it (and there's
@@ -64,7 +64,7 @@ export async function runApi<A, E>(
 
 // Capability contracts are the source of truth for migrated routes: the browser reads contracts
 // (names, routes, schemas) and never the server handlers.
-const capabilityClient = toHttpClient(copypartyContracts, { baseUrl: API_BASE })
+const capabilityClient = toHttpClient(allContracts, { baseUrl: API_BASE })
 
 export type CapabilityClient = typeof capabilityClient
 

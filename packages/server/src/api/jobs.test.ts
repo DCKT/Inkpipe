@@ -1,19 +1,14 @@
-// Exercises the real JobsGroupLive handler (not a reimplementation) through
+// Exercises the real jobs capabilities (not a reimplementation) through
 // the real HTTP mechanics, against a mocked JobStoreService — verifying the
 // `{jobs}` response shape (see JobStore/JobsDrawer.tsx fix this session) and
 // that clearing completed jobs re-broadcasts the fresh job list.
 import { Effect, Layer } from "effect"
 import { describe, it, expect, afterEach } from "@effect/vitest"
-import { HttpApi, HttpApiBuilder } from "effect/http-api"
-import { HttpRouter } from "effect/http"
-import * as BunHttpServer from "@effect/platform-bun/BunHttpServer"
 import type { Job } from "@inkpipe/shared"
 import { JobId } from "@inkpipe/shared"
 import { JobStoreService } from "../layers/storage/JobStore"
-import { JobsGroup } from "@inkpipe/shared/httpApi/groups/jobs"
-import { JobsGroupLive } from "./handlers/jobs"
-import { SchemaErrorMiddleware, SchemaErrorMiddlewareLive } from "@inkpipe/shared"
 import { subscribeJobListEvents } from "../lib/jobEvents"
+import { makeCapabilityHandler } from "./testing"
 
 function makeJob(overrides: Partial<Job> = {}): Job {
   return {
@@ -41,25 +36,7 @@ function makeStore(overrides: Partial<JobStoreShape> = {}) {
   })
 }
 
-const TestApi = HttpApi.make("test").add(JobsGroup).middleware(SchemaErrorMiddleware)
-
-function makeHandler(store = makeStore()) {
-  // JobsGroupLive's static type is tied to the production InkpipeApi's
-  // identifier ("InkpipeApi"), while TestApi's is "test" — but HttpApiGroup's
-  // runtime context key is derived purely from the group *identifier*
-  // ("jobs"), not the parent api's identifier (confirmed in HttpApiGroup.js:
-  // `key = \`effect/httpapi/HttpApiGroup/${identifier}\``), so this resolves
-  // correctly at runtime (proven by every test below hitting real handler
-  // code) despite the type checker treating them as distinct services.
-  const JobsGroupWithDeps: any = JobsGroupLive.pipe(
-    Layer.provide(SchemaErrorMiddlewareLive),
-    Layer.provide(store),
-  )
-  const ApiLive = HttpApiBuilder.layer(TestApi).pipe(Layer.provide(JobsGroupWithDeps))
-  const AppLayer: any = ApiLive.pipe(Layer.provide(BunHttpServer.layerHttpServices))
-  const { handler } = HttpRouter.toWebHandler(AppLayer)
-  return { handler: handler as (request: Request) => Promise<Response> }
-}
+const makeHandler = (store = makeStore()) => ({ handler: makeCapabilityHandler(store) })
 
 const unsubscribes: Array<() => void> = []
 afterEach(() => {

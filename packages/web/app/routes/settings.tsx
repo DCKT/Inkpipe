@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import SettingsForm from "../components/SettingsForm"
 import { PageHeader } from "../components/PageHeader"
-import { runApi } from "../lib/apiClient"
+import { runCapability, runApi } from "../lib/apiClient"
 import type { AppConfig } from "../lib/types"
 import { Button } from "../ui/button"
 import { ToastGroup } from "../ui/toast"
@@ -17,12 +17,11 @@ export default function SettingsPage() {
 
   const configQuery = useQuery({
     queryKey: ["settings"],
-    queryFn: () => runApi((client) => client.settings.get({})),
+    queryFn: () => runCapability((client) => client.getSettings({})),
   })
 
   const saveMutation = useMutation({
-    mutationFn: (config: AppConfig) =>
-      runApi((client) => client.settings.update({ payload: config })),
+    mutationFn: (config: AppConfig) => runCapability((client) => client.updateSettings(config)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] })
       ToastGroup.create.success("Settings saved successfully.")

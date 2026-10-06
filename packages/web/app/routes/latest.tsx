@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import { ArrowDown } from "lucide-react"
 import ResultsTable from "../components/ResultsTable"
 import { PageHeader } from "../components/PageHeader"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 import type { ProwlarrResult } from "../lib/types"
 import { Button } from "../ui/button"
 import { ToastGroup } from "../ui/toast"
@@ -13,12 +13,11 @@ export default function LatestPage() {
 
   const latestQuery = useQuery({
     queryKey: ["latest-mangas"],
-    queryFn: () => runApi((client) => client.latest.latest({})),
+    queryFn: () => runCapability((client) => client.getLatest({})),
   })
 
   const downloadMutation = useMutation({
-    mutationFn: (items: ProwlarrResult[]) =>
-      runApi((client) => client.download.download({ payload: { items } })),
+    mutationFn: (items: ProwlarrResult[]) => runCapability((client) => client.download({ items })),
     onSuccess: (data) => {
       setSelected(new Set())
       ToastGroup.create.success(

@@ -2,14 +2,12 @@
 // toHttpApi projection, and the contracts-only client the browser uses.
 import { Effect, Layer } from "effect"
 import { describe, it, expect } from "@effect/vitest"
-import { HttpApiBuilder } from "effect/http-api"
-import { FetchHttpClient, HttpRouter } from "effect/http"
+import { FetchHttpClient } from "effect/http"
 import type { HttpClient } from "effect/http"
-import * as BunHttpServer from "@effect/platform-bun/BunHttpServer"
 import { toHttpClient } from "@inkpipe/capability/to-http-client"
 import { CopypartyFolderError, CopypartyNotConfigured, copypartyContracts } from "@inkpipe/shared"
 import { CopypartyService } from "../layers/integrations/Copyparty"
-import { CapabilityHttp } from "./capabilityApi"
+import { makeCapabilityHandler } from "./testing"
 
 type CopypartyShape = typeof CopypartyService.Service
 
@@ -21,13 +19,7 @@ const makeFetch = (overrides: Partial<CopypartyShape> = {}) => {
     uploadFile: () => Effect.void,
     ...overrides,
   } as CopypartyShape)
-  const ApiLive: any = HttpApiBuilder.layer(CapabilityHttp.api).pipe(
-    Layer.provide(CapabilityHttp.layer),
-    Layer.provide(service),
-    Layer.provide(BunHttpServer.layerHttpServices),
-  )
-  const { handler } = HttpRouter.toWebHandler(ApiLive)
-  return handler as (request: Request) => Promise<Response>
+  return makeCapabilityHandler(service)
 }
 
 // Routes the client's fetches straight into the in-process web handler.

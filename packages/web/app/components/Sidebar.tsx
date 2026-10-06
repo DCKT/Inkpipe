@@ -5,7 +5,7 @@ import { Menu } from "lucide-react"
 import { UnreadBadge } from "./UnreadBadge"
 import { InkpipeMark } from "./InkpipeMark"
 import { NAV_ITEMS, SETTINGS_NAV_ITEM, type NavSubLink } from "../lib/nav"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 
 function isSubLinkActive(pathname: string, item: NavSubLink): boolean {
   if (item.end) return pathname === item.path
@@ -17,7 +17,7 @@ function SidebarContent({ fullLabels = false }: { fullLabels?: boolean }) {
 
   const configQuery = useQuery({
     queryKey: ["settings"],
-    queryFn: () => runApi((client) => client.settings.get({})),
+    queryFn: () => runCapability((client) => client.getSettings({})),
     staleTime: 5 * 60 * 1000,
   })
   const copypartyUrl = configQuery.data?.copyparty.url

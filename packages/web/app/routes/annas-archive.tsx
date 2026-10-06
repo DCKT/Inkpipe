@@ -5,7 +5,7 @@ import SearchBar from "../components/SearchBar"
 import AnnasArchiveResultsList from "../components/AnnasArchiveResultsList"
 import DownloadModal from "../components/DownloadModal"
 import { PageHeader } from "../components/PageHeader"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 import type { AnnasArchiveResult } from "../lib/types"
 import { ToastGroup } from "../ui/toast"
 
@@ -16,7 +16,7 @@ export default function AnnasArchivePage() {
 
   const searchQuery = useQuery({
     queryKey: ["annas-archive-search", query],
-    queryFn: () => runApi((client) => client.annasArchive.search({ query: { q: query } })),
+    queryFn: () => runCapability((client) => client.searchAnnasArchive({ q: query })),
     enabled: query.length > 0,
   })
 
@@ -31,10 +31,7 @@ export default function AnnasArchivePage() {
       items: AnnasArchiveResult[]
       subfolder?: string
       newFolder?: boolean
-    }) =>
-      runApi((client) =>
-        client.annasArchive.download({ payload: { items, subfolder, newFolder } }),
-      ),
+    }) => runCapability((client) => client.downloadAnnasArchive({ items, subfolder, newFolder })),
     onSuccess: (data) => {
       setSelected(new Set())
       queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] })

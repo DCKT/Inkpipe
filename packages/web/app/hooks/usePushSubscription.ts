@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 
 const STORAGE_KEY = "push-subscribed"
 
@@ -53,7 +53,7 @@ export function usePushSubscription() {
     }
 
     const reg = await navigator.serviceWorker.ready
-    const vapidResp = await runApi((client) => client.push.vapidPublicKey({}))
+    const vapidResp = await runCapability((client) => client.getVapidPublicKey({}))
     const applicationServerKey = urlBase64ToUint8Array(vapidResp.publicKey)
 
     let subscription = await reg.pushManager.getSubscription()
@@ -68,7 +68,7 @@ export function usePushSubscription() {
       endpoint: string
       keys: { p256dh: string; auth: string }
     }
-    await runApi((client) => client.push.subscribe({ payload: subJson }))
+    await runCapability((client) => client.subscribePush(subJson))
     localStorage.setItem(STORAGE_KEY, "true")
     setStatus("subscribed")
   }, [])
@@ -79,8 +79,8 @@ export function usePushSubscription() {
     const subscription = await reg.pushManager.getSubscription()
     if (subscription) {
       const subscriptionJson = subscription.toJSON() as { endpoint: string }
-      await runApi((client) =>
-        client.push.unsubscribe({ payload: { endpoint: subscriptionJson.endpoint } }),
+      await runCapability((client) =>
+        client.unsubscribePush({ endpoint: subscriptionJson.endpoint }),
       )
       await subscription.unsubscribe()
     }

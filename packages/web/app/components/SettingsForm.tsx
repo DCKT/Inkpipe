@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import type { AppConfig } from "../lib/types"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 import { Button } from "../ui/button"
 import { Select, createListCollection } from "../ui/select"
 import { Field } from "../ui/field"
@@ -29,7 +29,7 @@ function KomgaDefaultLibrarySelect({
 
   const librariesQuery = useQuery({
     queryKey: ["komga-libraries"],
-    queryFn: () => runApi((client) => client.komga.libraries({})),
+    queryFn: () => runCapability((client) => client.listKomgaLibraries({})),
     staleTime: 5 * 60 * 1000,
     enabled: hasCredentials,
     retry: false,
@@ -93,7 +93,7 @@ export default function SettingsForm({ config, onSave, isSaving }: SettingsFormP
   const [form, setForm] = useState<AppConfig>(config)
 
   const testTelegramMutation = useMutation({
-    mutationFn: () => runApi((client) => client.telegram.test({})),
+    mutationFn: () => runCapability((client) => client.testTelegram({})),
     onSuccess: () => {
       ToastGroup.create.success("Telegram test message sent.")
     },

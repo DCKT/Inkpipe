@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 import { ToastGroup } from "../ui/toast"
 import { WatchFormDialog } from "../components/WatchForm"
 import { PageHeader } from "../components/PageHeader"
@@ -12,12 +12,12 @@ export default function WatchesPage() {
 
   const watchesQuery = useQuery({
     queryKey: ["watches"],
-    queryFn: () => runApi((client) => client.watches.list({})),
+    queryFn: () => runCapability((client) => client.listWatches({})),
     refetchInterval: 30_000,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => runApi((client) => client.watches.delete({ params: { id } })),
+    mutationFn: (id: number) => runCapability((client) => client.deleteWatch({ id })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watches"] })
       ToastGroup.create.success("Watch deleted")
@@ -29,14 +29,14 @@ export default function WatchesPage() {
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
-      runApi((client) => client.watches.update({ params: { id }, payload: { enabled } })),
+      runCapability((client) => client.updateWatch({ id, enabled })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watches"] })
     },
   })
 
   const triggerMutation = useMutation({
-    mutationFn: (id: number) => runApi((client) => client.watches.trigger({ params: { id } })),
+    mutationFn: (id: number) => runCapability((client) => client.triggerWatch({ id })),
     onSuccess: (data) => {
       if (data.matches === 0) {
         ToastGroup.create.success("No new matches found")
@@ -54,7 +54,7 @@ export default function WatchesPage() {
 
   const dismissMutation = useMutation({
     mutationFn: (watchId: number) =>
-      runApi((client) => client.watches.acknowledgeAllAlerts({ params: { id: watchId } })),
+      runCapability((client) => client.acknowledgeAllAlerts({ id: watchId })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watches"] })
     },

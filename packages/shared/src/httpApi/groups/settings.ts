@@ -1,25 +1,12 @@
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api"
-import { AppConfigSchema } from "../../schemas"
 import { SettingsResponseSchema } from "../../api"
+import { SuccessFlagSchema } from "../../capabilities/settings"
 import { ConfigLoadErrorS, ConfigSaveErrorS, SettingsImportErrorS } from "../errors"
 
-export const SuccessFlagSchema = Schema.Struct({ success: Schema.Boolean })
-
+// get/update are capabilities (see ../../capabilities/settings). These two stay hand-written:
+// export answers with a file download and import takes an untyped JSON body.
 export const SettingsGroup = HttpApiGroup.make("settings")
-  .add(
-    HttpApiEndpoint.get("get", "/api/settings", {
-      success: SettingsResponseSchema,
-      error: [ConfigLoadErrorS],
-    }),
-  )
-  .add(
-    HttpApiEndpoint.post("update", "/api/settings", {
-      payload: AppConfigSchema,
-      success: SuccessFlagSchema,
-      error: [ConfigSaveErrorS],
-    }),
-  )
   .add(
     // Returns a file-download response (Content-Disposition header) built
     // manually in the handler; the success schema below documents the shape.

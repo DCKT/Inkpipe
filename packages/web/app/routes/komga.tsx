@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Search, Library } from "lucide-react"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 import type { KomgaSeries } from "../lib/types"
 import KomgaBooksModal from "../components/KomgaBooksModal"
 import { PageHeader } from "../components/PageHeader"
@@ -40,7 +40,7 @@ function SeriesCard({ series, onClick }: { series: KomgaSeries; onClick: () => v
   const thumbnailQuery = useQuery({
     queryKey: ["komga-thumbnail", series.id],
     queryFn: () =>
-      runApi((client) => client.komga.thumbnail({ query: { seriesId: series.id } })).then(
+      runCapability((client) => client.getKomgaThumbnail({ seriesId: series.id })).then(
         (data) => data.thumbnail,
       ),
     enabled: isVisible,
@@ -99,7 +99,7 @@ export default function KomgaPage() {
 
   const configQuery = useQuery({
     queryKey: ["settings"],
-    queryFn: () => runApi((client) => client.settings.get({})),
+    queryFn: () => runCapability((client) => client.getSettings({})),
     staleTime: 5 * 60 * 1000,
   })
 
@@ -113,7 +113,7 @@ export default function KomgaPage() {
 
   const librariesQuery = useQuery({
     queryKey: ["komga-libraries"],
-    queryFn: () => runApi((client) => client.komga.libraries({})),
+    queryFn: () => runCapability((client) => client.listKomgaLibraries({})),
     staleTime: 5 * 60 * 1000,
   })
 
@@ -129,8 +129,8 @@ export default function KomgaPage() {
   const seriesQuery = useQuery({
     queryKey: ["komga-series", activeLibraryId],
     queryFn: () =>
-      runApi((client) =>
-        client.komga.series({ payload: { libraryId: activeLibraryId || undefined } }),
+      runCapability((client) =>
+        client.listKomgaSeries({ libraryId: activeLibraryId || undefined }),
       ),
     enabled: selectedLibraryId !== null,
   })

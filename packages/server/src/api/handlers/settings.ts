@@ -2,25 +2,11 @@ import { Effect, Schema } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { HttpServerResponse } from "effect/http"
 import { AppConfigSchema, SettingsImportError } from "@inkpipe/shared"
-import type { AppConfig } from "@inkpipe/shared"
 import { ConfigService } from "../../layers/core/Config"
 import { InkpipeApi } from "@inkpipe/shared"
 
 export const SettingsGroupLive = HttpApiBuilder.group(InkpipeApi, "settings", (handlers) =>
   handlers
-    .handle("get", () =>
-      Effect.gen(function* () {
-        const configService = yield* ConfigService
-        return yield* configService.loadConfig
-      }),
-    )
-    .handle("update", ({ payload }) =>
-      Effect.gen(function* () {
-        const configService = yield* ConfigService
-        yield* configService.saveConfig(payload as AppConfig)
-        return { success: true }
-      }),
-    )
     .handle("export", () =>
       Effect.gen(function* () {
         const configService = yield* ConfigService

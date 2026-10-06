@@ -2,7 +2,7 @@ import { useMemo } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { CloudDownload, Check, X, Loader2 } from "lucide-react"
 import type { ProwlarrResult } from "../lib/types"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 import { findBestMatch } from "@inkpipe/shared"
 import { Checkbox } from "../ui/checkbox"
 import { Tooltip } from "../ui/tooltip"
@@ -55,7 +55,7 @@ export default function ResultsTable({
 }: ResultsTableProps) {
   const komgaQuery = useQuery({
     queryKey: ["komga-series"],
-    queryFn: () => runApi((client) => client.komga.series({ payload: {} })),
+    queryFn: () => runCapability((client) => client.listKomgaSeries({})),
     staleTime: 5 * 60 * 1000,
     retry: false,
   })
@@ -227,10 +227,8 @@ export default function ResultsTable({
 function SaveToAllDebridButton({ result }: { result: ProwlarrResult }) {
   const mutation = useMutation({
     mutationFn: () =>
-      runApi((client) =>
-        client.alldebrid.saveMagnet({
-          payload: { magnetUrl: result.magnetUrl, downloadUrl: result.downloadUrl },
-        }),
+      runCapability((client) =>
+        client.saveMagnet({ magnetUrl: result.magnetUrl, downloadUrl: result.downloadUrl }),
       ),
   })
 
