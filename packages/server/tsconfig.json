@@ -3,6 +3,6 @@
   "include": ["src/**/*.ts"],
   "compilerOptions": {
     "types": ["@types/bun"],
-    "lib": ["ES2022"]
+    "lib": ["ES2022", "DOM"]
   }
 }

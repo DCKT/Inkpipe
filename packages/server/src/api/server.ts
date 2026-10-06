@@ -11,6 +11,7 @@ import { JobsWsRouteLive, StaticFallbackRouteLive } from "./raw"
 import { SchemaErrorMiddlewareLive } from "@inkpipe/shared"
 import { metrics } from "./Metrics"
 import { CapabilityHttp } from "./capabilityApi"
+import { McpLive, mcpEnabled } from "./mcp"
 
 // Every group layer's build effect resolves endpoint middleware (including
 // SchemaErrorMiddleware, applied API-wide in index.ts) from its own context
@@ -45,7 +46,10 @@ const SwaggerLive = Layer.mergeAll(
 // resolves static/param routes ahead of the catch-all wildcard regardless of
 // registration order, so the typed API and the /api/jobs/ws route always
 // take priority over the static/SPA fallback.
+const McpOptionalLive = mcpEnabled() ? McpLive : Layer.empty
+
 const HttpAppLayer = Layer.mergeAll(
+  McpOptionalLive,
   ApiLive,
   CapabilityApiLive,
   SwaggerLive,
