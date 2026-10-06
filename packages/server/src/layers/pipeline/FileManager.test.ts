@@ -3,22 +3,23 @@ import { describe, expect, layer, beforeEach, afterEach } from "@effect/vitest"
 import { vi } from "vitest"
 import { FileManagerService, FileManagerServiceLive } from "./FileManager"
 
+vi.mock("node:fs", () => ({
+  existsSync: vi.fn((path: string) => path === "/.dockerenv"),
+}))
+vi.mock("node:fs/promises", () => ({
+  mkdir: vi.fn(() => Promise.resolve()),
+  readdir: vi.fn(() => Promise.resolve([])),
+  rm: vi.fn(() => Promise.resolve()),
+}))
+vi.mock("node:os", () => ({
+  tmpdir: () => "/tmp",
+  homedir: () => "/home/user",
+}))
+vi.mock("node:child_process", () => ({
+  spawn: vi.fn(),
+}))
+
 beforeEach(() => {
-  vi.mock("node:fs", () => ({
-    existsSync: vi.fn((path: string) => path === "/.dockerenv"),
-  }))
-  vi.mock("node:fs/promises", () => ({
-    mkdir: vi.fn(() => Promise.resolve()),
-    readdir: vi.fn(() => Promise.resolve([])),
-    rm: vi.fn(() => Promise.resolve()),
-  }))
-  vi.mock("node:os", () => ({
-    tmpdir: () => "/tmp",
-    homedir: () => "/home/user",
-  }))
-  vi.mock("node:child_process", () => ({
-    spawn: vi.fn(),
-  }))
   vi.spyOn(console, "log").mockImplementation(() => {})
   vi.spyOn(console, "error").mockImplementation(() => {})
 })
