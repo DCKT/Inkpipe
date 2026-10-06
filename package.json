@@ -17,7 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "bun run --filter '*' typecheck",
-    "prepare": "effect-tsgo patch --typescript --oxlint && lefthook install",
+    "prepare": "effect-tsgo patch --typescript --oxlint && (lefthook install || true)",
     "lint": "oxlint packages",
     "lint:fix": "oxlint packages --fix",
     "format": "oxfmt packages",
