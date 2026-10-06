@@ -14,13 +14,13 @@ import { JobsGroupLive } from "./handlers/jobs"
 import { SettingsGroupLive } from "./handlers/settings"
 import { ConvertGroupLive } from "./handlers/convert"
 import { KomgaGroupLive } from "./handlers/komga"
-import { CopypartyGroupLive } from "./handlers/copyparty"
 import { WatchesGroupLive } from "./handlers/watches"
 import { PushGroupLive } from "./handlers/push"
 import { TelegramGroupLive } from "./handlers/telegram"
 import { JobsWsRouteLive, StaticFallbackRouteLive } from "./raw"
 import { SchemaErrorMiddlewareLive } from "@inkpipe/shared"
 import { metrics } from "./Metrics"
+import { CapabilityHttp } from "./capabilityApi"
 
 // Every group layer's build effect resolves endpoint middleware (including
 // SchemaErrorMiddleware, applied API-wide in index.ts) from its own context
@@ -36,7 +36,6 @@ const HandlersLive = Layer.mergeAll(
   SettingsGroupLive,
   ConvertGroupLive,
   KomgaGroupLive,
-  CopypartyGroupLive,
   WatchesGroupLive,
   PushGroupLive,
   TelegramGroupLive,
@@ -52,7 +51,16 @@ const ApiLive = HttpApiBuilder.layer(InkpipeApi, { openapiPath: "/openapi.json" 
   Layer.provide(HandlersLive),
 )
 
-const SwaggerLive = HttpApiSwagger.layer(InkpipeApi, { path: "/docs" })
+// Routes derived from capability contracts (see ../capabilities). Handlers for those live next to
+// their contracts, so this API needs no hand-written group.
+const CapabilityApiLive = HttpApiBuilder.layer(CapabilityHttp.api, {
+  openapiPath: "/openapi/capabilities.json",
+}).pipe(Layer.provide(CapabilityHttp.layer))
+
+const SwaggerLive = Layer.mergeAll(
+  HttpApiSwagger.layer(InkpipeApi, { path: "/docs" }),
+  HttpApiSwagger.layer(CapabilityHttp.api, { path: "/docs/capabilities" }),
+)
 
 // Order matters for readability only — the underlying router (find-my-way)
 // resolves static/param routes ahead of the catch-all wildcard regardless of
@@ -60,6 +68,7 @@ const SwaggerLive = HttpApiSwagger.layer(InkpipeApi, { path: "/docs" })
 // take priority over the static/SPA fallback.
 const HttpAppLayer = Layer.mergeAll(
   ApiLive,
+  CapabilityApiLive,
   SwaggerLive,
   JobsWsRouteLive,
   StaticFallbackRouteLive,

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useListCollection } from "@ark-ui/react"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 import { Combobox } from "../ui/combobox"
 
 interface FolderItem {
@@ -44,7 +44,7 @@ export default function FolderSelect({
 }: FolderSelectProps) {
   const foldersQuery = useQuery({
     queryKey: ["copyparty-folders"],
-    queryFn: () => runApi((client) => client.copyparty.listFolders({})).then((r) => r.folders),
+    queryFn: () => runCapability((client) => client.listFolders({})).then((r) => r.folders),
   })
 
   useEffect(() => {

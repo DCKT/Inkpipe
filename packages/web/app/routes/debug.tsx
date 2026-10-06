@@ -80,7 +80,7 @@ const ENDPOINTS: EndpointDef[] = [
     label: "Delete Folder",
     method: "DELETE",
     path: "/api/copyparty/folders",
-    bodyKey: "name",
+    queryKey: "name",
     mutating: true,
   },
 

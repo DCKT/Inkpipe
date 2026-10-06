@@ -1,7 +1,8 @@
 import { Cause, Effect, Exit, Layer } from "effect"
 import { HttpApiClient } from "effect/http-api"
 import { FetchHttpClient, HttpClient } from "effect/http"
-import { InkpipeApi } from "@inkpipe/shared"
+import { toHttpClient } from "@inkpipe/capability/to-http-client"
+import { InkpipeApi, copypartyContracts } from "@inkpipe/shared"
 
 // The client's outgoing requests otherwise carry a `b3` trace-propagation
 // header by default; the server's CORS config doesn't allow it (and there's
@@ -57,6 +58,24 @@ export async function runApi<A, E>(
   // time (unlike HttpClient itself) — it must be provided again here, around
   // each actual call, or every request goes back to sending b3/traceparent.
   const exit = await Effect.runPromiseExit(fn(client).pipe(Effect.provide(NoTracePropagation)))
+  if (Exit.isSuccess(exit)) return exit.value
+  throw toError(exit.cause)
+}
+
+// Capability contracts are the source of truth for migrated routes: the browser reads contracts
+// (names, routes, schemas) and never the server handlers.
+const capabilityClient = toHttpClient(copypartyContracts, { baseUrl: API_BASE })
+
+export type CapabilityClient = typeof capabilityClient
+
+export async function runCapability<A, E>(
+  fn: (client: CapabilityClient) => Effect.Effect<A, E, HttpClient.HttpClient>,
+): Promise<A> {
+  const exit = await Effect.runPromiseExit(
+    fn(capabilityClient).pipe(
+      Effect.provide(Layer.merge(FetchHttpClient.layer, NoTracePropagation)),
+    ),
+  )
   if (Exit.isSuccess(exit)) return exit.value
   throw toError(exit.cause)
 }

@@ -49,6 +49,7 @@
       "dependencies": {
         "@effect/platform-bun": "4.0.1",
         "@effect/sql-sqlite-bun": "4.0.1",
+        "@inkpipe/capability": "workspace:*",
         "@inkpipe/db": "workspace:*",
         "@inkpipe/shared": "workspace:*",
         "@xstate/effect": "0.1.0-alpha.6",
@@ -66,6 +67,7 @@
     "packages/shared": {
       "name": "@inkpipe/shared",
       "dependencies": {
+        "@inkpipe/capability": "workspace:*",
         "effect": "4.0.1",
       },
       "devDependencies": {
@@ -91,6 +93,7 @@
       "name": "@inkpipe/web",
       "dependencies": {
         "@ark-ui/react": "^5.37.2",
+        "@inkpipe/capability": "workspace:*",
         "@inkpipe/shared": "workspace:*",
         "@tanstack/react-query": "^5.90.21",
         "effect": "4.0.1",

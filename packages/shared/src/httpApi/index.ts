@@ -8,7 +8,6 @@ import { JobsGroup } from "./groups/jobs"
 import { SettingsGroup } from "./groups/settings"
 import { ConvertGroup } from "./groups/convert"
 import { KomgaGroup } from "./groups/komga"
-import { CopypartyGroup } from "./groups/copyparty"
 import { WatchesGroup } from "./groups/watches"
 import { PushGroup } from "./groups/push"
 import { TelegramGroup } from "./groups/telegram"
@@ -24,7 +23,6 @@ export const InkpipeApi = HttpApi.make("InkpipeApi")
   .add(SettingsGroup)
   .add(ConvertGroup)
   .add(KomgaGroup)
-  .add(CopypartyGroup)
   .add(WatchesGroup)
   .add(PushGroup)
   .add(TelegramGroup)

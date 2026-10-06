@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@inkpipe/capability": "workspace:*",
     "effect": "4.0.1"
   },
   "devDependencies": {
