@@ -1,5 +1,6 @@
 import type { Context } from "effect"
-import { Effect, Layer } from "effect"
+import { Duration, Effect, Fiber, Layer } from "effect"
+import { TestClock } from "effect/testing"
 import { describe, it, expect, vi, beforeEach, afterEach } from "@effect/vitest"
 import type { AppConfig, Job, ProwlarrResult, DebridFile } from "@inkpipe/shared"
 import { JobId, AllDebridHttpError } from "@inkpipe/shared"
@@ -212,35 +213,42 @@ describe("PipelineService", () => {
       }),
   )
 
-  // Pipeline.ts polls on a real 3s `setTimeout` between attempts (POLL_INTERVAL,
-  // not injectable, not on TestClock) — plain `it` + `Effect.runPromise` per the
-  // established pattern in AllDebrid.test.ts, since `it.effect`'s AbortSignal
-  // wiring hangs when combined with real (non-TestClock) delays in this stack.
-  it("polls DEBRID_PROCESSING until AllDebrid reports Ready, without duplicate polling once ready", async () => {
-    const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
-    let calls = 0
-    const getMagnetStatus = vi.fn(() => {
-      calls++
-      return calls < 3
-        ? Effect.succeed({ ready: false, statusCode: 1, status: "Downloading" })
-        : Effect.succeed({ ready: true, statusCode: 4, status: "Ready" })
-    })
+  // The pipeline machine schedules polls with `after`, which runs on Effect's Clock,
+  // so TestClock drives the 3s poll interval.
+  it.effect(
+    "polls DEBRID_PROCESSING until AllDebrid reports Ready, without duplicate polling once ready",
+    () =>
+      Effect.gen(function* () {
+        const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
+        let calls = 0
+        const getMagnetStatus = vi.fn(() => {
+          calls++
+          return calls < 3
+            ? Effect.succeed({ ready: false, statusCode: 1, status: "Downloading" })
+            : Effect.succeed({ ready: true, statusCode: 4, status: "Ready" })
+        })
 
-    await Effect.runPromise(
-      makeProgram((svc) => svc.runPipeline(testResult), {
-        updateJobSpy,
-        uploadMagnet: () => Effect.succeed({ id: 1, ready: false }),
-        getMagnetStatus,
+        const fiber = yield* Effect.forkChild(
+          makeProgram((svc) => svc.runPipeline(testResult), {
+            updateJobSpy,
+            uploadMagnet: () => Effect.succeed({ id: 1, ready: false }),
+            getMagnetStatus,
+          }),
+        )
+        while (fiber.pollUnsafe() === undefined) {
+          yield* TestClock.adjust(Duration.seconds(1))
+          yield* Effect.yieldNow
+        }
+        yield* Fiber.join(fiber)
+
+        expect(getMagnetStatus).toHaveBeenCalledTimes(3)
+        const stages = updateJobSpy.mock.calls
+          .map((call) => (call[1] as { stage?: string }).stage)
+          .filter((s): s is string => Boolean(s))
+        expect(stages).toContain("DEBRID_PROCESSING")
+        expect(stages[stages.length - 1]).toBe("DONE")
       }),
-    )
-
-    expect(getMagnetStatus).toHaveBeenCalledTimes(3)
-    const stages = updateJobSpy.mock.calls
-      .map((call) => (call[1] as { stage?: string }).stage)
-      .filter((s): s is string => Boolean(s))
-    expect(stages).toContain("DEBRID_PROCESSING")
-    expect(stages[stages.length - 1]).toBe("DONE")
-  }, 12000)
+  )
 
   it.effect("fails the job when AllDebrid reports a terminal magnet error while polling", () =>
     Effect.gen(function* () {

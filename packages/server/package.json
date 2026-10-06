@@ -13,10 +13,13 @@
   "dependencies": {
     "@effect/platform-bun": "4.0.1",
     "@effect/sql-sqlite-bun": "4.0.1",
+    "@inkpipe/capability": "workspace:*",
     "@inkpipe/db": "workspace:*",
     "@inkpipe/shared": "workspace:*",
+    "@xstate/effect": "0.1.0-alpha.6",
     "cheerio": "^1.2.0",
-    "effect": "4.0.1"
+    "effect": "4.0.1",
+    "xstate": "6.0.0-alpha.63"
   },
   "devDependencies": {
     "@effect/vitest": "4.0.1",
