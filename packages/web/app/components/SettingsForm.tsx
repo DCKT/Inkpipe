@@ -1,23 +1,23 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import type { AppConfig } from "../lib/types";
-import { runApi } from "../lib/apiClient";
-import { Button } from "../ui/button";
-import { Select, createListCollection } from "../ui/select";
-import { Field } from "../ui/field";
-import { ToastGroup } from "../ui/toast";
-import KccOptionsFields from "./KccOptionsFields";
+import { useState } from "react"
+import { useMutation, useQuery } from "@tanstack/react-query"
+import type { AppConfig } from "../lib/types"
+import { runApi } from "../lib/apiClient"
+import { Button } from "../ui/button"
+import { Select, createListCollection } from "../ui/select"
+import { Field } from "../ui/field"
+import { ToastGroup } from "../ui/toast"
+import KccOptionsFields from "./KccOptionsFields"
 
 interface SettingsFormProps {
-  config: AppConfig;
-  onSave: (config: AppConfig) => void;
-  isSaving: boolean;
+  config: AppConfig
+  onSave: (config: AppConfig) => void
+  isSaving: boolean
 }
 
 interface KomgaDefaultLibrarySelectProps {
-  savedConfig: AppConfig;
-  value: string;
-  onChange: (id: string) => void;
+  savedConfig: AppConfig
+  value: string
+  onChange: (id: string) => void
 }
 
 function KomgaDefaultLibrarySelect({
@@ -25,7 +25,7 @@ function KomgaDefaultLibrarySelect({
   value,
   onChange,
 }: KomgaDefaultLibrarySelectProps) {
-  const hasCredentials = !!(savedConfig.komga.url && savedConfig.komga.apiKey);
+  const hasCredentials = !!(savedConfig.komga.url && savedConfig.komga.apiKey)
 
   const librariesQuery = useQuery({
     queryKey: ["komga-libraries"],
@@ -33,14 +33,14 @@ function KomgaDefaultLibrarySelect({
     staleTime: 5 * 60 * 1000,
     enabled: hasCredentials,
     retry: false,
-  });
+  })
 
-  const libraries = librariesQuery.data ?? [];
-  const items = [{ id: "", name: "All libraries" }, ...libraries];
+  const libraries = librariesQuery.data ?? []
+  const items = [{ id: "", name: "All libraries" }, ...libraries]
   const collection = createListCollection({
     items,
     itemToString: (item) => (item as { id: string; name: string }).name,
-  });
+  })
 
   return (
     <Field.Root>
@@ -48,12 +48,8 @@ function KomgaDefaultLibrarySelect({
       <Select.Root
         collection={collection}
         value={[value]}
-        onValueChange={(details: { items: string[] }) =>
-          onChange(details.items[0] ?? "")
-        }
-        disabled={
-          !hasCredentials || librariesQuery.isLoading || librariesQuery.isError
-        }
+        onValueChange={(details: { items: string[] }) => onChange(details.items[0] ?? "")}
+        disabled={!hasCredentials || librariesQuery.isLoading || librariesQuery.isError}
       >
         <Select.Trigger>
           <Select.ValueText
@@ -68,13 +64,7 @@ function KomgaDefaultLibrarySelect({
             }
           />
           <Select.Indicator>
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              className="text-secondary"
-            >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-secondary">
               <path
                 d="M3 4.5L6 7.5L9 4.5"
                 stroke="currentColor"
@@ -96,39 +86,32 @@ function KomgaDefaultLibrarySelect({
         </Select.Positioner>
       </Select.Root>
     </Field.Root>
-  );
+  )
 }
 
-export default function SettingsForm({
-  config,
-  onSave,
-  isSaving,
-}: SettingsFormProps) {
-  const [form, setForm] = useState<AppConfig>(config);
+export default function SettingsForm({ config, onSave, isSaving }: SettingsFormProps) {
+  const [form, setForm] = useState<AppConfig>(config)
 
   const testTelegramMutation = useMutation({
     mutationFn: () => runApi((client) => client.telegram.test({})),
     onSuccess: () => {
-      ToastGroup.create.success("Telegram test message sent.");
+      ToastGroup.create.success("Telegram test message sent.")
     },
     onError: (err) => {
-      ToastGroup.create.error("Failed to send Telegram test message", err.message);
+      ToastGroup.create.error("Failed to send Telegram test message", err.message)
     },
-  });
+  })
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(form);
-  };
+    e.preventDefault()
+    onSave(form)
+  }
 
   const setKcc = (patch: Partial<AppConfig["kcc"]>) =>
-    setForm({ ...form, kcc: { ...form.kcc, ...patch } });
+    setForm({ ...form, kcc: { ...form.kcc, ...patch } })
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2"
-    >
+    <form onSubmit={handleSubmit} className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
       <fieldset className="island-shell rounded-2xl p-6">
         <legend className="island-kicker mb-3 px-1">Prowlarr</legend>
         <div className="space-y-4">
@@ -323,9 +306,8 @@ export default function SettingsForm({
             }
           />
           <p className="mt-1 text-xs text-secondary">
-            The address this app is reachable at from outside — used to build
-            links (e.g. "see the web UI" in Telegram notifications). Leave
-            empty to skip those links.
+            The address this app is reachable at from outside — used to build links (e.g. "see the
+            web UI" in Telegram notifications). Leave empty to skip those links.
           </p>
         </Field.Root>
       </fieldset>
@@ -392,5 +374,5 @@ export default function SettingsForm({
         </div>
       </div>
     </form>
-  );
+  )
 }

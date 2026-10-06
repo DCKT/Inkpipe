@@ -1,54 +1,45 @@
-import * as ArkDialog from "@ark-ui/react/dialog";
-import type { DialogContentProps, DialogTitleProps, DialogDescriptionProps, DialogCloseTriggerProps, DialogBackdropProps } from "@ark-ui/react/dialog";
-import { X } from "lucide-react";
+import * as ArkDialog from "@ark-ui/react/dialog"
+import type {
+  DialogContentProps,
+  DialogTitleProps,
+  DialogDescriptionProps,
+  DialogCloseTriggerProps,
+  DialogBackdropProps,
+} from "@ark-ui/react/dialog"
+import { X } from "lucide-react"
 
-const backdropClass = "fixed inset-0 z-50 bg-black/50";
+const backdropClass = "fixed inset-0 z-50 bg-black/50"
 
 const contentClass =
-  "island-shell fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-sm shadow-2xl";
+  "island-shell fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-sm shadow-2xl"
 
-const titleClass = "font-display text-xl italic text-primary";
+const titleClass = "font-display text-xl italic text-primary"
 
-const descriptionClass = "text-sm text-secondary";
+const descriptionClass = "text-sm text-secondary"
 
 const closeTriggerClass =
-  "rounded-[3px] p-1.5 text-secondary transition hover:bg-surface-2 hover:text-primary";
+  "rounded-[3px] p-1.5 text-secondary transition hover:bg-surface-2 hover:text-primary"
 
 export const Dialog = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Root: (props: any) => <ArkDialog.DialogRoot {...props} />,
   Backdrop: ({ className, ...props }: DialogBackdropProps) => (
-    <ArkDialog.DialogBackdrop
-      className={`${backdropClass} ${className ?? ""}`}
-      {...props}
-    />
+    <ArkDialog.DialogBackdrop className={`${backdropClass} ${className ?? ""}`} {...props} />
   ),
   Content: ({ className, ...props }: DialogContentProps) => (
-    <ArkDialog.DialogContent
-      className={`${contentClass} ${className ?? ""}`}
-      {...props}
-    />
+    <ArkDialog.DialogContent className={`${contentClass} ${className ?? ""}`} {...props} />
   ),
   Title: ({ className, ...props }: DialogTitleProps) => (
-    <ArkDialog.DialogTitle
-      className={`${titleClass} ${className ?? ""}`}
-      {...props}
-    />
+    <ArkDialog.DialogTitle className={`${titleClass} ${className ?? ""}`} {...props} />
   ),
   Description: ({ className, ...props }: DialogDescriptionProps) => (
-    <ArkDialog.DialogDescription
-      className={`${descriptionClass} ${className ?? ""}`}
-      {...props}
-    />
+    <ArkDialog.DialogDescription className={`${descriptionClass} ${className ?? ""}`} {...props} />
   ),
   CloseTrigger: ({ className, children, ...props }: DialogCloseTriggerProps) => (
-    <ArkDialog.DialogCloseTrigger
-      className={`${closeTriggerClass} ${className ?? ""}`}
-      {...props}
-    >
+    <ArkDialog.DialogCloseTrigger className={`${closeTriggerClass} ${className ?? ""}`} {...props}>
       {children ?? <X size={18} />}
     </ArkDialog.DialogCloseTrigger>
   ),
   Trigger: ArkDialog.DialogTrigger,
   Positioner: ArkDialog.DialogPositioner,
-};
+}

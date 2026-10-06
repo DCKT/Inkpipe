@@ -7,8 +7,8 @@
 // against real files, cleaned up after each test.
 import { Effect, Layer } from "effect"
 import { describe, it, expect, beforeEach, afterEach } from "@effect/vitest"
-import { HttpApi, HttpApiBuilder } from "effect/unstable/httpapi"
-import { HttpRouter } from "effect/unstable/http"
+import { HttpApi, HttpApiBuilder } from "effect/http-api"
+import { HttpRouter } from "effect/http"
 import * as BunHttpServer from "@effect/platform-bun/BunHttpServer"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -21,7 +21,12 @@ import { SchemaErrorMiddleware, SchemaErrorMiddlewareLive } from "@inkpipe/share
 
 const TestApi = HttpApi.make("test").add(ConvertGroup).middleware(SchemaErrorMiddleware)
 
-type KccConvert = (inputPath: string, outputDir: string, overrides?: unknown, onLog?: (line: string) => void) => Effect.Effect<string, unknown>
+type KccConvert = (
+  inputPath: string,
+  outputDir: string,
+  overrides?: unknown,
+  onLog?: (line: string) => void,
+) => Effect.Effect<string, unknown>
 
 let tempBase: string
 
@@ -145,7 +150,9 @@ describe("convert API", () => {
     expect(bytes).toBe("epub-bytes")
 
     // The handler deletes the job + work dir after a successful download.
-    const secondDownload = await handler(new Request(`http://localhost/api/convert/download?id=${id}`))
+    const secondDownload = await handler(
+      new Request(`http://localhost/api/convert/download?id=${id}`),
+    )
     expect(secondDownload.status).toBe(404)
   })
 

@@ -1,48 +1,41 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, Library } from "lucide-react";
-import { runApi } from "../lib/apiClient";
-import type { KomgaSeries } from "../lib/types";
-import KomgaBooksModal from "../components/KomgaBooksModal";
-import { PageHeader } from "../components/PageHeader";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+import { useState, useEffect, useRef } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Search, Library } from "lucide-react"
+import { runApi } from "../lib/apiClient"
+import type { KomgaSeries } from "../lib/types"
+import KomgaBooksModal from "../components/KomgaBooksModal"
+import { PageHeader } from "../components/PageHeader"
+import { Button } from "../ui/button"
+import { Input } from "../ui/input"
 
 const STATUS_COLORS: Record<string, string> = {
   ONGOING: "text-emerald-600 bg-emerald-50 border-emerald-200",
   ENDED: "text-secondary bg-surface-hover border-border",
   HIATUS: "text-amber-600 bg-amber-50 border-amber-200",
   ABANDONED: "text-red-500 bg-red-50 border-red-200",
-};
+}
 
-function SeriesCard({
-  series,
-  onClick,
-}: {
-  series: KomgaSeries;
-  onClick: () => void;
-}) {
-  const statusClass =
-    STATUS_COLORS[series.metadata.status] ?? STATUS_COLORS.ENDED;
-  const ref = useRef<HTMLButtonElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
+function SeriesCard({ series, onClick }: { series: KomgaSeries; onClick: () => void }) {
+  const statusClass = STATUS_COLORS[series.metadata.status] ?? STATUS_COLORS.ENDED
+  const ref = useRef<HTMLButtonElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+    const el = ref.current
+    if (!el) return
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
+          setIsVisible(true)
+          observer.disconnect()
         }
       },
       { rootMargin: "200px" },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   const thumbnailQuery = useQuery({
     queryKey: ["komga-thumbnail", series.id],
@@ -52,7 +45,7 @@ function SeriesCard({
       ),
     enabled: isVisible,
     staleTime: Infinity,
-  });
+  })
 
   return (
     <button
@@ -61,9 +54,7 @@ function SeriesCard({
       className="group flex flex-col gap-0 rounded-sm text-left transition hover:-translate-y-0.5"
     >
       <div className="cover-shell aspect-[2/3] min-w-64 w-full bg-surface relative">
-        {!thumbnailQuery.data && (
-          <div className="absolute inset-0 animate-pulse bg-surface" />
-        )}
+        {!thumbnailQuery.data && <div className="absolute inset-0 animate-pulse bg-surface" />}
         {thumbnailQuery.data && (
           <img
             src={thumbnailQuery.data}
@@ -93,49 +84,47 @@ function SeriesCard({
         </div>
       </div>
     </button>
-  );
+  )
 }
 
 export default function KomgaPage() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<KomgaSeries | null>(null);
-  const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(
-    null,
-  );
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const queryClient = useQueryClient()
+  const [search, setSearch] = useState("")
+  const [selected, setSelected] = useState<KomgaSeries | null>(null)
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null)
 
-  const komgaNotConfigured = searchParams.get("komgaNotConfigured") === "true";
+  const komgaNotConfigured = searchParams.get("komgaNotConfigured") === "true"
 
   const configQuery = useQuery({
     queryKey: ["settings"],
     queryFn: () => runApi((client) => client.settings.get({})),
     staleTime: 5 * 60 * 1000,
-  });
+  })
 
   useEffect(() => {
     if (configQuery.isSuccess) {
       if (!configQuery.data.komga.url || !configQuery.data.komga.apiKey) {
-        navigate("/settings?komgaNotConfigured=true");
+        navigate("/settings?komgaNotConfigured=true")
       }
     }
-  }, [configQuery.isSuccess, configQuery.data, navigate]);
+  }, [configQuery.isSuccess, configQuery.data, navigate])
 
   const librariesQuery = useQuery({
     queryKey: ["komga-libraries"],
     queryFn: () => runApi((client) => client.komga.libraries({})),
     staleTime: 5 * 60 * 1000,
-  });
+  })
 
   useEffect(() => {
-    if (selectedLibraryId !== null) return;
-    if (!configQuery.data) return;
-    const defaultId = configQuery.data.komga.defaultLibraryId || "";
-    setSelectedLibraryId(defaultId);
-  }, [configQuery.data, selectedLibraryId]);
+    if (selectedLibraryId !== null) return
+    if (!configQuery.data) return
+    const defaultId = configQuery.data.komga.defaultLibraryId || ""
+    setSelectedLibraryId(defaultId)
+  }, [configQuery.data, selectedLibraryId])
 
-  const activeLibraryId = selectedLibraryId ?? "";
+  const activeLibraryId = selectedLibraryId ?? ""
 
   const seriesQuery = useQuery({
     queryKey: ["komga-series", activeLibraryId],
@@ -144,26 +133,24 @@ export default function KomgaPage() {
         client.komga.series({ payload: { libraryId: activeLibraryId || undefined } }),
       ),
     enabled: selectedLibraryId !== null,
-  });
+  })
 
-  const series = seriesQuery.data ?? [];
+  const series = seriesQuery.data ?? []
 
   const filtered = search.trim()
     ? series.filter((s) =>
-        (s.metadata.title || s.name)
-          .toLowerCase()
-          .includes(search.toLowerCase()),
+        (s.metadata.title || s.name).toLowerCase().includes(search.toLowerCase()),
       )
-    : series;
+    : series
 
-  const libraries = librariesQuery.data ?? [];
+  const libraries = librariesQuery.data ?? []
 
   if (configQuery.isLoading) {
     return (
       <main className="page-wrap sm:px-4 pb-8 pt-8 flex items-center justify-center py-24">
         <span className="text-sm text-secondary">Loading...</span>
       </main>
-    );
+    )
   }
 
   return (
@@ -181,7 +168,7 @@ export default function KomgaPage() {
           onClick={async () => {
             await queryClient.invalidateQueries({
               queryKey: ["komga-series", activeLibraryId],
-            });
+            })
           }}
           disabled={seriesQuery.isFetching}
         >
@@ -191,8 +178,7 @@ export default function KomgaPage() {
 
       {komgaNotConfigured && (
         <div className="island-shell rounded-2xl border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-          Komga is not configured yet. Please enter your Komga URL and API key
-          in Settings.
+          Komga is not configured yet. Please enter your Komga URL and API key in Settings.
         </div>
       )}
 
@@ -219,10 +205,7 @@ export default function KomgaPage() {
       )}
 
       <div className="relative">
-        <Search
-          size={16}
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary"
-        />
+        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary" />
         <Input
           type="text"
           placeholder="Filter series..."
@@ -254,9 +237,7 @@ export default function KomgaPage() {
               {search ? "No matches" : "Nothing on the shelf"}
             </p>
             <p className="text-sm text-secondary">
-              {search
-                ? "No series match your search."
-                : "No series found in Komga."}
+              {search ? "No series match your search." : "No series found in Komga."}
             </p>
           </div>
         )}
@@ -269,9 +250,7 @@ export default function KomgaPage() {
         </div>
       )}
 
-      {selected && (
-        <KomgaBooksModal series={selected} onClose={() => setSelected(null)} />
-      )}
+      {selected && <KomgaBooksModal series={selected} onClose={() => setSelected(null)} />}
     </main>
-  );
+  )
 }

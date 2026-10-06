@@ -1,4 +1,4 @@
-import { HttpApi } from "effect/unstable/httpapi"
+import { HttpApi } from "effect/http-api"
 import { SearchGroup } from "./groups/search"
 import { LatestGroup } from "./groups/latest"
 import { DownloadGroup } from "./groups/download"

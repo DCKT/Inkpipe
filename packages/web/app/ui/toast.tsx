@@ -1,13 +1,13 @@
-import { createToaster, Toast, Toaster } from "@ark-ui/react";
-import type { ReactNode } from "react";
+import { createToaster, Toast, Toaster } from "@ark-ui/react"
+import type { ReactNode } from "react"
 
 const toaster = createToaster({
   placement: "bottom-end",
   overlap: true,
   gap: 8,
-});
+})
 
-export { toaster };
+export { toaster }
 
 export const ToastGroup = {
   Toaster: () => (
@@ -53,4 +53,4 @@ export const ToastGroup = {
         type: "info",
       }),
   },
-};
+}

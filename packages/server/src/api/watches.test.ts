@@ -6,8 +6,8 @@
 // against a mocked WatchStoreService so no database is needed.
 import { Effect, Layer } from "effect"
 import { describe, it, expect } from "@effect/vitest"
-import { HttpApi, HttpApiBuilder } from "effect/unstable/httpapi"
-import { HttpRouter } from "effect/unstable/http"
+import { HttpApi, HttpApiBuilder } from "effect/http-api"
+import { HttpRouter } from "effect/http"
 import * as BunHttpServer from "@effect/platform-bun/BunHttpServer"
 import { WatchId, WatchAlertId, WatchNotFoundError, WatchStoreError } from "@inkpipe/shared"
 import type { Watch, WatchWithUnread } from "@inkpipe/shared"
@@ -36,7 +36,9 @@ function makeStore(overrides: Partial<WatchStoreShape> = {}) {
     listWatches: Effect.succeed([watchWithUnread]),
     listEnabledWatches: Effect.succeed([watch]),
     getWatch: (id) =>
-      id === watch.id ? Effect.succeed(watch) : Effect.fail(new WatchNotFoundError({ message: "not found" })),
+      id === watch.id
+        ? Effect.succeed(watch)
+        : Effect.fail(new WatchNotFoundError({ message: "not found" })),
     createWatch: () => Effect.succeed(watch),
     updateWatch: () => Effect.succeed(watch),
     deleteWatch: () => Effect.void,
@@ -59,18 +61,21 @@ const WatchesGroupLive = HttpApiBuilder.group(TestApi, "watches", (handlers) =>
       Effect.gen(function* () {
         const store = yield* WatchStoreService
         return { watches: yield* store.listWatches }
-      }))
+      }),
+    )
     .handle("unreadCount", () =>
       Effect.gen(function* () {
         const store = yield* WatchStoreService
         return { count: yield* store.getUnreadCount }
-      }))
+      }),
+    )
     .handle("create", () => Effect.succeed(watch))
     .handle("get", ({ params }) =>
       Effect.gen(function* () {
         const store = yield* WatchStoreService
         return yield* store.getWatch(WatchId.make(params.id))
-      }))
+      }),
+    )
     .handle("update", () => Effect.succeed(watch))
     .handle("delete", () => Effect.succeed({ success: true }))
     .handle("listAlerts", () => Effect.succeed({ alerts: [] }))
@@ -90,7 +95,9 @@ function makeHandler(store = makeStore()) {
     Layer.provide(store),
   )
   const ApiLive = HttpApiBuilder.layer(TestApi).pipe(Layer.provide(WatchesGroupWithDeps))
-  const AppLayer = Layer.mergeAll(ApiLive, CorsLive).pipe(Layer.provide(BunHttpServer.layerHttpServices))
+  const AppLayer = Layer.mergeAll(ApiLive, CorsLive).pipe(
+    Layer.provide(BunHttpServer.layerHttpServices),
+  )
   // TS's inference for this beta's generic Layer.provide chaining doesn't
   // fully collapse ReqR to `never` here even though WatchStoreService is
   // genuinely satisfied at runtime (verified: every test below exercises

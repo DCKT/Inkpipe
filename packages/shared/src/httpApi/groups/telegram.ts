@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import { HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi"
+import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api"
 import { TelegramNotConfiguredS, TelegramHttpErrorS } from "../errors"
 
 const TelegramErrors = [TelegramNotConfiguredS, TelegramHttpErrorS] as const

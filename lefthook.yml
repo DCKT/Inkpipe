@@ -1,0 +1,14 @@
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.{ts,tsx,js,json,css,md}"
+      run: bunx oxfmt --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
+    lint:
+      glob: "packages/**/*.{ts,tsx}"
+      run: bunx oxlint {staged_files}
+pre-push:
+  commands:
+    check:
+      run: bun run typecheck && bun run test

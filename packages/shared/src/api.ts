@@ -64,10 +64,12 @@ export const CreateWatchRequestSchema = Schema.Struct({
   name: Schema.String,
   query: Schema.String,
   intervalSeconds: Schema.Finite,
-  filterGroups: Schema.Array(Schema.Struct({
-    mode: Schema.Literals(["AND", "OR"]),
-    substrings: Schema.Array(Schema.String),
-  })),
+  filterGroups: Schema.Array(
+    Schema.Struct({
+      mode: Schema.Literals(["AND", "OR"]),
+      substrings: Schema.Array(Schema.String),
+    }),
+  ),
   subfolder: Schema.optional(Schema.NullOr(Schema.String)),
 })
 export type CreateWatchRequest = typeof CreateWatchRequestSchema.Type
@@ -77,10 +79,14 @@ export const UpdateWatchRequestSchema = Schema.Struct({
   enabled: Schema.optional(Schema.Boolean),
   query: Schema.optional(Schema.String),
   intervalSeconds: Schema.optional(Schema.Finite),
-  filterGroups: Schema.optional(Schema.Array(Schema.Struct({
-    mode: Schema.Literals(["AND", "OR"]),
-    substrings: Schema.Array(Schema.String),
-  }))),
+  filterGroups: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        mode: Schema.Literals(["AND", "OR"]),
+        substrings: Schema.Array(Schema.String),
+      }),
+    ),
+  ),
   subfolder: Schema.optional(Schema.NullOr(Schema.String)),
 })
 export type UpdateWatchRequest = typeof UpdateWatchRequestSchema.Type

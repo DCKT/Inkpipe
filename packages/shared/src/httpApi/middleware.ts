@@ -3,7 +3,7 @@
 // into a JSON body with a real message, matching the shape every other typed
 // error in this API returns (see errors.ts).
 import { Effect } from "effect"
-import { HttpApiMiddleware } from "effect/unstable/httpapi"
+import { HttpApiMiddleware } from "effect/http-api"
 import { RequestValidationError } from "../errors"
 import { RequestValidationErrorS } from "./errors"
 
@@ -13,7 +13,12 @@ export class SchemaErrorMiddleware extends HttpApiMiddleware.Service<SchemaError
 ) {}
 
 function formatCause(cause: unknown): string {
-  if (cause && typeof cause === "object" && "message" in cause && typeof cause.message === "string") {
+  if (
+    cause &&
+    typeof cause === "object" &&
+    "message" in cause &&
+    typeof cause.message === "string"
+  ) {
     return cause.message
   }
   return String(cause)

@@ -1,50 +1,50 @@
-import { useMemo } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { CloudDownload, Check, X, Loader2 } from "lucide-react";
-import type { ProwlarrResult } from "../lib/types";
-import { runApi } from "../lib/apiClient";
-import { findBestMatch } from "@inkpipe/shared";
-import { Checkbox } from "../ui/checkbox";
-import { Tooltip } from "../ui/tooltip";
+import { useMemo } from "react"
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { CloudDownload, Check, X, Loader2 } from "lucide-react"
+import type { ProwlarrResult } from "../lib/types"
+import { runApi } from "../lib/apiClient"
+import { findBestMatch } from "@inkpipe/shared"
+import { Checkbox } from "../ui/checkbox"
+import { Tooltip } from "../ui/tooltip"
 
 function formatSize(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+  if (bytes === 0) return "0 B"
+  const units = ["B", "KB", "MB", "GB"]
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
 }
 
 function formatRelativeTime(dateStr: string | null): { relative: string; full: string } | null {
-  if (!dateStr) return null;
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return null;
-  const now = Date.now();
-  const diff = now - date.getTime();
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  const weeks = Math.floor(days / 7);
-  const months = Math.floor(days / 30);
-  const years = Math.floor(days / 365);
+  if (!dateStr) return null
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return null
+  const now = Date.now()
+  const diff = now - date.getTime()
+  const seconds = Math.floor(diff / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
+  const days = Math.floor(hours / 24)
+  const weeks = Math.floor(days / 7)
+  const months = Math.floor(days / 30)
+  const years = Math.floor(days / 365)
 
-  let relative: string;
-  if (seconds < 60) relative = "just now";
-  else if (minutes < 60) relative = `${minutes}m ago`;
-  else if (hours < 24) relative = `${hours}h ago`;
-  else if (days < 7) relative = `${days}d ago`;
-  else if (weeks < 5) relative = `${weeks}w ago`;
-  else if (months < 12) relative = `${months}mo ago`;
-  else relative = `${years}y ago`;
+  let relative: string
+  if (seconds < 60) relative = "just now"
+  else if (minutes < 60) relative = `${minutes}m ago`
+  else if (hours < 24) relative = `${hours}h ago`
+  else if (days < 7) relative = `${days}d ago`
+  else if (weeks < 5) relative = `${weeks}w ago`
+  else if (months < 12) relative = `${months}mo ago`
+  else relative = `${years}y ago`
 
-  return { relative, full: date.toLocaleDateString() };
+  return { relative, full: date.toLocaleDateString() }
 }
 
 interface ResultsTableProps {
-  results: readonly ProwlarrResult[];
-  selected: Set<string>;
-  onToggle: (guid: string) => void;
-  onToggleAll: () => void;
+  results: readonly ProwlarrResult[]
+  selected: Set<string>
+  onToggle: (guid: string) => void
+  onToggleAll: () => void
 }
 
 export default function ResultsTable({
@@ -58,24 +58,23 @@ export default function ResultsTable({
     queryFn: () => runApi((client) => client.komga.series({ payload: {} })),
     staleTime: 5 * 60 * 1000,
     retry: false,
-  });
+  })
 
-  const komgaSeries = komgaQuery.data ?? [];
+  const komgaSeries = komgaQuery.data ?? []
 
   // Computed once per results/komgaSeries change and shared by both the
   // mobile card list and the desktop table below (only one is visible via
   // CSS at a time, but both render unconditionally) — avoids running the
   // fuzzy title match twice per result on every render.
   const matches = useMemo(() => {
-    if (komgaSeries.length === 0) return new Map<string, ReturnType<typeof findBestMatch>>();
-    return new Map(results.map((r) => [r.guid, findBestMatch(r.title, komgaSeries)]));
-  }, [results, komgaSeries]);
+    if (komgaSeries.length === 0) return new Map<string, ReturnType<typeof findBestMatch>>()
+    return new Map(results.map((r) => [r.guid, findBestMatch(r.title, komgaSeries)]))
+  }, [results, komgaSeries])
 
-  if (results.length === 0) return null;
+  if (results.length === 0) return null
 
-  const allSelected =
-    results.length > 0 && results.every((r) => selected.has(r.guid));
-  const someSelected = selected.size > 0 && !allSelected;
+  const allSelected = results.length > 0 && results.every((r) => selected.has(r.guid))
+  const someSelected = selected.size > 0 && !allSelected
 
   return (
     <>
@@ -93,8 +92,8 @@ export default function ResultsTable({
           </span>
         </div>
         {results.map((result) => {
-          const match = matches.get(result.guid) ?? null;
-          const ft = formatRelativeTime(result.publishDate ?? null);
+          const match = matches.get(result.guid) ?? null
+          const ft = formatRelativeTime(result.publishDate ?? null)
 
           return (
             <div
@@ -115,15 +114,14 @@ export default function ResultsTable({
                 </Checkbox.Root>
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block break-words font-display text-primary">
-                  {result.title}
-                </span>
+                <span className="block break-words font-display text-primary">{result.title}</span>
                 {match && (
                   <span
                     title={`Komga match score: ${(match.score * 100).toFixed(0)}%`}
                     className="status-pill mt-1 font-mono text-[10px] text-accent-hover"
                   >
-                    In Komga · {match.seriesName} · {match.booksCount} {match.booksCount === 1 ? "book" : "books"}
+                    In Komga · {match.seriesName} · {match.booksCount}{" "}
+                    {match.booksCount === 1 ? "book" : "books"}
                   </span>
                 )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-secondary">
@@ -137,7 +135,7 @@ export default function ResultsTable({
                 <SaveToAllDebridButton result={result} />
               </div>
             </div>
-          );
+          )
         })}
       </div>
 
@@ -164,7 +162,7 @@ export default function ResultsTable({
           </thead>
           <tbody>
             {results.map((result, index) => {
-              const match = matches.get(result.guid) ?? null;
+              const match = matches.get(result.guid) ?? null
 
               return (
                 <tr
@@ -183,26 +181,25 @@ export default function ResultsTable({
                     </Checkbox.Root>
                   </td>
                   <td className="max-w-md p-3 text-primary">
-                    <span className="block break-words font-display">
-                      {result.title}
-                    </span>
+                    <span className="block break-words font-display">{result.title}</span>
                     {match && (
                       <span
                         title={`Komga match score: ${(match.score * 100).toFixed(0)}%`}
                         className="status-pill mt-1 font-mono text-[10px] text-accent-hover"
                       >
-                        In Komga · {match.seriesName} · {match.booksCount} {match.booksCount === 1 ? "book" : "books"}
+                        In Komga · {match.seriesName} · {match.booksCount}{" "}
+                        {match.booksCount === 1 ? "book" : "books"}
                       </span>
                     )}
                   </td>
                   <td className="p-3 font-mono text-xs text-secondary">
                     {(() => {
-                      const ft = formatRelativeTime(result.publishDate ?? null);
+                      const ft = formatRelativeTime(result.publishDate ?? null)
                       return ft ? (
                         <span title={ft.full}>{ft.relative}</span>
                       ) : (
                         <span className="text-secondary">—</span>
-                      );
+                      )
                     })()}
                   </td>
                   <td className="hidden p-3 font-mono text-xs text-secondary md:table-cell">
@@ -218,13 +215,13 @@ export default function ResultsTable({
                     <SaveToAllDebridButton result={result} />
                   </td>
                 </tr>
-              );
+              )
             })}
           </tbody>
         </table>
       </div>
     </>
-  );
+  )
 }
 
 function SaveToAllDebridButton({ result }: { result: ProwlarrResult }) {
@@ -235,7 +232,7 @@ function SaveToAllDebridButton({ result }: { result: ProwlarrResult }) {
           payload: { magnetUrl: result.magnetUrl, downloadUrl: result.downloadUrl },
         }),
       ),
-  });
+  })
 
   const tooltipLabel = mutation.isError
     ? mutation.error instanceof Error
@@ -243,7 +240,7 @@ function SaveToAllDebridButton({ result }: { result: ProwlarrResult }) {
       : "Failed to save to AllDebrid"
     : mutation.isSuccess
       ? "Saved to AllDebrid"
-      : "Save to AllDebrid";
+      : "Save to AllDebrid"
 
   return (
     <Tooltip.Root>
@@ -267,5 +264,5 @@ function SaveToAllDebridButton({ result }: { result: ProwlarrResult }) {
       </Tooltip.Trigger>
       <Tooltip.Content>{tooltipLabel}</Tooltip.Content>
     </Tooltip.Root>
-  );
+  )
 }

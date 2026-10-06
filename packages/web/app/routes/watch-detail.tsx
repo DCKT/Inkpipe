@@ -1,51 +1,48 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams, useNavigate } from "react-router-dom";
-import { alertToProwlarrResult } from "@inkpipe/shared";
-import { runApi } from "../lib/apiClient";
-import type { WatchAlert } from "../lib/types";
-import { ToastGroup } from "../ui/toast";
-import { WatchFormDialog } from "../components/WatchForm";
-import { PageHeader } from "../components/PageHeader";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useParams, useNavigate } from "react-router-dom"
+import { alertToProwlarrResult } from "@inkpipe/shared"
+import { runApi } from "../lib/apiClient"
+import type { WatchAlert } from "../lib/types"
+import { ToastGroup } from "../ui/toast"
+import { WatchFormDialog } from "../components/WatchForm"
+import { PageHeader } from "../components/PageHeader"
 
 export default function WatchDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>()
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   const watchQuery = useQuery({
     queryKey: ["watches", id],
     queryFn: () => runApi((client) => client.watches.get({ params: { id: Number(id) } })),
     enabled: !!id,
-  });
+  })
 
   const alertsQuery = useQuery({
     queryKey: ["watch-alerts", id],
-    queryFn: () =>
-      runApi((client) => client.watches.listAlerts({ params: { id: Number(id) } })),
+    queryFn: () => runApi((client) => client.watches.listAlerts({ params: { id: Number(id) } })),
     enabled: !!id,
     refetchInterval: 60_000,
-  });
+  })
 
   const ackMutation = useMutation({
     mutationFn: (alertId: number) =>
-      runApi((client) =>
-        client.watches.acknowledgeAlert({ params: { id: Number(id), alertId } }),
-      ),
+      runApi((client) => client.watches.acknowledgeAlert({ params: { id: Number(id), alertId } })),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
-      queryClient.invalidateQueries({ queryKey: ["unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
+      queryClient.invalidateQueries({ queryKey: ["unread-count"] })
     },
-  });
+  })
 
   const ackAllMutation = useMutation({
     mutationFn: () =>
       runApi((client) => client.watches.acknowledgeAllAlerts({ params: { id: Number(id) } })),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
-      queryClient.invalidateQueries({ queryKey: ["unread-count"] });
-      ToastGroup.create.success("All alerts acknowledged");
+      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
+      queryClient.invalidateQueries({ queryKey: ["unread-count"] })
+      ToastGroup.create.success("All alerts acknowledged")
     },
-  });
+  })
 
   // Book watches (a folder assigned) go through the full pipeline into that
   // folder; non-book watches only get their magnet saved to AllDebrid.
@@ -61,21 +58,21 @@ export default function WatchDetailPage() {
         }),
       ),
     onSuccess: (data, alert) => {
-      queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] });
+      queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] })
       runApi((client) =>
         client.watches.acknowledgeAlert({ params: { id: Number(id), alertId: alert.id } }),
-      );
-      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
-      queryClient.invalidateQueries({ queryKey: ["unread-count"] });
+      )
+      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
+      queryClient.invalidateQueries({ queryKey: ["unread-count"] })
       ToastGroup.create.success(
         `Started ${data.started} download`,
         "Check the Jobs page for progress.",
-      );
+      )
     },
     onError: (err) => {
-      ToastGroup.create.error("Failed to start download", err.message);
+      ToastGroup.create.error("Failed to start download", err.message)
     },
-  });
+  })
 
   const saveMagnetMutation = useMutation({
     mutationFn: (alert: WatchAlert) =>
@@ -87,19 +84,19 @@ export default function WatchDetailPage() {
     onSuccess: (_data, alert) => {
       runApi((client) =>
         client.watches.acknowledgeAlert({ params: { id: Number(id), alertId: alert.id } }),
-      );
-      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] });
-      queryClient.invalidateQueries({ queryKey: ["unread-count"] });
-      ToastGroup.create.success("Saved to AllDebrid");
+      )
+      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
+      queryClient.invalidateQueries({ queryKey: ["unread-count"] })
+      ToastGroup.create.success("Saved to AllDebrid")
     },
     onError: (err) => {
-      ToastGroup.create.error("Failed to save to AllDebrid", err.message);
+      ToastGroup.create.error("Failed to save to AllDebrid", err.message)
     },
-  });
+  })
 
-  const alerts = alertsQuery.data?.alerts ?? [];
-  const unacknowledgedCount = alerts.filter((a) => !a.acknowledged).length;
-  const isBookWatch = !!watchQuery.data?.subfolder;
+  const alerts = alertsQuery.data?.alerts ?? []
+  const unacknowledgedCount = alerts.filter((a) => !a.acknowledged).length
+  const isBookWatch = !!watchQuery.data?.subfolder
 
   return (
     <main className="page-wrap sm:px-4 pb-8 pt-8">
@@ -119,9 +116,7 @@ export default function WatchDetailPage() {
         </button>
       </div>
 
-      {watchQuery.isLoading && (
-        <p className="text-sm text-secondary">Loading watch...</p>
-      )}
+      {watchQuery.isLoading && <p className="text-sm text-secondary">Loading watch...</p>}
 
       {watchQuery.isError && (
         <div className="island-shell mb-6 rounded-2xl border-red-200 p-4 text-sm text-red-600">
@@ -139,11 +134,7 @@ export default function WatchDetailPage() {
                   {watchQuery.data.query}
                 </code>{" "}
                 · Every {watchQuery.data.intervalSeconds}s ·{" "}
-                <span
-                  className={
-                    watchQuery.data.enabled ? "text-green-600" : "text-gray-400"
-                  }
-                >
+                <span className={watchQuery.data.enabled ? "text-green-600" : "text-gray-400"}>
                   {watchQuery.data.enabled ? "Active" : "Paused"}
                 </span>
                 {" · "}
@@ -177,11 +168,8 @@ export default function WatchDetailPage() {
                             : undefined
                         }
                       >
-                        {g.substrings.length > 1 &&
-                          `${g.mode === "AND" ? "ALL" : "ANY"} of: `}
-                        {g.substrings.join(
-                          g.mode === "AND" ? " + " : " / ",
-                        )}
+                        {g.substrings.length > 1 && `${g.mode === "AND" ? "ALL" : "ANY"} of: `}
+                        {g.substrings.join(g.mode === "AND" ? " + " : " / ")}
                       </span>
                     </span>
                   ))}
@@ -191,8 +179,8 @@ export default function WatchDetailPage() {
             <WatchFormDialog
               existing={watchQuery.data}
               onCreated={() => {
-                queryClient.invalidateQueries({ queryKey: ["watches", id] });
-                queryClient.invalidateQueries({ queryKey: ["watches"] });
+                queryClient.invalidateQueries({ queryKey: ["watches", id] })
+                queryClient.invalidateQueries({ queryKey: ["watches"] })
               }}
             />
           </div>
@@ -219,9 +207,7 @@ export default function WatchDetailPage() {
         )}
       </div>
 
-      {alertsQuery.isLoading && (
-        <p className="text-sm text-secondary">Loading alerts...</p>
-      )}
+      {alertsQuery.isLoading && <p className="text-sm text-secondary">Loading alerts...</p>}
 
       {alertsQuery.isError && (
         <div className="island-shell mb-6 rounded-2xl border-red-200 p-4 text-sm text-red-600">
@@ -248,12 +234,9 @@ export default function WatchDetailPage() {
             }`}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-primary break-words">
-                {alert.title}
-              </p>
+              <p className="text-sm text-primary break-words">{alert.title}</p>
               <p className="text-xs text-secondary mt-0.5">
-                {alert.indexer} · {alert.seeders} seeders ·{" "}
-                {formatSize(alert.size)} ·{" "}
+                {alert.indexer} · {alert.seeders} seeders · {formatSize(alert.size)} ·{" "}
                 {new Date(alert.matchedAt).toLocaleString()}
               </p>
             </div>
@@ -270,8 +253,14 @@ export default function WatchDetailPage() {
                 <button
                   className="text-xs text-accent hover:text-accent/80 px-2 py-1 rounded-lg hover:bg-surface transition-colors disabled:opacity-50 disabled:pointer-events-none"
                   onClick={() => saveMagnetMutation.mutate(alert)}
-                  disabled={saveMagnetMutation.isPending || (!alert.magnetUrl && !alert.downloadUrl)}
-                  title={!alert.magnetUrl && !alert.downloadUrl ? "No magnet or download URL for this alert" : undefined}
+                  disabled={
+                    saveMagnetMutation.isPending || (!alert.magnetUrl && !alert.downloadUrl)
+                  }
+                  title={
+                    !alert.magnetUrl && !alert.downloadUrl
+                      ? "No magnet or download URL for this alert"
+                      : undefined
+                  }
                 >
                   Save to Magnet
                 </button>
@@ -289,15 +278,12 @@ export default function WatchDetailPage() {
         ))}
       </div>
     </main>
-  );
+  )
 }
 
 function formatSize(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  const i = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(1024)),
-    units.length - 1,
-  );
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+  if (bytes === 0) return "0 B"
+  const units = ["B", "KB", "MB", "GB"]
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
 }

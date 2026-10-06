@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { alertToProwlarrResult } from "./watchAlert";
-import { WatchAlertId, WatchId } from "./schemas";
+import { describe, expect, it } from "vitest"
+import { alertToProwlarrResult } from "./watchAlert"
+import { WatchAlertId, WatchId } from "./schemas"
 
 describe("alertToProwlarrResult", () => {
   it("maps a WatchAlert to a ProwlarrResult", () => {
@@ -16,7 +16,7 @@ describe("alertToProwlarrResult", () => {
       indexer: "Nyaa",
       matchedAt: 1700000000000,
       acknowledged: false,
-    };
+    }
 
     expect(alertToProwlarrResult(alert)).toEqual({
       title: "One Piece v01",
@@ -28,8 +28,8 @@ describe("alertToProwlarrResult", () => {
       indexer: "Nyaa",
       categories: [],
       publishDate: null,
-    });
-  });
+    })
+  })
 
   it("passes through a null magnetUrl", () => {
     const alert = {
@@ -44,10 +44,10 @@ describe("alertToProwlarrResult", () => {
       indexer: "x",
       matchedAt: 0,
       acknowledged: false,
-    };
+    }
 
-    expect(alertToProwlarrResult(alert).magnetUrl).toBeNull();
-  });
+    expect(alertToProwlarrResult(alert).magnetUrl).toBeNull()
+  })
 
   it("passes through the alert's downloadUrl for indexers that only provide a torrent-file link", () => {
     const alert = {
@@ -62,10 +62,10 @@ describe("alertToProwlarrResult", () => {
       indexer: "x",
       matchedAt: 0,
       acknowledged: false,
-    };
+    }
 
     expect(alertToProwlarrResult(alert).downloadUrl).toBe(
       "https://indexer.example.com/download/abc.torrent",
-    );
-  });
-});
+    )
+  })
+})

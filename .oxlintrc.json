@@ -1,0 +1,53 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "extends": ["./node_modules/@effect/tsgo/oxlint-presets/recommended.json"],
+  "options": {
+    "typeAware": true
+  },
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/consistent-type-imports": "error",
+    "effecttsgo/duplicate-package": "off",
+    "effecttsgo/unstable-api-usage": "off",
+    "typescript/no-base-to-string": "warn",
+    "typescript/restrict-template-expressions": "warn",
+    "typescript/no-misused-spread": "warn",
+    "typescript/unbound-method": "warn",
+    "eslint/require-yield": "warn",
+    "effecttsgo/unsafe-effect-type-assertion": "warn"
+  },
+  "ignorePatterns": [
+    "repos/**",
+    "**/dist/**",
+    "docs/**",
+    "**/public/**",
+    "node_modules/**",
+    "**/.react-router/**"
+  ],
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/__mocks__/**"],
+      "rules": {
+        "typescript/no-explicit-any": "off",
+        "typescript/no-base-to-string": "off",
+        "effecttsgo/any-unknown-in-error-context": "off",
+        "effecttsgo/unsafe-effect-type-assertion": "off"
+      }
+    },
+    {
+      "files": ["packages/web/**"],
+      "rules": {
+        "typescript/no-floating-promises": "off"
+      }
+    },
+    {
+      "files": ["packages/db/src/migrations/**"],
+      "rules": {
+        "typescript/no-base-to-string": "off"
+      }
+    }
+  ]
+}

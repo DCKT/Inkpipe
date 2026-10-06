@@ -79,7 +79,7 @@ function colorFor(namespace: string): (s: string) => string {
 
 function inspect(m: unknown): string {
   if (typeof m === "string") return m
-  if (typeof (globalThis as any).Bun?.inspect === "function") return (globalThis as any).Bun.inspect(m)
+  if (typeof Bun !== "undefined" && typeof Bun.inspect === "function") return Bun.inspect(m)
   try {
     return JSON.stringify(m)
   } catch {
@@ -87,10 +87,19 @@ function inspect(m: unknown): string {
   }
 }
 
-function format(level: "INFO" | "WARN" | "ERROR", namespace: string, prefix: string, ...message: unknown[]) {
+function format(
+  level: "INFO" | "WARN" | "ERROR",
+  namespace: string,
+  prefix: string,
+  ...message: unknown[]
+) {
   const ts = ansi.dim(timestamp())
   const ns = colorFor(namespace)(namespace.padEnd(10))
-  const levelColors: Record<string, string> = { INFO: ts, WARN: ansi.yellow("WARN "), ERROR: ansi.red("ERROR") }
+  const levelColors: Record<string, string> = {
+    INFO: ts,
+    WARN: ansi.yellow("WARN "),
+    ERROR: ansi.red("ERROR"),
+  }
   const lvl = levelColors[level]
   const body = message.map(inspect).join(" ")
   const maybePrefix = prefix ? `${prefix} ` : ""
@@ -101,11 +110,12 @@ function format(level: "INFO" | "WARN" | "ERROR", namespace: string, prefix: str
 // Effect logger bridge (feeds OTLP export — see layers/core/Otel.ts)
 // ---------------------------------------------------------------------------
 
-const otelLogFn: Record<"INFO" | "WARN" | "ERROR", (...message: unknown[]) => Effect.Effect<void>> = {
-  INFO: Effect.logInfo,
-  WARN: Effect.logWarning,
-  ERROR: Effect.logError,
-}
+const otelLogFn: Record<"INFO" | "WARN" | "ERROR", (...message: unknown[]) => Effect.Effect<void>> =
+  {
+    INFO: Effect.logInfo,
+    WARN: Effect.logWarning,
+    ERROR: Effect.logError,
+  }
 
 /** Writes the colored console line (unchanged) and, when OTLP export is
  * configured, also emits through Effect's Logger so the OTLP layer can export
@@ -114,7 +124,12 @@ const otelLogFn: Record<"INFO" | "WARN" | "ERROR", (...message: unknown[]) => Ef
  * logger is always active regardless of OTLP, so calling Effect.log*
  * unconditionally would double-print every line to the console even when
  * nothing is exporting. */
-function emit(level: "INFO" | "WARN" | "ERROR", namespace: string, jobId: string | undefined, message: unknown[]) {
+function emit(
+  level: "INFO" | "WARN" | "ERROR",
+  namespace: string,
+  jobId: string | undefined,
+  message: unknown[],
+) {
   const prefix = jobId ? `[job ${jobId}]` : ""
   const consoleEffect = Effect.sync(() => format(level, namespace, prefix, ...message))
   if (!otelEnabled) return consoleEffect

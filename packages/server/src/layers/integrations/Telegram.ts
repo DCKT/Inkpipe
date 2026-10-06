@@ -72,7 +72,7 @@ export const TelegramServiceLive = Layer.effect(
         (message) => new TelegramNotConfigured({ message }),
       )
 
-    const callTelegramApi = <T,>(botToken: string, method: string, body: Record<string, unknown>) =>
+    const callTelegramApi = <T>(botToken: string, method: string, body: Record<string, unknown>) =>
       Effect.tryPromise({
         try: async () => {
           const response = await fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
@@ -82,7 +82,11 @@ export const TelegramServiceLive = Layer.effect(
           })
           if (!response.ok) {
             let text = ""
-            try { text = await response.text() } catch { /* */ }
+            try {
+              text = await response.text()
+            } catch {
+              /* */
+            }
             throw new Error(`Telegram HTTP ${response.status}: ${text || response.statusText}`)
           }
           const json = (await response.json()) as { ok: boolean; result?: T; description?: string }
@@ -101,15 +105,21 @@ export const TelegramServiceLive = Layer.effect(
       Effect.gen(function* () {
         yield* log.info("telegram", "sendMessage")
         const info = yield* getApiInfo()
-        const response = yield* callTelegramApi<{ message_id: number }>(info.botToken, "sendMessage", {
-          chat_id: info.chatId,
-          text: payload.text,
-          parse_mode: "HTML",
-          ...(payload.replyMarkup ? { reply_markup: payload.replyMarkup } : {}),
-        })
+        const response = yield* callTelegramApi<{ message_id: number }>(
+          info.botToken,
+          "sendMessage",
+          {
+            chat_id: info.chatId,
+            text: payload.text,
+            parse_mode: "HTML",
+            ...(payload.replyMarkup ? { reply_markup: payload.replyMarkup } : {}),
+          },
+        )
         const result = response.result
         if (typeof result?.message_id !== "number") {
-          return yield* new TelegramHttpError({ message: "sendMessage response missing message_id" })
+          return yield* new TelegramHttpError({
+            message: "sendMessage response missing message_id",
+          })
         }
         yield* log.info("telegram", "sendMessage — sent")
         return { messageId: result.message_id }
@@ -135,7 +145,11 @@ export const TelegramServiceLive = Layer.effect(
         })
       })
 
-    const editMessageText = (messageId: number, text: string, replyMarkup?: TelegramInlineKeyboard) =>
+    const editMessageText = (
+      messageId: number,
+      text: string,
+      replyMarkup?: TelegramInlineKeyboard,
+    ) =>
       Effect.gen(function* () {
         const info = yield* getApiInfo()
         yield* callTelegramApi(info.botToken, "editMessageText", {

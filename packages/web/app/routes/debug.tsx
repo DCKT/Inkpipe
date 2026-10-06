@@ -1,22 +1,22 @@
-import { useState } from "react";
-import { usePushSubscription } from "../hooks/usePushSubscription";
-import { PageHeader } from "../components/PageHeader";
+import { useState } from "react"
+import { usePushSubscription } from "../hooks/usePushSubscription"
+import { PageHeader } from "../components/PageHeader"
 
-const API_BASE = import.meta.env.DEV ? "http://localhost:3000" : "";
+const API_BASE = import.meta.env.DEV ? "http://localhost:3000" : ""
 
 interface EndpointDef {
-  group: string;
-  label: string;
-  method: string;
-  path: string;
+  group: string
+  label: string
+  method: string
+  path: string
   /** Query param key, or null for no query params */
-  queryKey?: string | null;
+  queryKey?: string | null
   /** Body field name placeholder, or null for no body */
-  bodyKey?: string | null;
+  bodyKey?: string | null
   /** If true, response is binary — show metadata not body */
-  binary?: boolean;
+  binary?: boolean
   /** If true, visually marks as mutation */
-  mutating?: boolean;
+  mutating?: boolean
 }
 
 const ENDPOINTS: EndpointDef[] = [
@@ -120,36 +120,36 @@ const ENDPOINTS: EndpointDef[] = [
     bodyKey: "subscription",
     mutating: true,
   },
-];
+]
 
 function groupEndpoints(endpoints: EndpointDef[]): Map<string, EndpointDef[]> {
-  const map = new Map<string, EndpointDef[]>();
+  const map = new Map<string, EndpointDef[]>()
   for (const ep of endpoints) {
-    const existing = map.get(ep.group) ?? [];
-    existing.push(ep);
-    map.set(ep.group, existing);
+    const existing = map.get(ep.group) ?? []
+    existing.push(ep)
+    map.set(ep.group, existing)
   }
-  return map;
+  return map
 }
 
 function methodColor(method: string): string {
   switch (method) {
     case "GET":
-      return "text-green-600";
+      return "text-green-600"
     case "POST":
-      return "text-amber-600";
+      return "text-amber-600"
     case "DELETE":
-      return "text-red-600";
+      return "text-red-600"
     default:
-      return "text-primary";
+      return "text-primary"
   }
 }
 
 function prettyJson(value: unknown, spaces: number = 2): string {
   try {
-    return JSON.stringify(value, null, spaces);
+    return JSON.stringify(value, null, spaces)
   } catch {
-    return String(value);
+    return String(value)
   }
 }
 
@@ -162,61 +162,59 @@ export default function DebugPage() {
           The debug page is only available in development mode.
         </p>
       </main>
-    );
+    )
   }
 
-  const [selected, setSelected] = useState<EndpointDef | null>(null);
-  const [queryValue, setQueryValue] = useState("");
-  const [bodyValue, setBodyValue] = useState("");
+  const [selected, setSelected] = useState<EndpointDef | null>(null)
+  const [queryValue, setQueryValue] = useState("")
+  const [bodyValue, setBodyValue] = useState("")
   const [response, setResponse] = useState<{
-    status: number;
-    headers: Record<string, string>;
-    body: string;
-  } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+    status: number
+    headers: Record<string, string>
+    body: string
+  } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const push = usePushSubscription()
   const [pushTestResult, setPushTestResult] = useState<string | null>(null)
 
-  const grouped = groupEndpoints(ENDPOINTS);
+  const grouped = groupEndpoints(ENDPOINTS)
 
   const handleSelect = (ep: EndpointDef) => {
-    setSelected(ep);
-    setQueryValue("");
-    setBodyValue(
-      ep.bodyKey ? JSON.stringify({ [ep.bodyKey]: "" }, null, 2) : "",
-    );
-    setResponse(null);
-    setError(null);
-  };
+    setSelected(ep)
+    setQueryValue("")
+    setBodyValue(ep.bodyKey ? JSON.stringify({ [ep.bodyKey]: "" }, null, 2) : "")
+    setResponse(null)
+    setError(null)
+  }
 
   const handleSend = async () => {
-    if (!selected) return;
-    setLoading(true);
-    setResponse(null);
-    setError(null);
+    if (!selected) return
+    setLoading(true)
+    setResponse(null)
+    setError(null)
 
     try {
-      const searchParams = new URLSearchParams();
+      const searchParams = new URLSearchParams()
       if (selected.queryKey && queryValue.trim()) {
-        searchParams.set(selected.queryKey, queryValue.trim());
+        searchParams.set(selected.queryKey, queryValue.trim())
       }
-      const qs = searchParams.toString();
-      const url = `${API_BASE}${selected.path}${qs ? `?${qs}` : ""}`;
+      const qs = searchParams.toString()
+      const url = `${API_BASE}${selected.path}${qs ? `?${qs}` : ""}`
 
-      let jsonBody: unknown = undefined;
+      let jsonBody: unknown = undefined
       if (selected.method !== "GET") {
         if (selected.bodyKey && bodyValue.trim()) {
           try {
-            jsonBody = JSON.parse(bodyValue);
+            jsonBody = JSON.parse(bodyValue)
           } catch {
-            setError("Invalid JSON body");
-            setLoading(false);
-            return;
+            setError("Invalid JSON body")
+            setLoading(false)
+            return
           }
         } else if (selected.bodyKey) {
-          jsonBody = {};
+          jsonBody = {}
         }
       }
 
@@ -224,24 +222,24 @@ export default function DebugPage() {
         method: selected.method,
         headers: jsonBody !== undefined ? { "Content-Type": "application/json" } : undefined,
         body: jsonBody !== undefined ? JSON.stringify(jsonBody) : undefined,
-      });
+      })
 
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = {}
       result.headers.forEach((v, k) => {
-        headers[k] = v;
-      });
+        headers[k] = v
+      })
 
       if (selected.binary) {
         setResponse({
           status: result.status,
           headers,
           body: `[Binary response: ${headers["content-type"] ?? "unknown type"}, ${headers["content-length"] ?? "unknown"} bytes]`,
-        });
+        })
       } else {
-        const text = await result.text();
-        let formatted = text;
+        const text = await result.text()
+        let formatted = text
         try {
-          formatted = prettyJson(JSON.parse(text));
+          formatted = prettyJson(JSON.parse(text))
         } catch {
           // not JSON, show raw
         }
@@ -249,15 +247,15 @@ export default function DebugPage() {
           status: result.status,
           headers,
           body: formatted,
-        });
+        })
       }
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e);
-      setError(message);
+      const message = e instanceof Error ? e.message : String(e)
+      setError(message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <main className="page-wrap sm:px-4 pb-8 pt-8">
@@ -326,9 +324,7 @@ export default function DebugPage() {
                   >
                     {selected.method}
                   </span>
-                  <span className="text-sm text-primary">
-                    {selected.path}
-                  </span>
+                  <span className="text-sm text-primary">{selected.path}</span>
                   {selected.mutating && (
                     <span className="rounded-full bg-red-100 px-2 py-px text-[10px] font-semibold text-red-600">
                       Mutation
@@ -367,9 +363,7 @@ export default function DebugPage() {
                 )}
 
                 {!selected.queryKey && !selected.bodyKey && (
-                  <p className="text-xs text-primary/40 mb-3">
-                    No parameters required.
-                  </p>
+                  <p className="text-xs text-primary/40 mb-3">No parameters required.</p>
                 )}
 
                 <button
@@ -388,13 +382,9 @@ export default function DebugPage() {
 
               {/* Response */}
               <div className="island-shell rounded-2xl p-4 flex-1 overflow-auto">
-                <h2 className="text-sm font-semibold text-primary mb-3">
-                  Response
-                </h2>
+                <h2 className="text-sm font-semibold text-primary mb-3">Response</h2>
 
-                {loading && (
-                  <p className="text-sm text-primary/50">Loading...</p>
-                )}
+                {loading && <p className="text-sm text-primary/50">Loading...</p>}
 
                 {error && (
                   <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
@@ -437,9 +427,7 @@ export default function DebugPage() {
 
       {/* Push Notifications Test Panel */}
       <div className="mt-6 island-shell rounded-2xl p-4">
-        <h2 className="text-sm font-semibold text-primary mb-3">
-          Push Notifications
-        </h2>
+        <h2 className="text-sm font-semibold text-primary mb-3">Push Notifications</h2>
 
         {push.status === "unsupported" && (
           <p className="text-sm text-secondary">
@@ -451,13 +439,15 @@ export default function DebugPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <span className="text-xs text-secondary">Permission:</span>
-              <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
-                Notification.permission === "granted"
-                  ? "bg-green-100 text-green-700"
-                  : Notification.permission === "denied"
-                    ? "bg-red-100 text-red-700"
-                    : "bg-gray-100 text-gray-600"
-              }`}>
+              <span
+                className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
+                  Notification.permission === "granted"
+                    ? "bg-green-100 text-green-700"
+                    : Notification.permission === "denied"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-gray-100 text-gray-600"
+                }`}
+              >
                 {Notification.permission}
               </span>
             </div>
@@ -493,14 +483,18 @@ export default function DebugPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    navigator.serviceWorker.ready.then((reg) => {
-                      reg.showNotification("Inkpipe Test", { body: "This is a test notification from the debug page." })
-                      setPushTestResult("Test notification sent")
-                      setTimeout(() => setPushTestResult(null), 3000)
-                    }).catch(() => {
-                      setPushTestResult("Failed to send test notification")
-                      setTimeout(() => setPushTestResult(null), 3000)
-                    })
+                    navigator.serviceWorker.ready
+                      .then((reg) => {
+                        reg.showNotification("Inkpipe Test", {
+                          body: "This is a test notification from the debug page.",
+                        })
+                        setPushTestResult("Test notification sent")
+                        setTimeout(() => setPushTestResult(null), 3000)
+                      })
+                      .catch(() => {
+                        setPushTestResult("Failed to send test notification")
+                        setTimeout(() => setPushTestResult(null), 3000)
+                      })
                   }}
                   className="rounded-[3px] px-4 py-1.5 text-xs font-semibold border border-border text-primary hover:bg-surface-2 transition-colors"
                 >
@@ -515,5 +509,5 @@ export default function DebugPage() {
         )}
       </div>
     </main>
-  );
+  )
 }

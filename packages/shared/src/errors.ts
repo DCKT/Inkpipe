@@ -1,14 +1,12 @@
 import { Schema } from "effect"
 
-export class ConfigLoadError extends Schema.TaggedError<ConfigLoadError>()(
-  "ConfigLoadError",
-  { message: Schema.String },
-) {}
+export class ConfigLoadError extends Schema.TaggedError<ConfigLoadError>()("ConfigLoadError", {
+  message: Schema.String,
+}) {}
 
-export class ConfigSaveError extends Schema.TaggedError<ConfigSaveError>()(
-  "ConfigSaveError",
-  { message: Schema.String },
-) {}
+export class ConfigSaveError extends Schema.TaggedError<ConfigSaveError>()("ConfigSaveError", {
+  message: Schema.String,
+}) {}
 
 export class ProwlarrNotConfigured extends Schema.TaggedError<ProwlarrNotConfigured>()(
   "ProwlarrNotConfigured",
@@ -60,10 +58,10 @@ export class KomgaNotConfigured extends Schema.TaggedError<KomgaNotConfigured>()
   { message: Schema.String },
 ) {}
 
-export class KomgaHttpError extends Schema.TaggedError<KomgaHttpError>()(
-  "KomgaHttpError",
-  { message: Schema.String, status: Schema.optional(Schema.Finite) },
-) {}
+export class KomgaHttpError extends Schema.TaggedError<KomgaHttpError>()("KomgaHttpError", {
+  message: Schema.String,
+  status: Schema.optional(Schema.Finite),
+}) {}
 
 export class TelegramNotConfigured extends Schema.TaggedError<TelegramNotConfigured>()(
   "TelegramNotConfigured",
@@ -90,50 +88,42 @@ export class CopypartyFolderError extends Schema.TaggedError<CopypartyFolderErro
   { message: Schema.String },
 ) {}
 
-export class KccError extends Schema.TaggedError<KccError>()(
-  "KccError",
-  { message: Schema.String },
-) {}
+export class KccError extends Schema.TaggedError<KccError>()("KccError", {
+  message: Schema.String,
+}) {}
 
-export class FileManagerError extends Schema.TaggedError<FileManagerError>()(
-  "FileManagerError",
-  { message: Schema.String },
-) {}
+export class FileManagerError extends Schema.TaggedError<FileManagerError>()("FileManagerError", {
+  message: Schema.String,
+}) {}
 
-export class NotFoundError extends Schema.TaggedError<NotFoundError>()(
-  "NotFoundError",
-  { message: Schema.String },
-) {}
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("NotFoundError", {
+  message: Schema.String,
+}) {}
 
-export class ValidationError extends Schema.TaggedError<ValidationError>()(
-  "ValidationError",
-  { message: Schema.String },
-) {}
+export class ValidationError extends Schema.TaggedError<ValidationError>()("ValidationError", {
+  message: Schema.String,
+}) {}
 
-export class PipelineError extends Schema.TaggedError<PipelineError>()(
-  "PipelineError",
-  { message: Schema.String },
-) {}
+export class PipelineError extends Schema.TaggedError<PipelineError>()("PipelineError", {
+  message: Schema.String,
+}) {}
 
-export class NoMagnetUrl extends Schema.TaggedError<NoMagnetUrl>()(
-  "NoMagnetUrl",
-  { message: Schema.String },
-) {}
+export class NoMagnetUrl extends Schema.TaggedError<NoMagnetUrl>()("NoMagnetUrl", {
+  message: Schema.String,
+}) {}
 
 export class DebridTimeoutError extends Schema.TaggedError<DebridTimeoutError>()(
   "DebridTimeoutError",
   { message: Schema.String },
 ) {}
 
-export class DebridError extends Schema.TaggedError<DebridError>()(
-  "DebridError",
-  { message: Schema.String },
-) {}
+export class DebridError extends Schema.TaggedError<DebridError>()("DebridError", {
+  message: Schema.String,
+}) {}
 
-export class NoFilesError extends Schema.TaggedError<NoFilesError>()(
-  "NoFilesError",
-  { message: Schema.String },
-) {}
+export class NoFilesError extends Schema.TaggedError<NoFilesError>()("NoFilesError", {
+  message: Schema.String,
+}) {}
 
 export class KccConversionError extends Schema.TaggedError<KccConversionError>()(
   "KccConversionError",
@@ -145,15 +135,13 @@ export class WatchNotFoundError extends Schema.TaggedError<WatchNotFoundError>()
   { message: Schema.String },
 ) {}
 
-export class WatchStoreError extends Schema.TaggedError<WatchStoreError>()(
-  "WatchStoreError",
-  { message: Schema.String },
-) {}
+export class WatchStoreError extends Schema.TaggedError<WatchStoreError>()("WatchStoreError", {
+  message: Schema.String,
+}) {}
 
-export class ConvertError extends Schema.TaggedError<ConvertError>()(
-  "ConvertError",
-  { message: Schema.String },
-) {}
+export class ConvertError extends Schema.TaggedError<ConvertError>()("ConvertError", {
+  message: Schema.String,
+}) {}
 
 export class SettingsImportError extends Schema.TaggedError<SettingsImportError>()(
   "SettingsImportError",

@@ -36,7 +36,22 @@ import { TelegramCallbackListenerServiceLive } from "./layers/pipeline/TelegramC
 import { TelegramCallbackListenerService } from "./layers/pipeline/TelegramCallbackListener"
 import { HttpServerLive } from "./api/server"
 
-type AllServices = PushService | LogService | ConfigService | JobStoreService | FileManagerService | ProwlarrService | AllDebridService | KomgaService | CopypartyService | KccService | PipelineService | WatchStoreService | AnnasArchiveService | AnnasArchivePipelineService | TelegramService
+type AllServices =
+  | PushService
+  | LogService
+  | ConfigService
+  | JobStoreService
+  | FileManagerService
+  | ProwlarrService
+  | AllDebridService
+  | KomgaService
+  | CopypartyService
+  | KccService
+  | PipelineService
+  | WatchStoreService
+  | AnnasArchiveService
+  | AnnasArchivePipelineService
+  | TelegramService
 
 // Base layer — services with no dependencies of their own.
 // PushServiceLive requires LogService; use provideMerge to satisfy it
@@ -58,7 +73,10 @@ const KomgaLayer = Layer.provide(KomgaServiceLive, Layer.mergeAll(BaseLayer, Con
 const TelegramLayer = Layer.provide(TelegramServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
 const CopypartyLayer = Layer.provide(CopypartyServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
 const KccLayer = Layer.provide(KccServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
-const AnnasArchiveLayer = Layer.provide(AnnasArchiveServiceLive, Layer.mergeAll(BaseLayer, ConfigLayer))
+const AnnasArchiveLayer = Layer.provide(
+  AnnasArchiveServiceLive,
+  Layer.mergeAll(BaseLayer, ConfigLayer),
+)
 
 // Pipeline needs services from multiple layers during construction
 const PipelineLayer = Layer.provide(
@@ -80,7 +98,14 @@ const WatchStoreLayer = Layer.provide(WatchStoreServiceLive, BaseLayer)
 // built after those.
 const TelegramCallbackListenerLayer = Layer.provide(
   TelegramCallbackListenerServiceLive,
-  Layer.mergeAll(BaseLayer, ConfigLayer, TelegramLayer, WatchStoreLayer, PipelineLayer, AllDebridLayer),
+  Layer.mergeAll(
+    BaseLayer,
+    ConfigLayer,
+    TelegramLayer,
+    WatchStoreLayer,
+    PipelineLayer,
+    AllDebridLayer,
+  ),
 )
 
 // The listener's `run` is an infinite loop, so it must be forked via

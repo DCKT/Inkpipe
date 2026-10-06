@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import { HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi"
+import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api"
 import { ProwlarrResultSchema } from "../../schemas"
 import { ProwlarrNotConfiguredS, ProwlarrHttpErrorS } from "../errors"
 

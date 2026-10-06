@@ -3,18 +3,15 @@ import { DbMigratedLayer } from "@inkpipe/db"
 import { LogService, LogServiceLive } from "@inkpipe/server/layers/core/Log"
 import { makeOtelLive } from "@inkpipe/server/layers/core/Otel"
 import { ConfigServiceLive } from "@inkpipe/server/layers/core/Config"
-import {
-  ProwlarrServiceLive,
-  ProwlarrService,
-} from "@inkpipe/server/layers/integrations/Prowlarr"
-import {
-  WatchStoreServiceLive,
-  WatchStoreService,
-} from "@inkpipe/server/layers/storage/WatchStore"
+import { ProwlarrServiceLive, ProwlarrService } from "@inkpipe/server/layers/integrations/Prowlarr"
+import { WatchStoreServiceLive, WatchStoreService } from "@inkpipe/server/layers/storage/WatchStore"
 import { PushServiceLive } from "@inkpipe/server/layers/pipeline/Push"
 import { TelegramServiceLive } from "@inkpipe/server/layers/integrations/Telegram"
-import { notifyWatchMatches, type MatchedAlert } from "@inkpipe/server/layers/pipeline/WatchNotifier"
-import { matchesFilter, type Watch } from "@inkpipe/shared"
+import {
+  notifyWatchMatches,
+  type MatchedAlert,
+} from "@inkpipe/server/layers/pipeline/WatchNotifier"
+import { matchesFilter, type ProwlarrResult, type Watch } from "@inkpipe/shared"
 
 const BaseLayer = Layer.mergeAll(
   DbMigratedLayer,
@@ -22,14 +19,8 @@ const BaseLayer = Layer.mergeAll(
 )
 const ConfigLayer = Layer.provide(ConfigServiceLive, BaseLayer)
 const WatchLayer = Layer.provide(WatchStoreServiceLive, BaseLayer)
-const ProwlarrLayer = ProwlarrServiceLive.pipe(
-  Layer.provide(ConfigLayer),
-  Layer.provide(BaseLayer),
-)
-const TelegramLayer = TelegramServiceLive.pipe(
-  Layer.provide(ConfigLayer),
-  Layer.provide(BaseLayer),
-)
+const ProwlarrLayer = ProwlarrServiceLive.pipe(Layer.provide(ConfigLayer), Layer.provide(BaseLayer))
+const TelegramLayer = TelegramServiceLive.pipe(Layer.provide(ConfigLayer), Layer.provide(BaseLayer))
 
 const WatcherLayer = Layer.mergeAll(
   BaseLayer,
@@ -59,19 +50,16 @@ function runWatch(watch: Watch) {
       .search(watch.query)
       .pipe(
         Effect.catch((e) =>
-          log.error("watcher", `"${watch.name}": search failed`, e).pipe(
-            Effect.as([] as any[]),
-          ),
+          log
+            .error("watcher", `"${watch.name}": search failed`, e)
+            .pipe(Effect.as<ProwlarrResult[]>([])),
         ),
       )
 
     const matchedAlerts: MatchedAlert[] = []
 
     for (const result of results) {
-      if (
-        watch.filterGroups.length > 0 &&
-        !matchesFilter(result.title, watch.filterGroups)
-      )
+      if (watch.filterGroups.length > 0 && !matchesFilter(result.title, watch.filterGroups))
         continue
 
       const exists = yield* store.hasAlertForGuid(watch.id, result.guid)
@@ -89,7 +77,12 @@ function runWatch(watch: Watch) {
         matchedAt: Date.now(),
         acknowledged: false,
       })
-      matchedAlerts.push({ id: alertId, title: result.title, indexer: result.indexer, seeders: result.seeders })
+      matchedAlerts.push({
+        id: alertId,
+        title: result.title,
+        indexer: result.indexer,
+        seeders: result.seeders,
+      })
       yield* log.info(`[watcher]`, `"${watch.name}": new match "${result.title}"`)
     }
 
@@ -112,10 +105,7 @@ const app = Effect.gen(function* () {
   yield* Effect.forEach(watches, (watch) =>
     Effect.gen(function* () {
       const intervalMs = Math.max(watch.intervalSeconds * 1000, 300_000)
-      yield* log.info(
-        `[watcher]`,
-        `"${watch.name}" scheduled every ${watch.intervalSeconds}s`,
-      )
+      yield* log.info(`[watcher]`, `"${watch.name}" scheduled every ${watch.intervalSeconds}s`)
       yield* Effect.repeat(
         runWatch(watch).pipe(
           Effect.catchCause((cause) =>

@@ -1,7 +1,7 @@
 // Wraps each shared `Schema.TaggedError` with an HTTP status annotation
 // (`HttpApiSchema.status`) so HttpApi can encode the right status code for
 // each typed error without per-route Effect.catch boilerplate.
-import { HttpApiSchema } from "effect/unstable/httpapi"
+import { HttpApiSchema } from "effect/http-api"
 import {
   ConfigLoadError,
   ConfigSaveError,

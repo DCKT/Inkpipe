@@ -1,5 +1,5 @@
-import type { Job } from "../lib/types";
-import { Progress } from "../ui/progress";
+import type { Job } from "../lib/types"
+import { Progress } from "../ui/progress"
 
 const STAGE_LABELS: Record<string, string> = {
   UPLOADING: "Uploading to AllDebrid",
@@ -9,23 +9,23 @@ const STAGE_LABELS: Record<string, string> = {
   UPLOADING_COPYPARTY: "Uploading to Copyparty",
   DONE: "Complete",
   FAILED: "Failed",
-};
+}
 
 function formatElapsed(startedAt: number): string {
-  const seconds = Math.floor((Date.now() - startedAt) / 1000);
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  const seconds = Math.floor((Date.now() - startedAt) / 1000)
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return m > 0 ? `${m}m ${s}s` : `${s}s`
 }
 
 function shortId(id: number): string {
-  return `#${String(id).padStart(4, "0")}`;
+  return `#${String(id).padStart(4, "0")}`
 }
 
 export default function JobCard({ job }: { job: Job }) {
-  const isDone = job.stage === "DONE";
-  const isFailed = job.stage === "FAILED";
-  const isActive = !isDone && !isFailed;
+  const isDone = job.stage === "DONE"
+  const isFailed = job.stage === "FAILED"
+  const isActive = !isDone && !isFailed
 
   // Only DONE/FAILED/in-progress exist on the Job stage enum today — there is
   // no distinct "queued/warning" state, so FAILED keeps the existing red
@@ -34,7 +34,7 @@ export default function JobCard({ job }: { job: Job }) {
     ? "text-success border-success/40"
     : isFailed
       ? "text-red-500 border-red-500/40"
-      : "text-accent-hover border-accent/40";
+      : "text-accent-hover border-accent/40"
 
   return (
     <div
@@ -50,9 +50,7 @@ export default function JobCard({ job }: { job: Job }) {
       </div>
 
       <div className="min-w-0">
-        <p className="break-words font-display text-sm text-primary">
-          {job.title}
-        </p>
+        <p className="break-words font-display text-sm text-primary">{job.title}</p>
         {isFailed && job.error && (
           <p className="mt-0.5 truncate text-xs text-red-500">{job.error}</p>
         )}
@@ -66,11 +64,9 @@ export default function JobCard({ job }: { job: Job }) {
             </Progress.Track>
           </Progress.Root>
         ) : (
-          <span className="font-mono text-xs text-secondary">
-            {formatElapsed(job.startedAt)}
-          </span>
+          <span className="font-mono text-xs text-secondary">{formatElapsed(job.startedAt)}</span>
         )}
       </div>
     </div>
-  );
+  )
 }

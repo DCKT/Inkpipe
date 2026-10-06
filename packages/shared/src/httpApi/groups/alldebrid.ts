@@ -1,7 +1,12 @@
 import { Schema } from "effect"
-import { HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi"
+import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api"
 import { UploadResultSchema } from "../../schemas"
-import { NoMagnetUrlS, AllDebridNotConfiguredS, MagnetUploadErrorS, AllDebridHttpErrorS } from "../errors"
+import {
+  NoMagnetUrlS,
+  AllDebridNotConfiguredS,
+  MagnetUploadErrorS,
+  AllDebridHttpErrorS,
+} from "../errors"
 
 export const SaveMagnetRequestSchema = Schema.Struct({
   magnetUrl: Schema.optional(Schema.NullOr(Schema.String)),

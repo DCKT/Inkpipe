@@ -1,4 +1,4 @@
-import { HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi"
+import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api"
 import { DownloadRequestSchema, DownloadResponseSchema } from "../../api"
 import { CopypartyNotConfiguredS, CopypartyHttpErrorS, CopypartyFolderErrorS } from "../errors"
 
