@@ -1,4 +1,4 @@
-// Exercises the real ConvertGroupLive handler (not a reimplementation) —
+// Exercises the real convert routes (not a reimplementation) —
 // the in-memory job registry, SSE framing, multipart upload, path-traversal
 // sanitization (basename() fix), and the download-not-found status fix, all
 // from this session — through the real HTTP layer. KccService is mocked;
@@ -7,7 +7,6 @@
 // against real files, cleaned up after each test.
 import { Effect, Layer } from "effect"
 import { describe, it, expect, beforeEach, afterEach } from "@effect/vitest"
-import { HttpApi, HttpApiBuilder } from "effect/http-api"
 import { HttpRouter } from "effect/http"
 import * as BunHttpServer from "@effect/platform-bun/BunHttpServer"
 import { mkdtemp, rm } from "node:fs/promises"
@@ -15,11 +14,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { KccService } from "../layers/integrations/Kcc"
 import { FileManagerService } from "../layers/pipeline/FileManager"
-import { ConvertGroup } from "@inkpipe/shared/httpApi/groups/convert"
-import { ConvertGroupLive } from "./handlers/convert"
-import { SchemaErrorMiddleware, SchemaErrorMiddlewareLive } from "@inkpipe/shared"
-
-const TestApi = HttpApi.make("test").add(ConvertGroup).middleware(SchemaErrorMiddleware)
+import { ConvertRoutesLive } from "./convert-routes"
 
 type KccConvert = (
   inputPath: string,
@@ -43,13 +38,13 @@ function makeHandler(kccConvert: KccConvert) {
   const FileManagerLive = Layer.succeed(FileManagerService, {
     getTempBase: Effect.succeed(tempBase),
   } as any)
-  const ConvertGroupWithDeps: any = ConvertGroupLive.pipe(
-    Layer.provide(SchemaErrorMiddlewareLive),
-    Layer.provide(KccLive),
-    Layer.provide(FileManagerLive),
+  const AppLayer: any = ConvertRoutesLive.pipe(
+    // Raw routes read their services from the request context, so the services must be
+    // outputs of the layer (provideMerge), not just inputs (provide).
+    Layer.provideMerge(KccLive),
+    Layer.provideMerge(FileManagerLive),
+    Layer.provideMerge(BunHttpServer.layerHttpServices),
   )
-  const ApiLive = HttpApiBuilder.layer(TestApi).pipe(Layer.provide(ConvertGroupWithDeps))
-  const AppLayer: any = ApiLive.pipe(Layer.provide(BunHttpServer.layerHttpServices))
   const { handler } = HttpRouter.toWebHandler(AppLayer)
   return handler as (request: Request) => Promise<Response>
 }

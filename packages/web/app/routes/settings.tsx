@@ -3,7 +3,9 @@ import { useSearchParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import SettingsForm from "../components/SettingsForm"
 import { PageHeader } from "../components/PageHeader"
-import { runCapability, runApi } from "../lib/apiClient"
+import { Schema } from "effect"
+import { AppConfigSchema } from "@inkpipe/shared"
+import { runCapability } from "../lib/apiClient"
 import type { AppConfig } from "../lib/types"
 import { Button } from "../ui/button"
 import { ToastGroup } from "../ui/toast"
@@ -33,7 +35,7 @@ export default function SettingsPage() {
 
   const handleExport = async () => {
     try {
-      const config = await runApi((client) => client.settings.export({}))
+      const config = await runCapability((client) => client.getSettings({}))
       const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" })
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -52,8 +54,8 @@ export default function SettingsPage() {
     if (!file) return
     try {
       const text = await file.text()
-      const config: unknown = JSON.parse(text)
-      await runApi((client) => client.settings.import({ payload: config }))
+      const config = Schema.decodeUnknownSync(AppConfigSchema)(JSON.parse(text))
+      await runCapability((client) => client.updateSettings(config))
       await queryClient.invalidateQueries({ queryKey: ["settings"] })
       setFormKey((k) => k + 1)
       ToastGroup.create.success("Settings imported successfully.")

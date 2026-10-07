@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowDown, RefreshCw } from "lucide-react"
-import { runCapability, runApi } from "../lib/apiClient"
+import { runCapability, startConvert } from "../lib/apiClient"
 import FileDrop from "../components/FileDrop"
 import KccOptionsFields from "../components/KccOptionsFields"
 import { PageHeader } from "../components/PageHeader"
@@ -54,7 +54,7 @@ export default function ConvertPage() {
           formData.append("options", JSON.stringify(overrides))
         }
 
-        const { id } = await runApi((client) => client.convert.start({ payload: formData }))
+        const { id } = await startConvert(formData)
 
         setSubStage("converting")
 

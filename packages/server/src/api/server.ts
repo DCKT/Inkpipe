@@ -1,25 +1,14 @@
-// Final HTTP-layer composition: typed HttpApi handlers + CORS middleware +
-// the raw WebSocket / static-fallback routes, all mounted on one shared
-// HttpRouter and ready to be provided the application's MainLayer.
+// Final HTTP-layer composition: capability routes (derived from contracts), the raw routes that
+// contracts cannot describe (convert upload/SSE/download, job WebSocket, static fallback) and CORS,
+// all mounted on one shared HttpRouter and ready to be provided the application's MainLayer.
 import { Layer } from "effect"
 import { HttpApiBuilder, HttpApiSwagger } from "effect/http-api"
 import { HttpRouter } from "effect/http"
-import { InkpipeApi } from "@inkpipe/shared"
-import { SettingsGroupLive } from "./handlers/settings"
-import { ConvertGroupLive } from "./handlers/convert"
+import { ConvertRoutesLive } from "./convert-routes"
 import { JobsWsRouteLive, StaticFallbackRouteLive } from "./raw"
-import { SchemaErrorMiddlewareLive } from "@inkpipe/shared"
 import { metrics } from "./Metrics"
 import { CapabilityHttp } from "./capabilityApi"
 import { McpLive, mcpEnabled } from "./mcp"
-
-// Every group layer's build effect resolves endpoint middleware (including
-// SchemaErrorMiddleware, applied API-wide in index.ts) from its own context
-// at build time, so SchemaErrorMiddlewareLive must be provided to each group
-// individually — merging it alongside them wouldn't cross-satisfy anything.
-const HandlersLive = Layer.mergeAll(SettingsGroupLive, ConvertGroupLive).pipe(
-  Layer.provide(SchemaErrorMiddlewareLive),
-)
 
 const CorsLive = HttpRouter.cors({
   allowedOrigins: ["*"],
@@ -27,32 +16,25 @@ const CorsLive = HttpRouter.cors({
   allowedHeaders: ["Content-Type"],
 })
 
-const ApiLive = HttpApiBuilder.layer(InkpipeApi, { openapiPath: "/openapi.json" }).pipe(
-  Layer.provide(HandlersLive),
-)
-
-// Routes derived from capability contracts (see ../capabilities). Handlers for those live next to
-// their contracts, so this API needs no hand-written group.
+// Routes derived from capability contracts (see ../capabilities). Handlers live next to their
+// contracts, so no hand-written group exists.
 const CapabilityApiLive = HttpApiBuilder.layer(CapabilityHttp.api, {
-  openapiPath: "/openapi/capabilities.json",
+  openapiPath: "/openapi.json",
 }).pipe(Layer.provide(CapabilityHttp.layer))
 
-const SwaggerLive = Layer.mergeAll(
-  HttpApiSwagger.layer(InkpipeApi, { path: "/docs" }),
-  HttpApiSwagger.layer(CapabilityHttp.api, { path: "/docs/capabilities" }),
-)
+const SwaggerLive = HttpApiSwagger.layer(CapabilityHttp.api, { path: "/docs" })
+
+const McpOptionalLive = mcpEnabled() ? McpLive : Layer.empty
 
 // Order matters for readability only — the underlying router (find-my-way)
 // resolves static/param routes ahead of the catch-all wildcard regardless of
-// registration order, so the typed API and the /api/jobs/ws route always
+// registration order, so the API and the /api/jobs/ws route always
 // take priority over the static/SPA fallback.
-const McpOptionalLive = mcpEnabled() ? McpLive : Layer.empty
-
 const HttpAppLayer = Layer.mergeAll(
   McpOptionalLive,
-  ApiLive,
   CapabilityApiLive,
   SwaggerLive,
+  ConvertRoutesLive,
   JobsWsRouteLive,
   StaticFallbackRouteLive,
   CorsLive,
