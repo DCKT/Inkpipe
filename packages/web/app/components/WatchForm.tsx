@@ -1,106 +1,96 @@
-import { useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { runApi } from "../lib/apiClient";
-import type { Watch, FilterGroup, FilterGroupMode } from "../lib/types";
-import { Button } from "../ui/button";
-import { Dialog } from "../ui/dialog";
-import { Field } from "../ui/field";
-import { Input } from "../ui/input";
-import { ToastGroup } from "../ui/toast";
-import FolderSelect from "./FolderSelect";
+import { useState, useEffect } from "react"
+import { useMutation } from "@tanstack/react-query"
+import { runCapability } from "../lib/apiClient"
+import type { Watch, FilterGroup, FilterGroupMode } from "../lib/types"
+import { Button } from "../ui/button"
+import { Dialog } from "../ui/dialog"
+import { Field } from "../ui/field"
+import { Input } from "../ui/input"
+import { ToastGroup } from "../ui/toast"
+import FolderSelect from "./FolderSelect"
 
 export function WatchFormDialog({
   existing,
   onCreated,
 }: {
-  existing?: Watch;
-  onCreated: () => void;
+  existing?: Watch
+  onCreated: () => void
 }) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState(existing?.name ?? "");
-  const [query, setQuery] = useState(existing?.query ?? "");
-  const [intervalSeconds, setIntervalSeconds] = useState(
-    String(existing?.intervalSeconds ?? 3600),
-  );
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState(existing?.name ?? "")
+  const [query, setQuery] = useState(existing?.query ?? "")
+  const [intervalSeconds, setIntervalSeconds] = useState(String(existing?.intervalSeconds ?? 3600))
   const [filterGroups, setFilterGroups] = useState<FilterGroup[]>(
     existing?.filterGroups ? [...existing.filterGroups] : [],
-  );
-  const [subfolder, setSubfolder] = useState(existing?.subfolder ?? "");
+  )
+  const [subfolder, setSubfolder] = useState(existing?.subfolder ?? "")
 
   useEffect(() => {
     if (existing) {
-      setName(existing.name);
-      setQuery(existing.query);
-      setIntervalSeconds(String(existing.intervalSeconds));
-      setFilterGroups([...existing.filterGroups]);
-      setSubfolder(existing.subfolder ?? "");
+      setName(existing.name)
+      setQuery(existing.query)
+      setIntervalSeconds(String(existing.intervalSeconds))
+      setFilterGroups([...existing.filterGroups])
+      setSubfolder(existing.subfolder ?? "")
     }
-  }, [existing]);
+  }, [existing])
 
-  const isEdit = !!existing;
+  const isEdit = !!existing
 
   const createMutation = useMutation({
     mutationFn: (body: {
-      name: string;
-      query: string;
-      intervalSeconds: number;
-      filterGroups: FilterGroup[];
-      subfolder: string | null;
-    }) => runApi((client) => client.watches.create({ payload: body })),
+      name: string
+      query: string
+      intervalSeconds: number
+      filterGroups: FilterGroup[]
+      subfolder: string | null
+    }) => runCapability((client) => client.createWatch(body)),
     onSuccess: () => {
-      ToastGroup.create.success("Watch created");
-      setName("");
-      setQuery("");
-      setIntervalSeconds("3600");
-      setFilterGroups([]);
-      setSubfolder("");
-      setOpen(false);
-      onCreated();
+      ToastGroup.create.success("Watch created")
+      setName("")
+      setQuery("")
+      setIntervalSeconds("3600")
+      setFilterGroups([])
+      setSubfolder("")
+      setOpen(false)
+      onCreated()
     },
     onError: (err) => {
-      ToastGroup.create.error("Failed to create watch", err.message);
+      ToastGroup.create.error("Failed to create watch", err.message)
     },
-  });
+  })
 
   const updateMutation = useMutation({
     mutationFn: (body: {
-      name: string;
-      query: string;
-      intervalSeconds: number;
-      filterGroups: FilterGroup[];
-      subfolder: string | null;
-    }) =>
-      runApi((client) =>
-        client.watches.update({ params: { id: existing!.id }, payload: body }),
-      ),
+      name: string
+      query: string
+      intervalSeconds: number
+      filterGroups: FilterGroup[]
+      subfolder: string | null
+    }) => runCapability((client) => client.updateWatch({ id: existing!.id, ...body })),
     onSuccess: () => {
-      ToastGroup.create.success("Watch updated. Restart scheduled.");
-      setOpen(false);
-      onCreated();
+      ToastGroup.create.success("Watch updated. Restart scheduled.")
+      setOpen(false)
+      onCreated()
     },
     onError: (err) => {
-      ToastGroup.create.error("Failed to update watch", err.message);
+      ToastGroup.create.error("Failed to update watch", err.message)
     },
-  });
+  })
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const isPending = createMutation.isPending || updateMutation.isPending
 
   const addGroup = () => {
-    setFilterGroups([
-      ...filterGroups,
-      { mode: "AND" as FilterGroupMode, substrings: [""] },
-    ]);
-  };
+    setFilterGroups([...filterGroups, { mode: "AND" as FilterGroupMode, substrings: [""] }])
+  }
 
   const removeGroup = (idx: number) => {
-    setFilterGroups(filterGroups.filter((_, i) => i !== idx));
-  };
+    setFilterGroups(filterGroups.filter((_, i) => i !== idx))
+  }
 
   const updateGroupMode = (idx: number, mode: FilterGroupMode) => {
-    setFilterGroups(
-      filterGroups.map((g, i) => (i === idx ? { ...g, mode } : g)),
-    );
-  };
+    setFilterGroups(filterGroups.map((g, i) => (i === idx ? { ...g, mode } : g)))
+  }
 
   const updateSubstring = (groupIdx: number, subIdx: number, value: string) => {
     setFilterGroups(
@@ -108,46 +98,42 @@ export function WatchFormDialog({
         i === groupIdx
           ? {
               ...g,
-              substrings: g.substrings.map((s, j) =>
-                j === subIdx ? value : s,
-              ),
+              substrings: g.substrings.map((s, j) => (j === subIdx ? value : s)),
             }
           : g,
       ),
-    );
-  };
+    )
+  }
 
   const addSubstring = (groupIdx: number) => {
     setFilterGroups(
       filterGroups.map((g, i) =>
         i === groupIdx ? { ...g, substrings: [...g.substrings, ""] } : g,
       ),
-    );
-  };
+    )
+  }
 
   const removeSubstring = (groupIdx: number, subIdx: number) => {
     setFilterGroups(
       filterGroups.map((g, i) =>
-        i === groupIdx
-          ? { ...g, substrings: g.substrings.filter((_, j) => j !== subIdx) }
-          : g,
+        i === groupIdx ? { ...g, substrings: g.substrings.filter((_, j) => j !== subIdx) } : g,
       ),
-    );
-  };
+    )
+  }
 
   const handleOpenChange = (details: { open: boolean }) => {
     if (!details.open && !existing) {
-      setName("");
-      setQuery("");
-      setIntervalSeconds("3600");
-      setFilterGroups([]);
-      setSubfolder("");
+      setName("")
+      setQuery("")
+      setIntervalSeconds("3600")
+      setFilterGroups([])
+      setSubfolder("")
     }
-    setOpen(details.open);
-  };
+    setOpen(details.open)
+  }
 
   const handleSubmit = () => {
-    if (!name.trim() || !query.trim()) return;
+    if (!name.trim() || !query.trim()) return
     const body = {
       name: name.trim(),
       query: query.trim(),
@@ -159,26 +145,20 @@ export function WatchFormDialog({
         }))
         .filter((g) => g.substrings.length > 0),
       subfolder: subfolder.trim() || null,
-    };
-    if (isEdit) {
-      updateMutation.mutate(body);
-    } else {
-      createMutation.mutate(body);
     }
-  };
+    if (isEdit) {
+      updateMutation.mutate(body)
+    } else {
+      createMutation.mutate(body)
+    }
+  }
 
   return (
     <>
-      <Button
-        variant={isEdit ? "ghost" : "primary"}
-        onClick={() => setOpen(true)}
-      >
+      <Button variant={isEdit ? "ghost" : "primary"} onClick={() => setOpen(true)}>
         {isEdit ? "Edit" : "+ New Watch"}
       </Button>
-      <Dialog.Root
-        open={open}
-        onOpenChange={handleOpenChange}
-      >
+      <Dialog.Root open={open} onOpenChange={handleOpenChange}>
         <Dialog.Backdrop />
         <Dialog.Positioner>
           <Dialog.Content className="max-w-lg max-h-[80vh] overflow-y-auto p-4">
@@ -225,16 +205,14 @@ export function WatchFormDialog({
                   open={open}
                 />
                 <p className="mt-1 text-xs text-secondary">
-                  Set a folder to download and convert matches into it. Leave
-                  empty to just save matches to AllDebrid instead.
+                  Set a folder to download and convert matches into it. Leave empty to just save
+                  matches to AllDebrid instead.
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-primary">
-                    Title Filters
-                  </span>
+                  <span className="text-sm font-medium text-primary">Title Filters</span>
                   <button
                     className="text-xs text-accent hover:text-accent-hover"
                     onClick={addGroup}
@@ -251,8 +229,7 @@ export function WatchFormDialog({
 
                 {filterGroups.length > 1 && (
                   <p className="text-xs text-secondary">
-                    A result must match every group below (groups are always
-                    combined with AND).
+                    A result must match every group below (groups are always combined with AND).
                   </p>
                 )}
 
@@ -268,9 +245,7 @@ export function WatchFormDialog({
                     <div className="border border-border rounded-xl p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-secondary">
-                            Group {gi + 1}
-                          </span>
+                          <span className="text-xs text-secondary">Group {gi + 1}</span>
                           {group.substrings.length > 1 && (
                             <div className="flex items-center rounded-lg border border-border overflow-hidden">
                               <button
@@ -315,9 +290,7 @@ export function WatchFormDialog({
                           </span>
                           <Input
                             value={sub}
-                            onChange={(e) =>
-                              updateSubstring(gi, si, e.currentTarget.value)
-                            }
+                            onChange={(e) => updateSubstring(gi, si, e.currentTarget.value)}
                             placeholder="string to match..."
                             className="flex-1"
                           />
@@ -347,21 +320,13 @@ export function WatchFormDialog({
               <Dialog.CloseTrigger asChild>
                 <Button variant="ghost">Cancel</Button>
               </Dialog.CloseTrigger>
-              <Button
-                variant="primary"
-                onClick={handleSubmit}
-                disabled={isPending}
-              >
-                {isPending
-                  ? "Saving..."
-                  : isEdit
-                    ? "Save Changes"
-                    : "Create Watch"}
+              <Button variant="primary" onClick={handleSubmit} disabled={isPending}>
+                {isPending ? "Saving..." : isEdit ? "Save Changes" : "Create Watch"}
               </Button>
             </div>
           </Dialog.Content>
         </Dialog.Positioner>
       </Dialog.Root>
     </>
-  );
+  )
 }

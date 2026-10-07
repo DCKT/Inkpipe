@@ -1,33 +1,31 @@
-import { useEffect, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Menu } from "lucide-react";
-import { UnreadBadge } from "./UnreadBadge";
-import { InkpipeMark } from "./InkpipeMark";
-import { NAV_ITEMS, SETTINGS_NAV_ITEM, type NavSubLink } from "../lib/nav";
-import { runApi } from "../lib/apiClient";
+import { useEffect, useState } from "react"
+import { NavLink, useLocation } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
+import { Menu } from "lucide-react"
+import { UnreadBadge } from "./UnreadBadge"
+import { InkpipeMark } from "./InkpipeMark"
+import { NAV_ITEMS, SETTINGS_NAV_ITEM, type NavSubLink } from "../lib/nav"
+import { runCapability } from "../lib/apiClient"
 
 function isSubLinkActive(pathname: string, item: NavSubLink): boolean {
-  if (item.end) return pathname === item.path;
-  return pathname === item.path || pathname.startsWith(`${item.path}/`);
+  if (item.end) return pathname === item.path
+  return pathname === item.path || pathname.startsWith(`${item.path}/`)
 }
 
 function SidebarContent({ fullLabels = false }: { fullLabels?: boolean }) {
-  const location = useLocation();
+  const location = useLocation()
 
   const configQuery = useQuery({
     queryKey: ["settings"],
-    queryFn: () => runApi((client) => client.settings.get({})),
+    queryFn: () => runCapability((client) => client.getSettings({})),
     staleTime: 5 * 60 * 1000,
-  });
-  const copypartyUrl = configQuery.data?.copyparty.url;
+  })
+  const copypartyUrl = configQuery.data?.copyparty.url
 
   // Icon rail (lg, <xl) shows only numerals with a title tooltip; the full
   // sidebar (xl+) and the mobile overlay drawer both need the text labels.
-  const labelClass = fullLabels
-    ? "spine-label"
-    : "spine-label hidden xl:inline";
-  const letterFallbackClass = fullLabels ? "hidden" : "xl:hidden";
+  const labelClass = fullLabels ? "spine-label" : "spine-label hidden xl:inline"
+  const letterFallbackClass = fullLabels ? "hidden" : "xl:hidden"
 
   return (
     <>
@@ -51,9 +49,7 @@ function SidebarContent({ fullLabels = false }: { fullLabels?: boolean }) {
                 to={item.path}
                 end={item.end}
                 title={item.label}
-                className={({ isActive }) =>
-                  `spine-link ${isActive ? "is-active" : ""}`
-                }
+                className={({ isActive }) => `spine-link ${isActive ? "is-active" : ""}`}
               >
                 <span className="spine-numeral">{item.numeral}</span>
                 <span className={labelClass}>{item.label}</span>
@@ -65,12 +61,12 @@ function SidebarContent({ fullLabels = false }: { fullLabels?: boolean }) {
                   </span>
                 )}
               </NavLink>
-            );
+            )
           }
 
           const sectionActive = item.children.some((child) =>
             isSubLinkActive(location.pathname, child),
-          );
+          )
 
           return (
             <div key={item.label} className="flex flex-col gap-0.5">
@@ -108,7 +104,7 @@ function SidebarContent({ fullLabels = false }: { fullLabels?: boolean }) {
                 </a>
               )}
             </div>
-          );
+          )
         })}
       </nav>
 
@@ -120,9 +116,7 @@ function SidebarContent({ fullLabels = false }: { fullLabels?: boolean }) {
             `spine-link spine-link-quiet ${isActive ? "is-active-quiet" : ""}`
           }
         >
-          <span className="spine-numeral spine-numeral-quiet">
-            {SETTINGS_NAV_ITEM.numeral}
-          </span>
+          <span className="spine-numeral spine-numeral-quiet">{SETTINGS_NAV_ITEM.numeral}</span>
           <span className={labelClass}>{SETTINGS_NAV_ITEM.label}</span>
         </NavLink>
 
@@ -145,16 +139,16 @@ function SidebarContent({ fullLabels = false }: { fullLabels?: boolean }) {
         )}
       </div>
     </>
-  );
+  )
 }
 
 export function Sidebar() {
-  const [open, setOpen] = useState(false);
-  const location = useLocation();
+  const [open, setOpen] = useState(false)
+  const location = useLocation()
 
   useEffect(() => {
-    setOpen(false);
-  }, [location.pathname]);
+    setOpen(false)
+  }, [location.pathname])
 
   return (
     <>
@@ -185,15 +179,12 @@ export function Sidebar() {
       {/* Mobile overlay drawer */}
       {open && (
         <div className="fixed inset-0 z-50 flex xl:hidden">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setOpen(false)}
-          />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
           <aside className="relative z-10 flex h-full w-[220px] flex-col border-r border-border bg-surface">
             <SidebarContent fullLabels />
           </aside>
         </div>
       )}
     </>
-  );
+  )
 }

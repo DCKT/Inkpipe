@@ -1,4 +1,5 @@
-import { Context, Effect, Layer } from "effect"
+import type { Context } from "effect"
+import { Effect, Layer } from "effect"
 import { describe, it, expect, vi, beforeEach, afterEach } from "@effect/vitest"
 import type { AppConfig } from "@inkpipe/shared"
 import { CopypartyService, CopypartyServiceLive } from "./Copyparty"
@@ -9,14 +10,32 @@ const testConfig: AppConfig = {
   prowlarr: { url: "", apiKey: "" },
   alldebrid: { apiKey: "" },
   kcc: {
-    dockerImage: "ghcr.io/ciromattia/kcc:latest", profile: "KoBO", format: "Auto",
-    mangaStyle: false, webtoon: false, twoPanel: false,
-    upscale: true, stretch: false, hq: false, gamma: 1.0,
-    cropping: "1", croppingPower: 1.0, forceColor: true,
-    forcePng: false, noAutoContrast: false, blackBorders: false,
-    whiteBorders: false, splitter: "0", noProcessing: false,
-    eraseRainbow: true, coverFill: false, batchSplit: "0",
-    targetSize: 0, customWidth: 0, customHeight: 0, noKepub: false,
+    dockerImage: "ghcr.io/ciromattia/kcc:latest",
+    profile: "KoBO",
+    format: "Auto",
+    mangaStyle: false,
+    webtoon: false,
+    twoPanel: false,
+    upscale: true,
+    stretch: false,
+    hq: false,
+    gamma: 1.0,
+    cropping: "1",
+    croppingPower: 1.0,
+    forceColor: true,
+    forcePng: false,
+    noAutoContrast: false,
+    blackBorders: false,
+    whiteBorders: false,
+    splitter: "0",
+    noProcessing: false,
+    eraseRainbow: true,
+    coverFill: false,
+    batchSplit: "0",
+    targetSize: 0,
+    customWidth: 0,
+    customHeight: 0,
+    noKepub: false,
   },
   copyparty: { url: "http://cp:3923", uploadPath: "/comics", password: "" },
   komga: { url: "", apiKey: "", defaultLibraryId: "" },
@@ -32,11 +51,15 @@ function makeLayer(config?: Partial<AppConfig>) {
   })
 }
 
-function makeProgram<T, E>(prog: (svc: Context.Service.Shape<typeof CopypartyService>) => Effect.Effect<T, E>) {
+function makeProgram<T, E>(
+  prog: (svc: Context.Service.Shape<typeof CopypartyService>) => Effect.Effect<T, E>,
+) {
   return Effect.gen(function* () {
     const svc = yield* CopypartyService
     return yield* prog(svc)
-  }).pipe(Effect.provide(Layer.provide(CopypartyServiceLive, Layer.merge(LogServiceLive, makeLayer()))))
+  }).pipe(
+    Effect.provide(Layer.provide(CopypartyServiceLive, Layer.merge(LogServiceLive, makeLayer()))),
+  )
 }
 
 const originalBunFile = Bun.file
@@ -80,7 +103,8 @@ describe("CopypartyService", () => {
         const result = yield* program
 
         expect(result).toEqual([])
-      }))
+      }),
+    )
 
     it.effect("parses dirs as array of arrays (copyparty ls format)", () =>
       Effect.gen(function* () {
@@ -92,7 +116,8 @@ describe("CopypartyService", () => {
         const result = yield* makeProgram((svc) => svc.listFolders)
 
         expect(result).toEqual(["Manga", "Comics"])
-      }))
+      }),
+    )
 
     it.effect("parses dirs with href format (objects with trailing slash)", () =>
       Effect.gen(function* () {
@@ -105,7 +130,8 @@ describe("CopypartyService", () => {
 
         // Trailing slashes are stripped from href values
         expect(result).toEqual(["Series", "Oneshots"])
-      }))
+      }),
+    )
   })
 
   describe("uploadFile", () => {
@@ -118,11 +144,13 @@ describe("CopypartyService", () => {
 
         yield* makeProgram((svc) => svc.uploadFile("/tmp/file.epub", "Manga"))
 
-        const url = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+        const url = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock
+          .calls[0][0] as string
         expect(url).toContain("cp:3923")
         expect(url).toContain("comics/Manga/file.epub")
         expect(url).not.toContain("pw=")
-      }))
+      }),
+    )
 
     it.effect("includes password in URL when configured", () =>
       Effect.gen(function* () {
@@ -154,9 +182,11 @@ describe("CopypartyService", () => {
 
         yield* program
 
-        const url = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+        const url = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock
+          .calls[0][0] as string
         expect(url).toContain("pw=secret")
-      }))
+      }),
+    )
   })
 
   describe("createFolder", () => {
@@ -169,12 +199,14 @@ describe("CopypartyService", () => {
 
         yield* makeProgram((svc) => svc.createFolder("NewSeries"))
 
-        const opts = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit
+        const opts = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock
+          .calls[0][1] as RequestInit
         expect(opts.method).toBe("POST")
         expect(opts.body).toBeInstanceOf(FormData)
         expect((opts.body as FormData).get("act")).toBe("mkdir")
         expect((opts.body as FormData).get("name")).toBe("NewSeries")
-      }))
+      }),
+    )
 
     it.effect("does not set explicit content-type header (let fetch set multipart boundary)", () =>
       Effect.gen(function* () {
@@ -185,23 +217,27 @@ describe("CopypartyService", () => {
 
         yield* makeProgram((svc) => svc.createFolder("Test"))
 
-        const opts = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit
+        const opts = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock
+          .calls[0][1] as RequestInit
         expect(opts.headers).toBeUndefined()
-      }))
+      }),
+    )
 
     it.effect("fails with CopypartyFolderError when name is empty after sanitization", () =>
       Effect.gen(function* () {
         const error = yield* Effect.flip(makeProgram((svc) => svc.createFolder("///")))
 
         expect(error.message).toContain("Folder name is empty")
-      }))
+      }),
+    )
 
     it.effect("fails with CopypartyFolderError when name is empty string", () =>
       Effect.gen(function* () {
         const error = yield* Effect.flip(makeProgram((svc) => svc.createFolder("")))
 
         expect(error.message).toContain("Folder name is empty")
-      }))
+      }),
+    )
   })
 
   describe("deleteFolder", () => {
@@ -214,20 +250,24 @@ describe("CopypartyService", () => {
 
         yield* makeProgram((svc) => svc.deleteFolder("OldSeries"))
 
-        const url = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+        const url = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock
+          .calls[0][0] as string
         expect(url).toContain("delete")
         expect(url).toContain("OldSeries")
 
-        const opts = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit
+        const opts = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock
+          .calls[0][1] as RequestInit
         expect(opts.method).toBe("POST")
-      }))
+      }),
+    )
 
     it.effect("fails with CopypartyFolderError when name is empty after sanitization", () =>
       Effect.gen(function* () {
         const error = yield* Effect.flip(makeProgram((svc) => svc.deleteFolder("///")))
 
         expect(error.message).toContain("Folder name is empty")
-      }))
+      }),
+    )
   })
 
   describe("error handling", () => {
@@ -257,16 +297,20 @@ describe("CopypartyService", () => {
         const error = yield* Effect.flip(program)
 
         expect(error.message).toContain("Copyparty URL not configured")
-      }))
+      }),
+    )
 
     it.effect("fails with CopypartyHttpError on fetch failure", () =>
       Effect.gen(function* () {
-        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Network error"))
+        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
+          new Error("Network error"),
+        )
 
         const error = yield* Effect.flip(makeProgram((svc) => svc.listFolders))
 
         expect(error.message).toContain("Network error")
-      }))
+      }),
+    )
 
     it.effect("fails with CopypartyHttpError on non-OK upload response", () =>
       Effect.gen(function* () {
@@ -279,6 +323,7 @@ describe("CopypartyService", () => {
         const error = yield* Effect.flip(makeProgram((svc) => svc.uploadFile("/tmp/file.epub")))
 
         expect(error.message).toContain("HTTP 500")
-      }))
+      }),
+    )
   })
 })

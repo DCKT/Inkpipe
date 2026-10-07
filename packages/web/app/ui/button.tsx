@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef } from "react"
 
 const variants = {
   // Primary: solid accent stamp
@@ -16,24 +16,20 @@ const variants = {
     "rounded-[3px] border border-border px-4 py-2 text-sm font-semibold text-secondary transition hover:bg-surface-2 disabled:opacity-50",
   floating:
     "rounded-[3px] border border-accent bg-accent px-8 py-3 text-sm font-semibold text-on-accent shadow-lg transition hover:-translate-y-0.5 hover:bg-accent-hover disabled:opacity-50",
-} as const;
+} as const
 
-type Variant = keyof typeof variants;
+type Variant = keyof typeof variants
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: Variant;
+  variant?: Variant
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = "primary", className, children, ...props }, ref) => (
-    <button
-      ref={ref}
-      className={`${variants[variant]} ${className ?? ""}`}
-      {...props}
-    >
+    <button ref={ref} className={`${variants[variant]} ${className ?? ""}`} {...props}>
       {children}
     </button>
   ),
-);
+)
 
-Button.displayName = "Button";
+Button.displayName = "Button"

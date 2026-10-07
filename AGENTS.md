@@ -3,10 +3,10 @@
 ```
 ┌─────────────────────────────────────────────┐
 │              FRONTEND (packages/web)         │
-│  React + TanStack Router + Ark UI + ky       │
-│  NO Effect code                              │
+│  React Router + Ark UI + contracts client│
+│  Effect only via the contracts-only client   │
 └─────────────────────────────────────────────┘
-                    │ HTTP (ky)
+                    │ HTTP (HttpApi)
                     ▼
 ┌─────────────────────────────────────────────┐
 │              SERVER (packages/server)         │
@@ -46,7 +46,8 @@ inkpipe/
 │   │   └── src/
 │   │       ├── main.ts          # Entry point
 │   │       ├── layers/          # Effect services (business logic + data access)
-│   │       └── routes/          # HTTP route handlers
+│   │       ├── capabilities/    # Contract handlers (implement(...))
+│   │       └── api/             # HTTP projection + raw routes (convert, job WebSocket)
 │   ├── watcher/         # Standalone Bun process, Effect-based (reuses server layers) ← WATCHER
 │   │   └── src/
 │   │       ├── index.ts         # Entry point — loads watches, runs scheduler
@@ -90,7 +91,7 @@ inkpipe/
 3. **Frontend workarounds are NOT acceptable** - if the spec says "update API", update the API
 4. **Run tests** - `bun run test && bun run typecheck` MUST pass before marking work complete
 
-**Data flow**: Frontend (web) → HTTP (ky) → Server routes → Layer services → SQLite
+**Data flow**: Frontend (web) → HTTP (HttpApi) → Server routes → Layer services → SQLite
 **Watcher flow**: Watcher (Effect process) → reuses server layers (ConfigService, ProwlarrService, WatchStoreService) → SQLite → sends push
 **All layers must be consistent.**
 
@@ -102,16 +103,15 @@ inkpipe/
 
 ## Key Files
 
-| File                                     | Purpose                                                |
-| ---------------------------------------- | ------------------------------------------------------ |
-| `PLAN.md`                                | High-level project plan and roadmap                    |
-| `vitest.config.ts`                       | Test project configuration (shared, server, web)       |
-| `packages/server/src/main.ts`            | Server entry point — composes layers, starts Bun.serve |
-| `packages/watcher/src/index.ts`          | Watcher entry point — loads watches, runs scheduler    |
-| `packages/web/app/router.tsx`            | TanStack Router route definitions                      |
-| `packages/web/app/hooks/useApiClient.ts` | KY HTTP client factory (all API calls go through this) |
-| https://github.com/9001/copyparty/blob/hovudstraum/docs/devnotes.md#http-api | Copyparty HTTP API reference |
-| https://docs.alldebrid.com/#magnet | AllDebrid API reference (auth: Bearer header, /v4/magnet/* endpoints) |
+| File                                                                         | Purpose                                                                        |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `vitest.config.ts`                                                           | Test project configuration (shared, server, web)                               |
+| `packages/server/src/main.ts`                                                | Server entry point — composes layers, starts Bun.serve                         |
+| `packages/watcher/src/index.ts`                                              | Watcher entry point — loads watches, runs scheduler                            |
+| `packages/web/app/router.tsx`                                                | TanStack Router route definitions                                              |
+| `packages/web/app/lib/apiClient.ts`                                          | `runCapability` over the contracts-only client (all API calls go through this) |
+| https://github.com/9001/copyparty/blob/hovudstraum/docs/devnotes.md#http-api | Copyparty HTTP API reference                                                   |
+| https://docs.alldebrid.com/#magnet                                           | AllDebrid API reference (auth: Bearer header, /v4/magnet/* endpoints)          |
 
 ## Quick Start: Critical Rules
 
@@ -136,7 +136,7 @@ inkpipe/
 
 **NO Effect code in frontend.** Key patterns:
 
-1. **Use `ky` via `useApiClient` hook** — all HTTP calls go through the shared API client
+1. **Use `runCapability` (`app/lib/apiClient.ts`)** — all HTTP calls go through it
 2. **Handle empty states** — every list/data view needs an empty state with CTA
 3. **Handle loading states** — show loading indicators during data fetching
 4. **Handle error states** — surface API errors to the user
@@ -155,7 +155,7 @@ bun run typecheck     # TypeScript type checking
 
 ### Backend (packages/shared + packages/server)
 
-**Effect-based** — functional, type-safe, composable. Shared schemas in `shared/`, layer services in `server/src/layers/`, route handlers in `server/src/routes/`.
+**Effect-based** — functional, type-safe, composable. Shared schemas in `shared/`, layer services in `server/src/layers/`, capability handlers in `server/src/capabilities/`.
 
 **Read these docs:**
 
@@ -167,7 +167,7 @@ bun run typecheck     # TypeScript type checking
 1. **Define schemas first** — domain types in `packages/shared/src/schemas.ts`, API contracts in `packages/shared/src/api.ts`
 2. **Errors in `packages/shared/src/errors.ts`** — use `Schema.TaggedErrorClass` for all domain errors
 3. **Services as Effect layers** — each `.ts` file in `server/src/layers/` exports a service class and its live implementation
-4. **Routes call services** — route handlers in `server/src/routes/` import and call layer services, never access SQLite directly
+4. **Capabilities call services** — handlers in `server/src/capabilities/` import and call layer services, never access SQLite directly
 5. **Layers compose in `main.ts`** — service dependencies are wired via `Layer.provide`
 
 ### Watcher (packages/watcher)
@@ -186,7 +186,7 @@ bun run typecheck     # TypeScript type checking
 
 **Guidelines:**
 
-1. **Use `useApiClient` for all HTTP calls** — never use raw `fetch` or `ky` directly
+1. **Use `apiClient` for all HTTP calls** — never use raw `fetch`
 2. **Type API responses** — use shared types from `@inkpipe/shared`
 3. **Handle loading, empty, and error states** — every data-fetching page needs all three
 4. **Use Ark UI components** from `web/app/ui/` — buttons, dialogs, selects, etc.
@@ -198,7 +198,7 @@ When implementing a feature that spans layers:
 
 1. **Shared schemas/types** in `packages/shared`
 2. **Layer service** in `packages/server/src/layers/`
-3. **Route handler** in `packages/server/src/routes/`
+3. **Contract** in `packages/shared/src/capabilities/` and **handler** in `packages/server/src/capabilities/` (see Capabilities below)
 4. **Frontend page + API calls** in `packages/web`
 5. **Watcher integration** (if needed) in `packages/watcher` — any feature that needs recurring background work
 
@@ -222,3 +222,22 @@ Uses the five default triage role labels: `needs-triage`, `needs-info`, `ready-f
 ### Domain docs
 
 Single-context repo — one `CONTEXT.md` at root, one `docs/adr/` for architectural decisions. See `docs/agents/domain.md`.
+
+## Tooling (the fence)
+
+- `bun run check` = oxfmt check + oxlint + typecheck + tests. CI and lefthook run the same pieces.
+- Lint: `oxlint` with `@effect/tsgo` presets (`.oxlintrc.json`); `bun run lint:fix` autofixes. Format: `oxfmt` (`.oxfmtrc.json`).
+- Effect 4.0.1 stable: import from `effect/http`, `effect/http-api`, `effect/sql`, `effect/observability`, `effect/socket` (not `effect/unstable/*`). `unstableApiUsage` diagnostic is off on purpose.
+- Lint is clean at error level; keep it that way. Fix findings instead of downgrading rules.
+
+## Capabilities (one contract, one handler)
+
+Most API routes are capabilities, not hand-written HttpApi groups.
+
+- **Contract**: `packages/shared/src/capabilities/*.ts` — `defineContract(name, { input, output, failure, http, annotations })`. Input/output/failure are Effect schemas. Errors use the status-annotated `*S` wrappers from `httpApi/errors.ts`.
+- **Handler**: `packages/server/src/capabilities/*.ts` — `implement(contract, handler)`, listed in `capabilities/index.ts`.
+- **Projections** (`packages/capability`): `toHttpApi` serves routes + OpenAPI (`/openapi.json`, Swagger at `/docs`) from `server/src/api/capabilityApi.ts`; `toHttpClient` is the contracts-only client the web app uses via `runCapability`; `toToolkit` serves the same list as MCP at `/mcp` when `INKPIPE_MCP=true` and `INKPIPE_MCP_TOKEN` is set (bearer auth; see ADR 0009); `toCommand` is available for a CLI.
+- **Add a route**: contract → add to `allContracts` → `implement` → add to `capabilities` → call `runCapability((client) => client.<name>(input))`. Never import handlers in web code.
+- Contract names are unique across the API. GET/DELETE input travels in the query string, so use string-like schemas there (`Schema.FiniteFromString` for numbers); the client rejects objects. A route whose input is entirely in the path declares no body, so body-less POSTs work. DELETE/GET inputs travel in the query string; POST/PUT/PATCH in the JSON body.
+- Not capabilities: `convert` (multipart upload, SSE, binary download) in `api/convert-routes.ts`, the job WebSocket and the static fallback in `api/raw.ts`. Raw routes read services from the request context, so tests must provide them with `Layer.provideMerge`.
+- Pipeline lifecycle is an XState machine (`layers/pipeline/PipelineMachine.ts`); Effect does the work, XState owns transitions and the poll cadence.

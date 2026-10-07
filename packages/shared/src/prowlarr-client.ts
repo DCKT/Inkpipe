@@ -1,16 +1,24 @@
 import type { ProwlarrResult } from "./schemas"
 
+const asText = (value: unknown): string => {
+  if (typeof value === "string") return value
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value)
+  }
+  return typeof value === "object" && value !== null ? JSON.stringify(value) : ""
+}
+
 export function transformProwlarrResult(item: Record<string, unknown>): ProwlarrResult {
   return {
-    title: String(item.title ?? ""),
-    guid: String(item.guid ?? ""),
+    title: asText(item.title),
+    guid: asText(item.guid),
     magnetUrl: (item.magnetUrl as string) ?? null,
     downloadUrl: (item.downloadUrl as string) ?? null,
     size: Number(item.size ?? 0),
     seeders: Number(item.seeders ?? 0),
-    indexer: String(item.indexer ?? ""),
+    indexer: asText(item.indexer),
     categories: Array.isArray(item.categories)
-      ? item.categories.map((c: Record<string, unknown>) => String(c.name ?? ""))
+      ? item.categories.map((c: Record<string, unknown>) => asText(c.name))
       : [],
     publishDate: typeof item.publishDate === "string" ? item.publishDate : null,
   }

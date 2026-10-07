@@ -1,12 +1,12 @@
-import * as ArkTooltip from "@ark-ui/react/tooltip";
+import * as ArkTooltip from "@ark-ui/react/tooltip"
 import type {
   TooltipRootProps,
   TooltipTriggerProps,
   TooltipContentProps,
-} from "@ark-ui/react/tooltip";
+} from "@ark-ui/react/tooltip"
 
 const contentClass =
-  "z-50 rounded-[3px] border border-border bg-surface px-2 py-1 font-mono text-[11px] text-primary shadow-lg";
+  "z-50 rounded-[3px] border border-border bg-surface px-2 py-1 font-mono text-[11px] text-primary shadow-lg"
 
 export const Tooltip = {
   Root: ({ children, openDelay = 200, closeDelay = 0, ...props }: TooltipRootProps) => (
@@ -26,4 +26,4 @@ export const Tooltip = {
       </ArkTooltip.TooltipContent>
     </ArkTooltip.TooltipPositioner>
   ),
-};
+}

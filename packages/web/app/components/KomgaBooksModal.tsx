@@ -1,12 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Hash, Calendar } from "lucide-react";
-import type { KomgaSeries } from "../lib/types";
-import { runApi } from "../lib/apiClient";
-import { Dialog } from "../ui/dialog";
+import { useQuery } from "@tanstack/react-query"
+import { BookOpen, Hash, Calendar } from "lucide-react"
+import type { KomgaSeries } from "../lib/types"
+import { runCapability } from "../lib/apiClient"
+import { Dialog } from "../ui/dialog"
 
 interface KomgaBooksModalProps {
-  series: KomgaSeries;
-  onClose: () => void;
+  series: KomgaSeries
+  onClose: () => void
 }
 
 function formatDate(dateStr: string): string {
@@ -15,30 +15,34 @@ function formatDate(dateStr: string): string {
       year: "numeric",
       month: "short",
       day: "numeric",
-    });
+    })
   } catch {
-    return dateStr;
+    return dateStr
   }
 }
 
 export default function KomgaBooksModal({ series, onClose }: KomgaBooksModalProps) {
   const booksQuery = useQuery({
     queryKey: ["komga-books", series.id],
-    queryFn: () => runApi((client) => client.komga.books({ payload: { seriesId: series.id } })),
+    queryFn: () => runCapability((client) => client.listKomgaBooks({ seriesId: series.id })),
     staleTime: 5 * 60 * 1000,
-  });
+  })
 
   return (
-    <Dialog.Root open onOpenChange={(details: { open: boolean }) => { if (!details.open) onClose(); }}>
+    <Dialog.Root
+      open
+      onOpenChange={(details: { open: boolean }) => {
+        if (!details.open) onClose()
+      }}
+    >
       <Dialog.Backdrop />
       <Dialog.Content className="flex max-h-[80vh] max-w-2xl flex-col">
         <div className="flex items-start justify-between border-b border-border p-5">
           <div>
-            <Dialog.Title>
-              {series.metadata.title || series.name}
-            </Dialog.Title>
+            <Dialog.Title>{series.metadata.title || series.name}</Dialog.Title>
             <Dialog.Description className="mt-0.5 text-xs">
-              {series.booksCount} {series.booksCount === 1 ? "book" : "books"} · {series.metadata.status}
+              {series.booksCount} {series.booksCount === 1 ? "book" : "books"} ·{" "}
+              {series.metadata.status}
             </Dialog.Description>
           </div>
           <Dialog.CloseTrigger />
@@ -58,9 +62,7 @@ export default function KomgaBooksModal({ series, onClose }: KomgaBooksModalProp
           )}
 
           {booksQuery.data && booksQuery.data.length === 0 && (
-            <div className="py-12 text-center text-sm text-secondary">
-              No books found.
-            </div>
+            <div className="py-12 text-center text-sm text-secondary">No books found.</div>
           )}
 
           {booksQuery.data && booksQuery.data.length > 0 && (
@@ -84,12 +86,8 @@ export default function KomgaBooksModal({ series, onClose }: KomgaBooksModalProp
                           {book.metadata.number}
                         </span>
                       )}
-                      {book.media?.pagesCount > 0 && (
-                        <span>{book.media.pagesCount} pages</span>
-                      )}
-                      {book.size && (
-                        <span>{book.size}</span>
-                      )}
+                      {book.media?.pagesCount > 0 && <span>{book.media.pagesCount} pages</span>}
+                      {book.size && <span>{book.size}</span>}
                       {book.created && (
                         <span className="flex items-center gap-1">
                           <Calendar size={11} />
@@ -105,5 +103,5 @@ export default function KomgaBooksModal({ series, onClose }: KomgaBooksModalProp
         </div>
       </Dialog.Content>
     </Dialog.Root>
-  );
+  )
 }

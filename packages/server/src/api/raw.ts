@@ -1,8 +1,8 @@
 // Routes that sit outside the typed HttpApi: the /api/jobs/ws WebSocket
 // broadcaster and the production-only static file / SPA fallback route.
 import { Effect } from "effect"
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
-import type { Socket } from "effect/unstable/socket"
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
+import type { Socket } from "effect/socket"
 import { existsSync } from "node:fs"
 import { resolve } from "node:path"
 import { JobStoreService } from "../layers/storage/JobStore"
@@ -15,14 +15,12 @@ import type { Job } from "@inkpipe/shared"
 // behavior in main.ts: a single global subscription to jobEvents.ts feeds
 // every currently-connected socket writer.
 
-type Writer = (chunk: string) => Effect.Effect<void, Socket.SocketError>
-
-const jobSocketWriters = new Set<Writer>()
+const jobSocketWriters = new Set<Socket.Writer>()
 
 function broadcastToJobSockets(payload: unknown): void {
   const message = JSON.stringify(payload)
-  for (const write of jobSocketWriters) {
-    Effect.runFork(write(message).pipe(Effect.ignore))
+  for (const writer of jobSocketWriters) {
+    Effect.runFork(writer.write(message).pipe(Effect.ignore))
   }
 }
 
@@ -33,19 +31,20 @@ const jobsWsHandler = Effect.gen(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest
   const jobStore = yield* JobStoreService
   const socket = yield* request.upgrade
-  const write = yield* socket.writer
+  const writer = yield* socket.writer
+  const reader = yield* socket.reader
 
-  jobSocketWriters.add(write)
-  yield* Effect.addFinalizer(() => Effect.sync(() => jobSocketWriters.delete(write)))
+  jobSocketWriters.add(writer)
+  yield* Effect.addFinalizer(() => Effect.sync(() => jobSocketWriters.delete(writer)))
 
   const sendInitialJobs = Effect.gen(function* () {
     const jobs = yield* jobStore.getAllJobs
-    yield* write(JSON.stringify({ type: "init", jobs }))
+    yield* writer.write(JSON.stringify({ type: "init", jobs }))
   }).pipe(Effect.ignore)
 
-  yield* socket.run(() => Effect.void, { onOpen: sendInitialJobs }).pipe(
-    Effect.ignore,
-  )
+  yield* sendInitialJobs
+  // Clients send nothing meaningful; pulling keeps the socket open until it closes.
+  yield* Effect.forever(reader.pull).pipe(Effect.ignore)
 
   return HttpServerResponse.empty()
 }).pipe(Effect.scoped)
@@ -76,12 +75,21 @@ async function serveStatic(pathname: string): Promise<Response | null> {
   if (await file.exists()) {
     const ext = pathname.split(".").pop()?.toLowerCase()
     const mimeTypes: Record<string, string> = {
-      html: "text/html", css: "text/css",
-      js: "application/javascript", mjs: "application/javascript",
-      json: "application/json", png: "image/png",
-      jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
-      svg: "image/svg+xml", ico: "image/x-icon", webp: "image/webp",
-      woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf",
+      html: "text/html",
+      css: "text/css",
+      js: "application/javascript",
+      mjs: "application/javascript",
+      json: "application/json",
+      png: "image/png",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      gif: "image/gif",
+      svg: "image/svg+xml",
+      ico: "image/x-icon",
+      webp: "image/webp",
+      woff: "font/woff",
+      woff2: "font/woff2",
+      ttf: "font/ttf",
     }
     return new Response(file, {
       headers: { "Content-Type": mimeTypes[ext ?? ""] || "application/octet-stream" },
@@ -91,10 +99,7 @@ async function serveStatic(pathname: string): Promise<Response | null> {
 }
 
 async function serveSpaFallback(): Promise<Response | null> {
-  const candidates = [
-    `${WEB_DIST}/index.html`,
-    `${WEB_DIST}/../index.html`,
-  ]
+  const candidates = [`${WEB_DIST}/index.html`, `${WEB_DIST}/../index.html`]
   for (const p of candidates) {
     const file = Bun.file(p)
     if (await file.exists()) return new Response(file, { headers: { "Content-Type": "text/html" } })
@@ -109,7 +114,9 @@ const staticFallbackHandler = (request: HttpServerRequest.HttpServerRequest) =>
     return (await serveStatic(pathname)) ?? (await serveSpaFallback())
   }).pipe(
     Effect.map((response) =>
-      response ? HttpServerResponse.fromWeb(response) : HttpServerResponse.jsonUnsafe({ error: "Not found" }, { status: 404 }),
+      response
+        ? HttpServerResponse.fromWeb(response)
+        : HttpServerResponse.jsonUnsafe({ error: "Not found" }, { status: 404 }),
     ),
   )
 

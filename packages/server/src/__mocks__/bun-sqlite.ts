@@ -27,7 +27,10 @@ interface QueryResult {
 class Database {
   private db: DatabaseSync
 
-  constructor(filename: string, options?: { readonly?: boolean; readwrite?: boolean; create?: boolean }) {
+  constructor(
+    filename: string,
+    options?: { readonly?: boolean; readwrite?: boolean; create?: boolean },
+  ) {
     this.db = new DatabaseSync(filename, { readOnly: options?.readonly ?? false })
   }
 
@@ -45,9 +48,12 @@ class Database {
     const stmt = this.db.prepare(sql)
     return {
       all: (...params: unknown[]) => stmt.all(...(params as never[])) as Record<string, unknown>[],
-      get: (...params: unknown[]) => stmt.get(...(params as never[])) as Record<string, unknown> | undefined,
+      get: (...params: unknown[]) =>
+        stmt.get(...(params as never[])) as Record<string, unknown> | undefined,
       values: (...params: unknown[]) =>
-        (stmt.all(...(params as never[])) as Record<string, unknown>[]).map((row) => Object.values(row)),
+        (stmt.all(...(params as never[])) as Record<string, unknown>[]).map((row) =>
+          Object.values(row),
+        ),
       // bun:sqlite's `Statement#safeIntegers` toggles bigint-vs-number for integer
       // columns; the real driver always calls it. node:sqlite always returns plain
       // numbers within the safe range (fine for this codebase's ids/timestamps), so

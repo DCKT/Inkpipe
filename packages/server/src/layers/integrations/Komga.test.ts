@@ -9,14 +9,32 @@ const testConfig: AppConfig = {
   prowlarr: { url: "", apiKey: "" },
   alldebrid: { apiKey: "" },
   kcc: {
-    dockerImage: "ghcr.io/ciromattia/kcc:latest", profile: "KoBO", format: "Auto",
-    mangaStyle: false, webtoon: false, twoPanel: false,
-    upscale: true, stretch: false, hq: false, gamma: 1.0,
-    cropping: "1", croppingPower: 1.0, forceColor: true,
-    forcePng: false, noAutoContrast: false, blackBorders: false,
-    whiteBorders: false, splitter: "0", noProcessing: false,
-    eraseRainbow: true, coverFill: false, batchSplit: "0",
-    targetSize: 0, customWidth: 0, customHeight: 0, noKepub: false,
+    dockerImage: "ghcr.io/ciromattia/kcc:latest",
+    profile: "KoBO",
+    format: "Auto",
+    mangaStyle: false,
+    webtoon: false,
+    twoPanel: false,
+    upscale: true,
+    stretch: false,
+    hq: false,
+    gamma: 1.0,
+    cropping: "1",
+    croppingPower: 1.0,
+    forceColor: true,
+    forcePng: false,
+    noAutoContrast: false,
+    blackBorders: false,
+    whiteBorders: false,
+    splitter: "0",
+    noProcessing: false,
+    eraseRainbow: true,
+    coverFill: false,
+    batchSplit: "0",
+    targetSize: 0,
+    customWidth: 0,
+    customHeight: 0,
+    noKepub: false,
   },
   copyparty: { url: "", uploadPath: "/", password: "" },
   komga: { url: "http://komga:8080", apiKey: "kk", defaultLibraryId: "lib-1" },
@@ -32,10 +50,7 @@ function makeConfigLayer(config?: Partial<AppConfig>) {
   })
 }
 
-const TestLayer = Layer.provide(
-  KomgaServiceLive,
-  Layer.merge(LogServiceLive, makeConfigLayer()),
-)
+const TestLayer = Layer.provide(KomgaServiceLive, Layer.merge(LogServiceLive, makeConfigLayer()))
 
 const NotConfiguredLayer = Layer.provide(
   // `KomgaServiceLive` also appears in `TestLayer` above, and both are used
@@ -64,8 +79,24 @@ function mockSeriesPage(content: unknown[], totalPages = 1) {
 }
 
 const mockBooks = [
-  { id: "b1", name: "Chapter 1", number: 1, created: "2024-01-01", size: "10MB", media: { pagesCount: 42, mediaType: "application/epub+zip" }, metadata: { title: "Chapter 1", number: "1" } },
-  { id: "b2", name: "Chapter 2", number: 2, created: "2024-01-02", size: "12MB", media: { pagesCount: 38, mediaType: "application/epub+zip" }, metadata: { title: "Chapter 2", number: "2" } },
+  {
+    id: "b1",
+    name: "Chapter 1",
+    number: 1,
+    created: "2024-01-01",
+    size: "10MB",
+    media: { pagesCount: 42, mediaType: "application/epub+zip" },
+    metadata: { title: "Chapter 1", number: "1" },
+  },
+  {
+    id: "b2",
+    name: "Chapter 2",
+    number: 2,
+    created: "2024-01-02",
+    size: "12MB",
+    media: { pagesCount: 38, mediaType: "application/epub+zip" },
+    metadata: { title: "Chapter 2", number: "2" },
+  },
 ]
 
 beforeEach(() => {
@@ -92,7 +123,8 @@ layer(TestLayer)("KomgaService", (it) => {
         expect(result).toHaveLength(2)
         expect(result[0]?.id).toBe("lib-1")
         expect(result[0]?.name).toBe("Manga")
-      }))
+      }),
+    )
 
     it.effect("calls the correct Komga API URL", () =>
       Effect.gen(function* () {
@@ -104,9 +136,11 @@ layer(TestLayer)("KomgaService", (it) => {
         const svc = yield* KomgaService
         yield* svc.listLibraries
 
-        const url = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+        const url = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock
+          .calls[0][0] as string
         expect(url).toContain("komga:8080/api/v1/libraries")
-      }))
+      }),
+    )
   })
 
   describe("listAllSeries", () => {
@@ -114,10 +148,7 @@ layer(TestLayer)("KomgaService", (it) => {
       Effect.gen(function* () {
         ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
           ok: true,
-          json: async () =>
-            mockSeriesPage([
-              { id: "s1", name: "Series 1", libraryId: "lib-1" },
-            ]),
+          json: async () => mockSeriesPage([{ id: "s1", name: "Series 1", libraryId: "lib-1" }]),
         })
 
         const svc = yield* KomgaService
@@ -125,18 +156,20 @@ layer(TestLayer)("KomgaService", (it) => {
 
         expect(result).toHaveLength(1)
         expect(result[0]?.name).toBe("Series 1")
-      }))
+      }),
+    )
 
     it.effect("handles multiple pages", () =>
       Effect.gen(function* () {
         const page1 = mockSeriesPage(
-          Array.from({ length: 3 }, (_, i) => ({ id: `s${i}`, name: `Series ${i}`, libraryId: "lib-1" })),
+          Array.from({ length: 3 }, (_, i) => ({
+            id: `s${i}`,
+            name: `Series ${i}`,
+            libraryId: "lib-1",
+          })),
           2,
         )
-        const page2 = mockSeriesPage(
-          [{ id: "s3", name: "Series 3", libraryId: "lib-1" }],
-          2,
-        )
+        const page2 = mockSeriesPage([{ id: "s3", name: "Series 3", libraryId: "lib-1" }], 2)
 
         ;((globalThis as any).fetch as ReturnType<typeof vi.fn>)
           .mockResolvedValueOnce({ ok: true, json: async () => page1 })
@@ -146,22 +179,26 @@ layer(TestLayer)("KomgaService", (it) => {
         const result = yield* svc.listAllSeries()
 
         expect(result).toHaveLength(4)
-      }))
+      }),
+    )
 
     it.effect("fetches all series when no libraryId provided", () =>
       Effect.gen(function* () {
         ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
           ok: true,
-          json: async () => mockSeriesPage([{ id: "s-all", name: "All Series", libraryId: "lib-1" }]),
+          json: async () =>
+            mockSeriesPage([{ id: "s-all", name: "All Series", libraryId: "lib-1" }]),
         })
 
         const svc = yield* KomgaService
         const result = yield* svc.listAllSeries()
 
         expect(result).toHaveLength(1)
-        const url = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+        const url = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock
+          .calls[0][0] as string
         expect(url).toContain("komga:8080/api/v1/series/list")
-      }))
+      }),
+    )
   })
 
   describe("getSeriesThumbnail", () => {
@@ -176,7 +213,8 @@ layer(TestLayer)("KomgaService", (it) => {
         const result = yield* svc.getSeriesThumbnail("s1")
 
         expect(result).toMatch(/^data:image\/jpeg;base64,/)
-      }))
+      }),
+    )
   })
 
   describe("getBooksForSeries", () => {
@@ -192,7 +230,8 @@ layer(TestLayer)("KomgaService", (it) => {
 
         expect(result).toHaveLength(2)
         expect(result[0]?.name).toBe("Chapter 1")
-      }))
+      }),
+    )
   })
 
   describe("error handling", () => {
@@ -202,17 +241,21 @@ layer(TestLayer)("KomgaService", (it) => {
         const error = yield* Effect.flip(svc.listLibraries)
 
         expect(error.message).toBe("Komga is not configured")
-      }).pipe(Effect.provide(NotConfiguredLayer)))
+      }).pipe(Effect.provide(NotConfiguredLayer)),
+    )
 
     it.effect("fails with KomgaHttpError on HTTP error", () =>
       Effect.gen(function* () {
-        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("ECONNREFUSED"))
+        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
+          new Error("ECONNREFUSED"),
+        )
 
         const svc = yield* KomgaService
         const error = yield* Effect.flip(svc.listLibraries)
 
         expect(error.message).toContain("ECONNREFUSED")
-      }))
+      }),
+    )
 
     it.effect("fails with KomgaHttpError on non-OK response", () =>
       Effect.gen(function* () {
@@ -226,6 +269,7 @@ layer(TestLayer)("KomgaService", (it) => {
         const error = yield* Effect.flip(svc.listLibraries)
 
         expect(error.message).toContain("403")
-      }))
+      }),
+    )
   })
 })

@@ -3,22 +3,23 @@ import { describe, expect, layer, beforeEach, afterEach } from "@effect/vitest"
 import { vi } from "vitest"
 import { FileManagerService, FileManagerServiceLive } from "./FileManager"
 
+vi.mock("node:fs", () => ({
+  existsSync: vi.fn((path: string) => path === "/.dockerenv"),
+}))
+vi.mock("node:fs/promises", () => ({
+  mkdir: vi.fn(() => Promise.resolve()),
+  readdir: vi.fn(() => Promise.resolve([])),
+  rm: vi.fn(() => Promise.resolve()),
+}))
+vi.mock("node:os", () => ({
+  tmpdir: () => "/tmp",
+  homedir: () => "/home/user",
+}))
+vi.mock("node:child_process", () => ({
+  spawn: vi.fn(),
+}))
+
 beforeEach(() => {
-  vi.mock("node:fs", () => ({
-    existsSync: vi.fn((path: string) => path === "/.dockerenv"),
-  }))
-  vi.mock("node:fs/promises", () => ({
-    mkdir: vi.fn(() => Promise.resolve()),
-    readdir: vi.fn(() => Promise.resolve([])),
-    rm: vi.fn(() => Promise.resolve()),
-  }))
-  vi.mock("node:os", () => ({
-    tmpdir: () => "/tmp",
-    homedir: () => "/home/user",
-  }))
-  vi.mock("node:child_process", () => ({
-    spawn: vi.fn(),
-  }))
   vi.spyOn(console, "log").mockImplementation(() => {})
   vi.spyOn(console, "error").mockImplementation(() => {})
 })
@@ -35,7 +36,8 @@ layer(FileManagerServiceLive)("FileManagerService", (it) => {
         const result = yield* svc.getTempBase
 
         expect(result).toBe("/tmp/inkpipe")
-      }))
+      }),
+    )
   })
 
   it.effect("returns os.tmpdir/inkpipe when NOT in Docker", () =>
@@ -47,7 +49,8 @@ layer(FileManagerServiceLive)("FileManagerService", (it) => {
       // it will return the Docker path. We test non-Docker by default
       // since the mock is set to Docker mode. Let's just verify the Docker path works.
       expect(result).toBe("/tmp/inkpipe")
-    }))
+    }),
+  )
 
   describe("isRunningInDocker", () => {
     it.effect("detects Docker when /.dockerenv exists", () =>
@@ -56,7 +59,8 @@ layer(FileManagerServiceLive)("FileManagerService", (it) => {
         const result = yield* svc.isRunningInDocker
 
         expect(result).toBe(true)
-      }))
+      }),
+    )
   })
 
   describe("ensureJobDir", () => {
@@ -70,7 +74,8 @@ layer(FileManagerServiceLive)("FileManagerService", (it) => {
         // Uses Docker temp base (/.dockerenv exists in mock)
         expect(result).toBe("/tmp/inkpipe/42")
         expect(mkdir).toHaveBeenCalledWith("/tmp/inkpipe/42", { recursive: true })
-      }))
+      }),
+    )
   })
 
   describe("cleanupJobDir", () => {
@@ -82,20 +87,26 @@ layer(FileManagerServiceLive)("FileManagerService", (it) => {
         yield* svc.cleanupJobDir("42")
 
         expect(rm).toHaveBeenCalledWith("/tmp/inkpipe/42", { recursive: true, force: true })
-      }))
+      }),
+    )
   })
 
   describe("findFileByExtension", () => {
     it.effect("returns the first matching file by extension", () =>
       Effect.gen(function* () {
         const { readdir } = yield* Effect.promise(() => import("node:fs/promises"))
-        ;(readdir as ReturnType<typeof vi.fn>).mockResolvedValue(["file1.txt", "comic.epub", "other.cbz"])
+        ;(readdir as ReturnType<typeof vi.fn>).mockResolvedValue([
+          "file1.txt",
+          "comic.epub",
+          "other.cbz",
+        ])
 
         const svc = yield* FileManagerService
         const result = yield* svc.findFileByExtension("/tmp/inkpipe/1", [".epub"])
 
         expect(result).toBe("/tmp/inkpipe/1/comic.epub")
-      }))
+      }),
+    )
 
     it.effect("returns null when no matching file found", () =>
       Effect.gen(function* () {
@@ -106,7 +117,8 @@ layer(FileManagerServiceLive)("FileManagerService", (it) => {
         const result = yield* svc.findFileByExtension("/tmp/inkpipe/1", [".epub", ".mobi"])
 
         expect(result).toBeNull()
-      }))
+      }),
+    )
   })
 
   describe("findAllFilesByExtension", () => {
@@ -114,7 +126,10 @@ layer(FileManagerServiceLive)("FileManagerService", (it) => {
       Effect.gen(function* () {
         const { readdir } = yield* Effect.promise(() => import("node:fs/promises"))
         ;(readdir as ReturnType<typeof vi.fn>).mockResolvedValue([
-          "vol1.cbz", "vol2.epub", "vol3.cbz", "readme.txt",
+          "vol1.cbz",
+          "vol2.epub",
+          "vol3.cbz",
+          "readme.txt",
         ])
 
         const svc = yield* FileManagerService
@@ -124,7 +139,8 @@ layer(FileManagerServiceLive)("FileManagerService", (it) => {
         expect(result).toContain("/tmp/inkpipe/1/vol1.cbz")
         expect(result).toContain("/tmp/inkpipe/1/vol2.epub")
         expect(result).toContain("/tmp/inkpipe/1/vol3.cbz")
-      }))
+      }),
+    )
 
     it.effect("returns empty array when no matches", () =>
       Effect.gen(function* () {
@@ -135,7 +151,8 @@ layer(FileManagerServiceLive)("FileManagerService", (it) => {
         const result = yield* svc.findAllFilesByExtension("/tmp/inkpipe/1", [".cbz"])
 
         expect(result).toEqual([])
-      }))
+      }),
+    )
   })
 
   describe("extractRarArchive", () => {
@@ -156,20 +173,26 @@ layer(FileManagerServiceLive)("FileManagerService", (it) => {
         const result = yield* svc.extractRarArchive("/tmp/inkpipe/1/comic.cbr")
 
         expect(spawn).toHaveBeenCalledWith("unrar", [
-          "x", "-o+", "/tmp/inkpipe/1/comic.cbr", "/tmp/inkpipe/1/comic",
+          "x",
+          "-o+",
+          "/tmp/inkpipe/1/comic.cbr",
+          "/tmp/inkpipe/1/comic",
         ])
         expect(result).toBe("/tmp/inkpipe/1/comic")
-      }))
+      }),
+    )
 
     it.effect("rejects when unrar exits with non-zero code", () =>
       Effect.gen(function* () {
         const { spawn } = yield* Effect.promise(() => import("node:child_process"))
         const mockProc = {
           stdout: { on: vi.fn() },
-          stderr: { on: vi.fn((event: string, cb: (data: Buffer) => void) => {
-            if (event === "data") cb(Buffer.from("corrupt archive"))
-            return mockProc
-          }) },
+          stderr: {
+            on: vi.fn((event: string, cb: (data: Buffer) => void) => {
+              if (event === "data") cb(Buffer.from("corrupt archive"))
+              return mockProc
+            }),
+          },
           on: vi.fn((event: string, cb: (code: number) => void) => {
             if (event === "close") cb(3)
             return mockProc
@@ -181,6 +204,7 @@ layer(FileManagerServiceLive)("FileManagerService", (it) => {
         const error = yield* Effect.flip(svc.extractRarArchive("/tmp/bad.cbr"))
 
         expect(error.message).toContain("unrar exited with code 3")
-      }))
+      }),
+    )
   })
 })

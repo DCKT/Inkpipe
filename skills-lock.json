@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "skills": {
+    "add-a-capability": {
+      "source": "joelhooks/rat-stack",
+      "sourceType": "github",
+      "skillPath": "skills/add-a-capability/SKILL.md",
+      "computedHash": "7e67f52d8cfbea8997aa2212b82756b34b69379e2293060f5e89b2f85127566c"
+    },
+    "add-a-lifecycle-machine": {
+      "source": "joelhooks/rat-stack",
+      "sourceType": "github",
+      "skillPath": "skills/add-a-lifecycle-machine/SKILL.md",
+      "computedHash": "9db8098aadd2a12b67b809bb1d0937415682a820a36943776a54d6dbe1effb70"
+    },
+    "add-a-store": {
+      "source": "joelhooks/rat-stack",
+      "sourceType": "github",
+      "skillPath": "skills/add-a-store/SKILL.md",
+      "computedHash": "02e59149b4cc7d976dcb250c7941c3597bc97b3dd9464f973b723c644efbe0df"
+    },
+    "find-peers": {
+      "source": "joelhooks/rat-stack",
+      "sourceType": "github",
+      "skillPath": "skills/find-peers/SKILL.md",
+      "computedHash": "4f72dd897cb23bc95b786c468b457363906c83a4f03610073b008d684b7d5658"
+    },
+    "gardener": {
+      "source": "joelhooks/rat-stack",
+      "sourceType": "github",
+      "skillPath": "skills/gardener/SKILL.md",
+      "computedHash": "9cdf27c4e00c2ec5a23f7aa711abd855cd7648356881af061d664ab634bb1649"
+    },
+    "keep-or-cut": {
+      "source": "joelhooks/rat-stack",
+      "sourceType": "github",
+      "skillPath": "skills/keep-or-cut/SKILL.md",
+      "computedHash": "1192ba57e5083e819242b4240c7cd5508943c8d249032e7121ac33f537abdffd"
+    },
+    "learn-alchemy": {
+      "source": "joelhooks/rat-stack",
+      "sourceType": "github",
+      "skillPath": "skills/learn-alchemy/SKILL.md",
+      "computedHash": "01dce387c4c4d761b10b79c6a4ab2c79c37acdeeb3961034a2e24a90df3d97e8"
+    },
+    "learn-rat-stack": {
+      "source": "joelhooks/rat-stack",
+      "sourceType": "github",
+      "skillPath": "skills/learn-rat-stack/SKILL.md",
+      "computedHash": "931315fa45fa59da5a0cc688cfa23b37301b62424cf612b30f69792e87d06e6c"
+    },
+    "rat-stack-mode": {
+      "source": "joelhooks/rat-stack",
+      "sourceType": "github",
+      "skillPath": "skills/rat-stack-mode/SKILL.md",
+      "computedHash": "d6cc7a22a50602d9fed25e9a6330628368632178a7609b1732d4ff95333b08b8"
+    },
+    "ship": {
+      "source": "joelhooks/rat-stack",
+      "sourceType": "github",
+      "skillPath": "skills/ship/SKILL.md",
+      "computedHash": "f7cc78cdf3dfbe14250494e505b9d58782315b294e4fc86c1c4404a195efc2ec"
+    },
+    "uncomplect": {
+      "source": "joelhooks/rat-stack",
+      "sourceType": "github",
+      "skillPath": "skills/uncomplect/SKILL.md",
+      "computedHash": "170ab8b3ff1fc71561b4c94b7aa379b47c4fb328ef54258605e809b6b82b67b0"
+    },
+    "write-a-wiki-page": {
+      "source": "joelhooks/rat-stack",
+      "sourceType": "github",
+      "skillPath": "skills/write-a-wiki-page/SKILL.md",
+      "computedHash": "f5036b07ea4c866841b322ba09daeadd6f85bbf3aee7ce2f2ef6821564a68a1a"
+    }
+  }
+}

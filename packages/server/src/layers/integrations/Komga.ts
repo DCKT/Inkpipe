@@ -13,9 +13,15 @@ export class KomgaService extends Context.Service<
   KomgaService,
   {
     readonly listLibraries: Effect.Effect<KomgaLibrary[], KomgaNotConfigured | KomgaHttpError>
-    readonly listAllSeries: (libraryId?: string) => Effect.Effect<KomgaSeries[], KomgaNotConfigured | KomgaHttpError>
-    readonly getSeriesThumbnail: (seriesId: string) => Effect.Effect<string, KomgaNotConfigured | KomgaHttpError>
-    readonly getBooksForSeries: (seriesId: string) => Effect.Effect<KomgaBook[], KomgaNotConfigured | KomgaHttpError>
+    readonly listAllSeries: (
+      libraryId?: string,
+    ) => Effect.Effect<KomgaSeries[], KomgaNotConfigured | KomgaHttpError>
+    readonly getSeriesThumbnail: (
+      seriesId: string,
+    ) => Effect.Effect<string, KomgaNotConfigured | KomgaHttpError>
+    readonly getBooksForSeries: (
+      seriesId: string,
+    ) => Effect.Effect<KomgaBook[], KomgaNotConfigured | KomgaHttpError>
   }
 >()("KomgaService") {}
 
@@ -25,6 +31,9 @@ interface KomgaPage<T> {
   totalElements: number
   number: number
 }
+
+const errorText = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 export const KomgaServiceLive = Layer.effect(
   KomgaService,
@@ -41,21 +50,25 @@ export const KomgaServiceLive = Layer.effect(
         (message) => new KomgaNotConfigured({ message }),
       )
 
-    const komgaFetch = (
-      info: { url: string; apiKey: string },
-      path: string,
-      init?: RequestInit,
-    ) =>
+    const komgaFetch = (info: { url: string; apiKey: string }, path: string, init?: RequestInit) =>
       Effect.tryPromise({
         try: async () => {
           const fullUrl = `${info.url.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`
           const response = await fetch(fullUrl, {
             ...init,
-            headers: { "X-API-Key": info.apiKey, "Content-Type": "application/json", ...init?.headers },
+            headers: {
+              "X-API-Key": info.apiKey,
+              "Content-Type": "application/json",
+              ...Object.fromEntries(new Headers(init?.headers)),
+            },
           })
           if (!response.ok) {
             let body = ""
-            try { body = await response.text() } catch { /* */ }
+            try {
+              body = await response.text()
+            } catch {
+              /* */
+            }
             throw new Error(`Komga HTTP ${response.status}: ${body || response.statusText}`)
           }
           return response
@@ -72,7 +85,7 @@ export const KomgaServiceLive = Layer.effect(
       const response = yield* komgaFetch(info, "api/v1/libraries")
       const data = yield* Effect.tryPromise({
         try: () => response.json() as Promise<KomgaLibrary[]>,
-        catch: (e) => new KomgaHttpError({ message: `Failed to parse libraries: ${e}` }),
+        catch: (e) => new KomgaHttpError({ message: `Failed to parse libraries: ${errorText(e)}` }),
       })
       yield* log.info("komga", `listLibraries — ${data.length} libraries`)
       return data
@@ -103,7 +116,8 @@ export const KomgaServiceLive = Layer.effect(
           )
           const data = (yield* Effect.tryPromise({
             try: () => response.json(),
-            catch: (e) => new KomgaHttpError({ message: `Failed to parse series: ${e}` }),
+            catch: (e) =>
+              new KomgaHttpError({ message: `Failed to parse series: ${errorText(e)}` }),
           })) as KomgaPage<KomgaSeries>
           all.push(...data.content)
           totalPages = data.totalPages
@@ -120,7 +134,8 @@ export const KomgaServiceLive = Layer.effect(
         const response = yield* komgaFetch(info, `api/v1/series/${seriesId}/thumbnail`)
         const arrayBuffer = yield* Effect.tryPromise({
           try: () => response.arrayBuffer(),
-          catch: (e) => new KomgaHttpError({ message: `Failed to read thumbnail: ${e}` }),
+          catch: (e) =>
+            new KomgaHttpError({ message: `Failed to read thumbnail: ${errorText(e)}` }),
         })
         const base64 = Buffer.from(arrayBuffer).toString("base64")
         return `data:image/jpeg;base64,${base64}`
@@ -136,14 +151,13 @@ export const KomgaServiceLive = Layer.effect(
           size: "500",
           sort: "metadata.numberSort,desc",
         })
-        const response = yield* komgaFetch(
-          info,
-          `api/v1/books/list?${searchParams.toString()}`,
-          { method: "POST", body: JSON.stringify(body) },
-        )
+        const response = yield* komgaFetch(info, `api/v1/books/list?${searchParams.toString()}`, {
+          method: "POST",
+          body: JSON.stringify(body),
+        })
         const data = (yield* Effect.tryPromise({
           try: () => response.json(),
-          catch: (e) => new KomgaHttpError({ message: `Failed to parse books: ${e}` }),
+          catch: (e) => new KomgaHttpError({ message: `Failed to parse books: ${errorText(e)}` }),
         })) as KomgaPage<KomgaBook>
         yield* log.info("komga", `getBooksForSeries — ${data.content.length} books`)
         return data.content

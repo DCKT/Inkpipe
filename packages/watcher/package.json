@@ -2,7 +2,9 @@
   "name": "@inkpipe/watcher",
   "private": true,
   "type": "module",
-  "exports": { "./*": "./src/*.ts" },
+  "exports": {
+    "./*": "./src/*.ts"
+  },
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
@@ -12,7 +14,7 @@
     "@inkpipe/db": "workspace:*",
     "@inkpipe/server": "workspace:*",
     "@inkpipe/shared": "workspace:*",
-    "effect": "4.0.0-rc.111",
+    "effect": "4.0.1",
     "web-push": "3.6.7"
   },
   "devDependencies": {

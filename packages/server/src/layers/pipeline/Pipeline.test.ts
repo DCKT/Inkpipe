@@ -1,4 +1,6 @@
-import { Context, Effect, Layer } from "effect"
+import type { Context } from "effect"
+import { Deferred, Duration, Effect, Fiber, Layer } from "effect"
+import { TestClock } from "effect/testing"
 import { describe, it, expect, vi, beforeEach, afterEach } from "@effect/vitest"
 import type { AppConfig, Job, ProwlarrResult, DebridFile } from "@inkpipe/shared"
 import { JobId, AllDebridHttpError } from "@inkpipe/shared"
@@ -27,14 +29,32 @@ const testConfig: AppConfig = {
   prowlarr: { url: "", apiKey: "" },
   alldebrid: { apiKey: "test-key" },
   kcc: {
-    dockerImage: "ghcr.io/ciromattia/kcc:latest", profile: "KoBO", format: "Auto",
-    mangaStyle: false, webtoon: false, twoPanel: false,
-    upscale: true, stretch: false, hq: false, gamma: 1.0,
-    cropping: "1", croppingPower: 1.0, forceColor: true,
-    forcePng: false, noAutoContrast: false, blackBorders: false,
-    whiteBorders: false, splitter: "0", noProcessing: false,
-    eraseRainbow: true, coverFill: false, batchSplit: "0",
-    targetSize: 0, customWidth: 0, customHeight: 0, noKepub: false,
+    dockerImage: "ghcr.io/ciromattia/kcc:latest",
+    profile: "KoBO",
+    format: "Auto",
+    mangaStyle: false,
+    webtoon: false,
+    twoPanel: false,
+    upscale: true,
+    stretch: false,
+    hq: false,
+    gamma: 1.0,
+    cropping: "1",
+    croppingPower: 1.0,
+    forceColor: true,
+    forcePng: false,
+    noAutoContrast: false,
+    blackBorders: false,
+    whiteBorders: false,
+    splitter: "0",
+    noProcessing: false,
+    eraseRainbow: true,
+    coverFill: false,
+    batchSplit: "0",
+    targetSize: 0,
+    customWidth: 0,
+    customHeight: 0,
+    noKepub: false,
   },
   copyparty: { url: "http://cp:3923", uploadPath: "/", password: "" },
   komga: { url: "", apiKey: "", defaultLibraryId: "" },
@@ -43,7 +63,11 @@ const testConfig: AppConfig = {
   general: { publicUrl: "" },
 }
 
-const testFile: DebridFile = { filename: "one-piece-v01.cbz", link: "https://debrid/link", size: 1000 }
+const testFile: DebridFile = {
+  filename: "one-piece-v01.cbz",
+  link: "https://debrid/link",
+  size: 1000,
+}
 
 function makeJob(overrides: Partial<Job> = {}): Job {
   return {
@@ -60,11 +84,17 @@ function makeJob(overrides: Partial<Job> = {}): Job {
 
 interface Deps {
   uploadMagnet?: (magnetOrUrl: string) => Effect.Effect<{ id: number; ready: boolean }, any>
-  getMagnetStatus?: (magnetId: number) => Effect.Effect<{ ready: boolean; statusCode: number; status: string }, any>
+  getMagnetStatus?: (
+    magnetId: number,
+  ) => Effect.Effect<{ ready: boolean; statusCode: number; status: string }, any>
   getMagnetFiles?: (magnetId: number) => Effect.Effect<DebridFile[], any>
   unlockLink?: (link: string) => Effect.Effect<{ url: string; filename: string; size: number }, any>
   deleteMagnet?: (magnetId: number) => Effect.Effect<void, any>
-  downloadFile?: (url: string, destPath: string, onProgress?: (r: number, t: number) => void) => Effect.Effect<void, any>
+  downloadFile?: (
+    url: string,
+    destPath: string,
+    onProgress?: (r: number, t: number) => void,
+  ) => Effect.Effect<void, any>
   kccConvert?: (inputPath: string, outputDir: string) => Effect.Effect<string, any>
   copypartyUploadFile?: (filePath: string, subfolder?: string) => Effect.Effect<void, any>
   deleteFolder?: (name: string) => Effect.Effect<void, any>
@@ -84,9 +114,18 @@ function makeLayer(deps: Deps = {}) {
     LogServiceLive,
     Layer.succeed(AllDebridService, {
       uploadMagnet: deps.uploadMagnet ?? (() => Effect.succeed({ id: 1, ready: true })),
-      getMagnetStatus: deps.getMagnetStatus ?? (() => Effect.succeed({ ready: true, statusCode: 4, status: "Ready" })),
+      getMagnetStatus:
+        deps.getMagnetStatus ??
+        (() => Effect.succeed({ ready: true, statusCode: 4, status: "Ready" })),
       getMagnetFiles: deps.getMagnetFiles ?? (() => Effect.succeed([testFile])),
-      unlockLink: deps.unlockLink ?? (() => Effect.succeed({ url: "https://cdn/one-piece-v01.cbz", filename: testFile.filename, size: testFile.size })),
+      unlockLink:
+        deps.unlockLink ??
+        (() =>
+          Effect.succeed({
+            url: "https://cdn/one-piece-v01.cbz",
+            filename: testFile.filename,
+            size: testFile.size,
+          })),
       deleteMagnet: deps.deleteMagnet ?? deleteMagnetSpy,
       downloadFile: deps.downloadFile ?? (() => Effect.void),
     } as any),
@@ -105,7 +144,8 @@ function makeLayer(deps: Deps = {}) {
       ensureJobDir: () => Effect.succeed("/tmp/inkpipe/1"),
       cleanupJobDir: () => Effect.void,
       findFileByExtension: deps.findFileByExtension ?? (() => Effect.succeed(null)),
-      findAllFilesByExtension: deps.findAllFilesByExtension ?? (() => Effect.succeed([testFile.filename])),
+      findAllFilesByExtension:
+        deps.findAllFilesByExtension ?? (() => Effect.succeed([testFile.filename])),
       extractRarArchive: deps.extractRarArchive ?? (() => Effect.succeed("")),
     } as any),
     Layer.succeed(ConfigService, {
@@ -147,88 +187,103 @@ afterEach(() => {
 describe("PipelineService", () => {
   it.effect("fails immediately when the result has neither magnetUrl nor downloadUrl", () =>
     Effect.gen(function* () {
-      const result = yield* makeProgram(
-        (svc) => svc.runPipeline({ ...testResult, magnetUrl: null, downloadUrl: null }).pipe(Effect.exit),
+      const result = yield* makeProgram((svc) =>
+        svc.runPipeline({ ...testResult, magnetUrl: null, downloadUrl: null }).pipe(Effect.exit),
       )
       expect(result._tag).toBe("Failure")
-    }))
+    }),
+  )
 
-  it.effect("runs UPLOADING -> DOWNLOADING -> UPLOADING_COPYPARTY -> DONE when already ready and already an epub", () =>
-    Effect.gen(function* () {
-      const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
-      yield* makeProgram((svc) => svc.runPipeline(testResult), {
-        updateJobSpy,
-        findFileByExtension: () => Effect.succeed("/tmp/inkpipe/1/one-piece-v01.epub"),
-        findAllFilesByExtension: () => Effect.succeed(["/tmp/inkpipe/1/one-piece-v01.epub"]),
-      })
+  it.effect(
+    "runs UPLOADING -> DOWNLOADING -> UPLOADING_COPYPARTY -> DONE when already ready and already an epub",
+    () =>
+      Effect.gen(function* () {
+        const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
+        yield* makeProgram((svc) => svc.runPipeline(testResult), {
+          updateJobSpy,
+          findFileByExtension: () => Effect.succeed("/tmp/inkpipe/1/one-piece-v01.epub"),
+          findAllFilesByExtension: () => Effect.succeed(["/tmp/inkpipe/1/one-piece-v01.epub"]),
+        })
 
-      const stages = updateJobSpy.mock.calls
-        .map((call) => (call[1] as { stage?: string }).stage)
-        .filter((s): s is string => Boolean(s))
+        const stages = updateJobSpy.mock.calls
+          .map((call) => (call[1] as { stage?: string }).stage)
+          .filter((s): s is string => Boolean(s))
 
-      expect(stages).toEqual(["UPLOADING", "DOWNLOADING", "UPLOADING_COPYPARTY", "DONE"])
-    }))
-
-  // Pipeline.ts polls on a real 3s `setTimeout` between attempts (POLL_INTERVAL,
-  // not injectable, not on TestClock) — plain `it` + `Effect.runPromise` per the
-  // established pattern in AllDebrid.test.ts, since `it.effect`'s AbortSignal
-  // wiring hangs when combined with real (non-TestClock) delays in this stack.
-  it("polls DEBRID_PROCESSING until AllDebrid reports Ready, without duplicate polling once ready", async () => {
-    const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
-    let calls = 0
-    const getMagnetStatus = vi.fn(() => {
-      calls++
-      return calls < 3
-        ? Effect.succeed({ ready: false, statusCode: 1, status: "Downloading" })
-        : Effect.succeed({ ready: true, statusCode: 4, status: "Ready" })
-    })
-
-    await Effect.runPromise(
-      makeProgram((svc) => svc.runPipeline(testResult), {
-        updateJobSpy,
-        uploadMagnet: () => Effect.succeed({ id: 1, ready: false }),
-        getMagnetStatus,
+        expect(stages).toEqual(["UPLOADING", "DOWNLOADING", "UPLOADING_COPYPARTY", "DONE"])
       }),
-    )
+  )
 
-    expect(getMagnetStatus).toHaveBeenCalledTimes(3)
-    const stages = updateJobSpy.mock.calls
-      .map((call) => (call[1] as { stage?: string }).stage)
-      .filter((s): s is string => Boolean(s))
-    expect(stages).toContain("DEBRID_PROCESSING")
-    expect(stages[stages.length - 1]).toBe("DONE")
-  }, 12000)
+  // The pipeline machine schedules polls with `after`, which runs on Effect's Clock,
+  // so TestClock drives the 3s poll interval.
+  it.effect(
+    "polls DEBRID_PROCESSING until AllDebrid reports Ready, without duplicate polling once ready",
+    () =>
+      Effect.gen(function* () {
+        const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
+        let calls = 0
+        const getMagnetStatus = vi.fn(() => {
+          calls++
+          return calls < 3
+            ? Effect.succeed({ ready: false, statusCode: 1, status: "Downloading" })
+            : Effect.succeed({ ready: true, statusCode: 4, status: "Ready" })
+        })
+
+        const fiber = yield* Effect.forkChild(
+          makeProgram((svc) => svc.runPipeline(testResult), {
+            updateJobSpy,
+            uploadMagnet: () => Effect.succeed({ id: 1, ready: false }),
+            getMagnetStatus,
+          }),
+        )
+        while (fiber.pollUnsafe() === undefined) {
+          yield* TestClock.adjust(Duration.seconds(1))
+          yield* Effect.yieldNow
+        }
+        yield* Fiber.join(fiber)
+
+        expect(getMagnetStatus).toHaveBeenCalledTimes(3)
+        const stages = updateJobSpy.mock.calls
+          .map((call) => (call[1] as { stage?: string }).stage)
+          .filter((s): s is string => Boolean(s))
+        expect(stages).toContain("DEBRID_PROCESSING")
+        expect(stages[stages.length - 1]).toBe("DONE")
+      }),
+  )
 
   it.effect("fails the job when AllDebrid reports a terminal magnet error while polling", () =>
     Effect.gen(function* () {
       const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
-      yield* makeProgram((svc) => svc.runPipeline(testResult), {
+      const failure = yield* makeProgram((svc) => svc.runPipeline(testResult), {
         updateJobSpy,
         uploadMagnet: () => Effect.succeed({ id: 1, ready: false }),
         getMagnetStatus: () => Effect.succeed({ ready: false, statusCode: 5, status: "Error" }),
-      })
+      }).pipe(Effect.flip)
+      expect(failure._tag).toBe("PipelineError")
 
       const failedCall = updateJobSpy.mock.calls.find(
         (call) => (call[1] as { stage?: string }).stage === "FAILED",
       )
       expect(failedCall).toBeDefined()
       expect((failedCall![1] as { error?: string }).error).toContain("AllDebrid magnet error")
-    }))
+    }),
+  )
 
   it.effect("fails the job when AllDebrid returns no files", () =>
     Effect.gen(function* () {
       const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
-      yield* makeProgram((svc) => svc.runPipeline(testResult), {
+      const failure = yield* makeProgram((svc) => svc.runPipeline(testResult), {
         updateJobSpy,
         getMagnetFiles: () => Effect.succeed([]),
-      })
+      }).pipe(Effect.flip)
+      expect(failure._tag).toBe("PipelineError")
 
       const failedCall = updateJobSpy.mock.calls.find(
         (call) => (call[1] as { stage?: string }).stage === "FAILED",
       )
       expect(failedCall).toBeDefined()
       expect((failedCall![1] as { error?: string }).error).toContain("No files returned")
-    }))
+    }),
+  )
 
   it.effect("skips conversion when the downloaded file is already an epub", () =>
     Effect.gen(function* () {
@@ -239,7 +294,8 @@ describe("PipelineService", () => {
       })
 
       expect(kccConvert).not.toHaveBeenCalled()
-    }))
+    }),
+  )
 
   it.effect("converts comic files with KCC when no epub is already present", () =>
     Effect.gen(function* () {
@@ -255,7 +311,8 @@ describe("PipelineService", () => {
 
       expect(kccConvert).toHaveBeenCalledTimes(1)
       expect(kccConvert.mock.calls[0]?.[0]).toContain(".cbz")
-    }))
+    }),
+  )
 
   it.effect("extracts a RAR archive before converting it", () =>
     Effect.gen(function* () {
@@ -273,7 +330,8 @@ describe("PipelineService", () => {
 
       expect(extractRarArchive).toHaveBeenCalledWith("/tmp/inkpipe/1/one-piece-v01.cbr")
       expect(kccConvert).toHaveBeenCalledWith("/tmp/inkpipe/1/extracted.cbz", "/tmp/inkpipe/1")
-    }))
+    }),
+  )
 
   it.effect("skips Copyparty upload when not configured", () =>
     Effect.gen(function* () {
@@ -284,31 +342,37 @@ describe("PipelineService", () => {
       })
 
       expect(copypartyUploadFile).not.toHaveBeenCalled()
-    }))
+    }),
+  )
 
   it.effect("uploads to Copyparty and reaches DONE when configured", () =>
     Effect.gen(function* () {
       const copypartyUploadFile = vi.fn(() => Effect.void)
       const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
-      yield* makeProgram((svc) => svc.runPipeline(testResult), { copypartyUploadFile, updateJobSpy })
+      yield* makeProgram((svc) => svc.runPipeline(testResult), {
+        copypartyUploadFile,
+        updateJobSpy,
+      })
 
       expect(copypartyUploadFile).toHaveBeenCalledTimes(1)
       const stages = updateJobSpy.mock.calls
         .map((call) => (call[1] as { stage?: string }).stage)
         .filter((s): s is string => Boolean(s))
       expect(stages[stages.length - 1]).toBe("DONE")
-    }))
+    }),
+  )
 
   it.effect("marks the job FAILED and deletes the magnet on a mid-pipeline failure", () =>
     Effect.gen(function* () {
       const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
       const deleteMagnetSpy = vi.fn((_id: number) => Effect.void)
-      yield* makeProgram((svc) => svc.runPipeline(testResult), {
+      const failure = yield* makeProgram((svc) => svc.runPipeline(testResult), {
         updateJobSpy,
         deleteMagnetSpy,
         deleteMagnet: deleteMagnetSpy,
         unlockLink: () => Effect.fail(new AllDebridHttpError({ message: "unlock failed" })),
-      })
+      }).pipe(Effect.flip)
+      expect(failure._tag).toBe("PipelineError")
 
       const failedCall = updateJobSpy.mock.calls.find(
         (call) => (call[1] as { stage?: string }).stage === "FAILED",
@@ -316,33 +380,102 @@ describe("PipelineService", () => {
       expect(failedCall).toBeDefined()
       expect((failedCall![1] as { error?: string }).error).toContain("unlock failed")
       expect(deleteMagnetSpy).toHaveBeenCalledWith(1)
-    }))
+    }),
+  )
 
   it.effect("cleans up the created Copyparty folder on failure", () =>
     Effect.gen(function* () {
       const deleteFolderSpy = vi.fn((_name: string) => Effect.void)
-      yield* makeProgram(
-        (svc) => svc.runPipeline(testResult, "NewFolder", true),
-        {
-          deleteFolder: deleteFolderSpy,
-          unlockLink: () => Effect.fail(new AllDebridHttpError({ message: "boom" })),
-        },
-      )
+      const failure = yield* makeProgram((svc) => svc.runPipeline(testResult, "NewFolder", true), {
+        deleteFolder: deleteFolderSpy,
+        unlockLink: () => Effect.fail(new AllDebridHttpError({ message: "boom" })),
+      }).pipe(Effect.flip)
+      expect(failure._tag).toBe("PipelineError")
 
       expect(deleteFolderSpy).toHaveBeenCalledWith("NewFolder")
-    }))
+    }),
+  )
 
   it.effect("does not attempt folder cleanup on failure when it did not create one", () =>
     Effect.gen(function* () {
       const deleteFolderSpy = vi.fn((_name: string) => Effect.void)
-      yield* makeProgram(
+      const failure = yield* makeProgram(
         (svc) => svc.runPipeline(testResult, "ExistingFolder", false),
         {
           deleteFolder: deleteFolderSpy,
           unlockLink: () => Effect.fail(new AllDebridHttpError({ message: "boom" })),
         },
-      )
+      ).pipe(Effect.flip)
+      expect(failure._tag).toBe("PipelineError")
 
       expect(deleteFolderSpy).not.toHaveBeenCalled()
-    }))
+    }),
+  )
+
+  const settle = Effect.forEach(Array.from({ length: 25 }), () => Effect.yieldNow)
+
+  it.effect("waits the full 3s between AllDebrid polls", () =>
+    Effect.gen(function* () {
+      let calls = 0
+      const fiber = yield* Effect.forkChild(
+        makeProgram((svc) => svc.runPipeline(testResult), {
+          uploadMagnet: () => Effect.succeed({ id: 1, ready: false }),
+          getMagnetStatus: () => {
+            calls++
+            return Effect.succeed({ ready: false, statusCode: 1, status: "Downloading" })
+          },
+        }),
+      )
+      yield* settle
+      expect(calls).toBe(1)
+
+      yield* TestClock.adjust(Duration.seconds(2))
+      yield* settle
+      expect(calls).toBe(1)
+
+      yield* TestClock.adjust(Duration.seconds(1))
+      yield* settle
+      expect(calls).toBe(2)
+
+      yield* Fiber.interrupt(fiber)
+    }),
+  )
+
+  it.effect("interrupts in-flight work before deleting the magnet and job directory", () =>
+    Effect.gen(function* () {
+      const order: string[] = []
+      const downloading = yield* Deferred.make<void>()
+      const fiber = yield* Effect.forkChild(
+        makeProgram((svc) => svc.runPipeline(testResult), {
+          downloadFile: () =>
+            Deferred.succeed(downloading, undefined).pipe(
+              Effect.andThen(Effect.never),
+              Effect.onInterrupt(() => Effect.sync(() => void order.push("download interrupted"))),
+            ),
+          deleteMagnet: (id) => Effect.sync(() => void order.push(`deleteMagnet ${id}`)),
+        }),
+      )
+      yield* Deferred.await(downloading)
+      yield* Fiber.interrupt(fiber)
+
+      expect(order).toEqual(["download interrupted", "deleteMagnet 1"])
+    }),
+  )
+
+  it.effect("records a defect in a stage as a FAILED job and fails the run with its message", () =>
+    Effect.gen(function* () {
+      const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
+      const failure = yield* makeProgram((svc) => svc.runPipeline(testResult), {
+        updateJobSpy,
+        kccConvert: () => Effect.die(new Error("kcc exploded")),
+      }).pipe(Effect.flip)
+
+      expect(failure._tag).toBe("PipelineError")
+      expect(failure.message).toContain("kcc exploded")
+      const failed = updateJobSpy.mock.calls.find(
+        (call) => (call[1] as { stage?: string }).stage === "FAILED",
+      )
+      expect((failed![1] as { error?: string }).error).toContain("kcc exploded")
+    }),
+  )
 })

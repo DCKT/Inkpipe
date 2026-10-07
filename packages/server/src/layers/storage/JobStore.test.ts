@@ -34,7 +34,8 @@ describe("JobStoreService", () => {
       expect(job.stage).toBe("UPLOADING")
       expect(job.progress).toBe(0)
       expect(published).toEqual([job])
-    }))
+    }),
+  )
 
   it.effect("updateJob applies only the recognized fields and publishes the updated row", () =>
     Effect.gen(function* () {
@@ -56,7 +57,8 @@ describe("JobStoreService", () => {
       expect(updated.id).toBe(job.id)
       // one publish for createJob, one for updateJob
       expect(published.length).toBe(2)
-    }))
+    }),
+  )
 
   it.effect("updateJob with no recognized fields is a no-op: no DB write, no publish", () =>
     Effect.gen(function* () {
@@ -77,13 +79,15 @@ describe("JobStoreService", () => {
 
       expect(after).toEqual(before)
       expect(published).toEqual([])
-    }))
+    }),
+  )
 
   it.effect("getJob returns None for a nonexistent id", () =>
     Effect.gen(function* () {
       const result = yield* makeProgram((svc) => svc.getJob(JobId.make(999999)))
       expect(Option.isNone(result)).toBe(true)
-    }))
+    }),
+  )
 
   it.effect("getAllJobs returns every created job", () =>
     Effect.gen(function* () {
@@ -95,7 +99,8 @@ describe("JobStoreService", () => {
         }),
       )
       expect(jobs.map((j) => j.title).sort()).toEqual(["A", "B"])
-    }))
+    }),
+  )
 
   it.effect("deleteCompletedJobs removes only DONE/FAILED jobs and returns the count", () =>
     Effect.gen(function* () {
@@ -115,7 +120,8 @@ describe("JobStoreService", () => {
         }),
       )
       expect(remaining.remainingJobs.map((j) => j.id)).toEqual([remaining.active.id])
-    }))
+    }),
+  )
 
   it.effect("deleteCompletedJobs is a no-op and returns 0 when nothing is completed", () =>
     Effect.gen(function* () {
@@ -126,16 +132,20 @@ describe("JobStoreService", () => {
         }),
       )
       expect(deleted).toBe(0)
-    }))
+    }),
+  )
 
-  it.effect("broadcastJobs published via subscribeJobListEvents is independent of per-job events", () =>
-    Effect.gen(function* () {
-      const listEvents: unknown[][] = []
-      const unsubscribe = subscribeJobListEvents((jobs) => listEvents.push(jobs))
-      yield* makeProgram((svc) => svc.createJob("Book"))
-      unsubscribe()
-      // JobStoreService itself never calls broadcastJobs (only publishJobEvent) —
-      // that wiring lives in the API handlers, so no list-event should fire here.
-      expect(listEvents).toEqual([])
-    }))
+  it.effect(
+    "broadcastJobs published via subscribeJobListEvents is independent of per-job events",
+    () =>
+      Effect.gen(function* () {
+        const listEvents: unknown[][] = []
+        const unsubscribe = subscribeJobListEvents((jobs) => listEvents.push(jobs))
+        yield* makeProgram((svc) => svc.createJob("Book"))
+        unsubscribe()
+        // JobStoreService itself never calls broadcastJobs (only publishJobEvent) —
+        // that wiring lives in the API handlers, so no list-event should fire here.
+        expect(listEvents).toEqual([])
+      }),
+  )
 })

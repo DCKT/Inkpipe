@@ -19,7 +19,7 @@ function parseInsert(sql: string): { table: string; values: Record<string, unkno
   const vals = match[3].split(",").map((v) => {
     const trimmed = v.trim()
     if (trimmed === "NULL") return null
-    if (trimmed.startsWith("'") || trimmed.startsWith("\"")) return trimmed.slice(1, -1)
+    if (trimmed.startsWith("'") || trimmed.startsWith('"')) return trimmed.slice(1, -1)
     const num = Number(trimmed)
     if (!isNaN(num)) return num
     return trimmed
@@ -38,7 +38,10 @@ function parseCreateTable(sql: string): { table: string; columns: string[] } | n
 }
 
 class Database {
-  constructor(public filename: string, _options?: Record<string, unknown>) {}
+  constructor(
+    public filename: string,
+    _options?: Record<string, unknown>,
+  ) {}
 
   run(sql: string, ..._params: unknown[]): RunResult {
     const sqlLower = sql.toLowerCase().trim()
@@ -77,7 +80,9 @@ class Database {
     }
 
     if (sqlLower.startsWith("insert or replace")) {
-      const insertMatch = sql.match(/insert\s+or\s+replace\s+into\s+(\w+)\s*\(([^)]+)\)\s*values\s*\(([^)]+)\)/i)
+      const insertMatch = sql.match(
+        /insert\s+or\s+replace\s+into\s+(\w+)\s*\(([^)]+)\)\s*values\s*\(([^)]+)\)/i,
+      )
       if (insertMatch) {
         const table = insertMatch[1]
         const cols = insertMatch[2].split(",").map((c) => c.trim())

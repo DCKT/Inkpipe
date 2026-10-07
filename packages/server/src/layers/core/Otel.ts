@@ -1,6 +1,6 @@
 import { Layer } from "effect"
 import { BunHttpClient } from "@effect/platform-bun"
-import { Otlp, OtlpSerialization } from "effect/unstable/observability"
+import { Otlp, OtlpSerialization } from "effect/observability"
 
 const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT
 

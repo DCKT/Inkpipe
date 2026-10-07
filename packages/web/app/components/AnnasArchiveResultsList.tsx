@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { BookOpen, Download, ExternalLink, Languages } from "lucide-react";
-import type { AnnasArchiveResult } from "../lib/types";
-import { Checkbox } from "../ui/checkbox";
+import { useState } from "react"
+import { BookOpen, Download, ExternalLink, Languages } from "lucide-react"
+import type { AnnasArchiveResult } from "../lib/types"
+import { Checkbox } from "../ui/checkbox"
 
 interface AnnasArchiveResultsListProps {
-  results: readonly AnnasArchiveResult[];
-  selected: Set<string>;
-  onToggle: (md5: string) => void;
-  onToggleAll: () => void;
+  results: readonly AnnasArchiveResult[]
+  selected: Set<string>
+  onToggle: (md5: string) => void
+  onToggleAll: () => void
 }
 
 export default function AnnasArchiveResultsList({
@@ -16,11 +16,10 @@ export default function AnnasArchiveResultsList({
   onToggle,
   onToggleAll,
 }: AnnasArchiveResultsListProps) {
-  if (results.length === 0) return null;
+  if (results.length === 0) return null
 
-  const allSelected =
-    results.length > 0 && results.every((r) => selected.has(r.md5));
-  const someSelected = selected.size > 0 && !allSelected;
+  const allSelected = results.length > 0 && results.every((r) => selected.has(r.md5))
+  const someSelected = selected.size > 0 && !allSelected
 
   return (
     <div className="flex flex-col gap-3">
@@ -47,22 +46,18 @@ export default function AnnasArchiveResultsList({
         ))}
       </div>
     </div>
-  );
+  )
 }
 
 interface AnnasArchiveResultCardProps {
-  result: AnnasArchiveResult;
-  isSelected: boolean;
-  onToggle: () => void;
+  result: AnnasArchiveResult
+  isSelected: boolean
+  onToggle: () => void
 }
 
-function AnnasArchiveResultCard({
-  result,
-  isSelected,
-  onToggle,
-}: AnnasArchiveResultCardProps) {
-  const [coverFailed, setCoverFailed] = useState(false);
-  const showCover = result.coverUrl && !coverFailed;
+function AnnasArchiveResultCard({ result, isSelected, onToggle }: AnnasArchiveResultCardProps) {
+  const [coverFailed, setCoverFailed] = useState(false)
+  const showCover = result.coverUrl && !coverFailed
 
   return (
     <div
@@ -71,14 +66,12 @@ function AnnasArchiveResultCard({
       onClick={onToggle}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onToggle();
+          e.preventDefault()
+          onToggle()
         }
       }}
       className={`relative flex cursor-pointer gap-4 rounded-sm border p-3 transition ${
-        isSelected
-          ? "border-accent bg-accent-tint"
-          : "border-border hover:bg-surface-hover"
+        isSelected ? "border-accent bg-accent-tint" : "border-border hover:bg-surface-hover"
       }`}
     >
       <div className="absolute right-2 top-2 flex items-center gap-1">
@@ -130,11 +123,7 @@ function AnnasArchiveResultCard({
         <span className="block break-words font-display text-lg text-primary sm:text-xl">
           {result.title}
         </span>
-        {result.author && (
-          <span className="truncate text-sm text-secondary">
-            {result.author}
-          </span>
-        )}
+        {result.author && <span className="truncate text-sm text-secondary">{result.author}</span>}
         <div className="mt-1 flex flex-wrap items-center gap-2">
           {result.language && (
             <span className="status-pill status-pill-accent">
@@ -147,13 +136,9 @@ function AnnasArchiveResultCard({
               {result.extension}
             </span>
           )}
-          {result.size && (
-            <span className="font-mono text-xs text-secondary">
-              {result.size}
-            </span>
-          )}
+          {result.size && <span className="font-mono text-xs text-secondary">{result.size}</span>}
         </div>
       </div>
     </div>
-  );
+  )
 }

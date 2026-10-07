@@ -1,10 +1,6 @@
 import { Context, Effect, Layer } from "effect"
-import { SqlClient } from "effect/unstable/sql"
-import {
-  type AppConfig,
-  ConfigLoadError,
-  ConfigSaveError,
-} from "@inkpipe/shared"
+import { SqlClient } from "effect/sql"
+import { type AppConfig, ConfigLoadError, ConfigSaveError } from "@inkpipe/shared"
 
 export class ConfigService extends Context.Service<
   ConfigService,
@@ -110,8 +106,17 @@ export const ConfigServiceLive = Layer.effect(
     const sql = yield* SqlClient.SqlClient
 
     const loadConfig = Effect.gen(function* () {
-      const [prowlarrRows, alldebridRows, kccRows, copypartyRows, komgaRows, annasArchiveRows, telegramRows, generalRows] =
-        yield* Effect.all([
+      const [
+        prowlarrRows,
+        alldebridRows,
+        kccRows,
+        copypartyRows,
+        komgaRows,
+        annasArchiveRows,
+        telegramRows,
+        generalRows,
+      ] = yield* Effect.all(
+        [
           sql<ProwlarrRow>`SELECT url, api_key FROM prowlarr_config WHERE id = 1`,
           sql<AlldebridRow>`SELECT api_key FROM alldebrid_config WHERE id = 1`,
           sql<KccRow>`SELECT * FROM kcc_config WHERE id = 1`,
@@ -120,7 +125,9 @@ export const ConfigServiceLive = Layer.effect(
           sql<AnnasArchiveRow>`SELECT api_key, base_url FROM annas_archive_config WHERE id = 1`,
           sql<TelegramRow>`SELECT bot_token, chat_id FROM telegram_config WHERE id = 1`,
           sql<GeneralRow>`SELECT public_url FROM general_config WHERE id = 1`,
-        ], { concurrency: "unbounded" })
+        ],
+        { concurrency: "unbounded" },
+      )
 
       const prowlarr = prowlarrRows[0]
       const alldebrid = alldebridRows[0]
@@ -185,10 +192,11 @@ export const ConfigServiceLive = Layer.effect(
         },
       } satisfies AppConfig
     }).pipe(
-      Effect.mapError((e) =>
-        new ConfigLoadError({
-          message: `Failed to load config: ${e instanceof Error ? e.message : String(e)}`,
-        }),
+      Effect.mapError(
+        (e) =>
+          new ConfigLoadError({
+            message: `Failed to load config: ${e instanceof Error ? e.message : String(e)}`,
+          }),
       ),
     )
 
@@ -231,10 +239,11 @@ export const ConfigServiceLive = Layer.effect(
         yield* sql`UPDATE telegram_config SET bot_token = ${config.telegram.botToken}, chat_id = ${config.telegram.chatId} WHERE id = 1`
         yield* sql`UPDATE general_config SET public_url = ${config.general.publicUrl} WHERE id = 1`
       }).pipe(
-        Effect.mapError((e) =>
-          new ConfigSaveError({
-            message: `Failed to save config: ${e instanceof Error ? e.message : String(e)}`,
-          }),
+        Effect.mapError(
+          (e) =>
+            new ConfigSaveError({
+              message: `Failed to save config: ${e instanceof Error ? e.message : String(e)}`,
+            }),
         ),
       )
 

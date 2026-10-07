@@ -1,31 +1,41 @@
 {
   "name": "inkpipe",
-  "private": true,
   "version": "0.11.2",
-  "type": "module",
+  "private": true,
   "workspaces": [
+    "packages/capability",
     "packages/db",
     "packages/shared",
     "packages/server",
     "packages/web",
     "packages/watcher"
   ],
+  "type": "module",
   "scripts": {
     "dev": "concurrently -n server,web,watcher -c cyan,magenta,yellow \"bun run --filter @inkpipe/server dev\" \"bun run --filter @inkpipe/web dev\" \"bun run --filter @inkpipe/watcher dev\"",
     "build": "bun run --filter @inkpipe/web build",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "bun run --filter '*' typecheck",
-    "prepare": "effect-tsgo patch"
-  },
-  "devDependencies": {
-    "@effect/tsgo": "0.36.5",
-    "@types/web-push": "^3.6.4",
-    "concurrently": "^9.1.0",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.11"
+    "prepare": "effect-tsgo patch --typescript --oxlint && (lefthook install || true)",
+    "lint": "oxlint packages",
+    "lint:fix": "oxlint packages --fix",
+    "format": "oxfmt packages",
+    "format:check": "oxfmt --check packages",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test"
   },
   "dependencies": {
     "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@effect/tsgo": "0.48.1",
+    "@types/web-push": "^3.6.4",
+    "concurrently": "^9.1.0",
+    "lefthook": "^2.1.17",
+    "oxfmt": "^0.72.0",
+    "oxlint": "1.86.0",
+    "oxlint-tsgolint": "7.0.2003",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
   }
 }

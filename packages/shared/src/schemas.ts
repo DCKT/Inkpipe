@@ -125,7 +125,9 @@ export type ProwlarrConfig = typeof ProwlarrConfigSchema.Type
 
 export const AnnasArchiveConfigSchema = Schema.Struct({
   apiKey: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
-  baseUrl: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed("https://annas-archive.gl"))),
+  baseUrl: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed("https://annas-archive.gl")),
+  ),
 })
 export type AnnasArchiveConfig = typeof AnnasArchiveConfigSchema.Type
 
@@ -135,9 +137,13 @@ export const AlldebridConfigSchema = Schema.Struct({
 export type AlldebridConfig = typeof AlldebridConfigSchema.Type
 
 export const KccConfigSchema = Schema.Struct({
-  dockerImage: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed("ghcr.io/ciromattia/kcc:latest"))),
+  dockerImage: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed("ghcr.io/ciromattia/kcc:latest")),
+  ),
   profile: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed("KoBO"))),
-  format: Schema.Literals(["Auto", "MOBI", "EPUB", "CBZ", "KFX", "PDF"]).pipe(Schema.withDecodingDefaultType(Effect.succeed("Auto" as const))),
+  format: Schema.Literals(["Auto", "MOBI", "EPUB", "CBZ", "KFX", "PDF"]).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed("Auto" as const)),
+  ),
   mangaStyle: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
   webtoon: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
   twoPanel: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
@@ -145,18 +151,24 @@ export const KccConfigSchema = Schema.Struct({
   stretch: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
   hq: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
   gamma: Schema.Finite.pipe(Schema.withDecodingDefaultType(Effect.succeed(1.0))),
-  cropping: Schema.Literals(["0", "1", "2"]).pipe(Schema.withDecodingDefaultType(Effect.succeed("1" as const))),
+  cropping: Schema.Literals(["0", "1", "2"]).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed("1" as const)),
+  ),
   croppingPower: Schema.Finite.pipe(Schema.withDecodingDefaultType(Effect.succeed(1.0))),
   forceColor: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(true))),
   forcePng: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
   noAutoContrast: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
   blackBorders: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
   whiteBorders: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
-  splitter: Schema.Literals(["0", "1", "2"]).pipe(Schema.withDecodingDefaultType(Effect.succeed("0" as const))),
+  splitter: Schema.Literals(["0", "1", "2"]).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed("0" as const)),
+  ),
   noProcessing: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
   eraseRainbow: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(true))),
   coverFill: Schema.Boolean.pipe(Schema.withDecodingDefaultType(Effect.succeed(false))),
-  batchSplit: Schema.Literals(["0", "1", "2"]).pipe(Schema.withDecodingDefaultType(Effect.succeed("0" as const))),
+  batchSplit: Schema.Literals(["0", "1", "2"]).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed("0" as const)),
+  ),
   targetSize: Schema.Finite.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
   customWidth: Schema.Finite.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
   customHeight: Schema.Finite.pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
@@ -164,7 +176,7 @@ export const KccConfigSchema = Schema.Struct({
 })
 export type KccConfig = typeof KccConfigSchema.Type
 
-const KccConfigDefaults = Schema.decodeUnknownSync(KccConfigSchema)({})
+const KccConfigDefaults = Schema.decodeSync(KccConfigSchema)({})
 
 export const CopypartyConfigSchema = Schema.Struct({
   url: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),
@@ -196,14 +208,30 @@ export const GeneralConfigSchema = Schema.Struct({
 export type GeneralConfig = typeof GeneralConfigSchema.Type
 
 export const AppConfigSchema = Schema.Struct({
-  prowlarr: ProwlarrConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ url: "", apiKey: "" }))),
-  alldebrid: AlldebridConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ apiKey: "" }))),
+  prowlarr: ProwlarrConfigSchema.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed({ url: "", apiKey: "" })),
+  ),
+  alldebrid: AlldebridConfigSchema.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed({ apiKey: "" })),
+  ),
   kcc: KccConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed(KccConfigDefaults))),
-  copyparty: CopypartyConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ url: "", uploadPath: "/", password: "" }))),
-  komga: KomgaConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ url: "", apiKey: "", defaultLibraryId: "" }))),
-  annasArchive: AnnasArchiveConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ apiKey: "", baseUrl: "https://annas-archive.gl" }))),
-  telegram: TelegramConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ botToken: "", chatId: "" }))),
-  general: GeneralConfigSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed({ publicUrl: "" }))),
+  copyparty: CopypartyConfigSchema.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed({ url: "", uploadPath: "/", password: "" })),
+  ),
+  komga: KomgaConfigSchema.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed({ url: "", apiKey: "", defaultLibraryId: "" })),
+  ),
+  annasArchive: AnnasArchiveConfigSchema.pipe(
+    Schema.withDecodingDefaultType(
+      Effect.succeed({ apiKey: "", baseUrl: "https://annas-archive.gl" }),
+    ),
+  ),
+  telegram: TelegramConfigSchema.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed({ botToken: "", chatId: "" })),
+  ),
+  general: GeneralConfigSchema.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed({ publicUrl: "" })),
+  ),
 })
 export type AppConfig = typeof AppConfigSchema.Type
 

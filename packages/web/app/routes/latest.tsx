@@ -1,58 +1,57 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowDown } from "lucide-react";
-import ResultsTable from "../components/ResultsTable";
-import { PageHeader } from "../components/PageHeader";
-import { runApi } from "../lib/apiClient";
-import type { ProwlarrResult } from "../lib/types";
-import { Button } from "../ui/button";
-import { ToastGroup } from "../ui/toast";
+import { useState } from "react"
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { ArrowDown } from "lucide-react"
+import ResultsTable from "../components/ResultsTable"
+import { PageHeader } from "../components/PageHeader"
+import { runCapability } from "../lib/apiClient"
+import type { ProwlarrResult } from "../lib/types"
+import { Button } from "../ui/button"
+import { ToastGroup } from "../ui/toast"
 
 export default function LatestPage() {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const latestQuery = useQuery({
     queryKey: ["latest-mangas"],
-    queryFn: () => runApi((client) => client.latest.latest({})),
-  });
+    queryFn: () => runCapability((client) => client.getLatest({})),
+  })
 
   const downloadMutation = useMutation({
-    mutationFn: (items: ProwlarrResult[]) =>
-      runApi((client) => client.download.download({ payload: { items } })),
+    mutationFn: (items: ProwlarrResult[]) => runCapability((client) => client.download({ items })),
     onSuccess: (data) => {
-      setSelected(new Set());
+      setSelected(new Set())
       ToastGroup.create.success(
         `Started ${data.started} downloads`,
         "Check the Jobs page for progress.",
-      );
+      )
     },
-  });
+  })
 
-  const results = latestQuery.data ?? [];
+  const results = latestQuery.data ?? []
 
   const handleToggle = (guid: string) => {
     setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(guid)) next.delete(guid);
-      else next.add(guid);
-      return next;
-    });
-  };
+      const next = new Set(prev)
+      if (next.has(guid)) next.delete(guid)
+      else next.add(guid)
+      return next
+    })
+  }
 
   const handleToggleAll = () => {
     if (results.every((r) => selected.has(r.guid))) {
-      setSelected(new Set());
+      setSelected(new Set())
     } else {
-      setSelected(new Set(results.map((r) => r.guid)));
+      setSelected(new Set(results.map((r) => r.guid)))
     }
-  };
+  }
 
   const handleDownload = () => {
-    const items = results.filter((r) => selected.has(r.guid));
+    const items = results.filter((r) => selected.has(r.guid))
     if (items.length > 0) {
-      downloadMutation.mutate(items);
+      downloadMutation.mutate(items)
     }
-  };
+  }
 
   return (
     <main className="page-wrap sm:px-4 pb-8 pt-8 flex flex-col gap-6">
@@ -97,12 +96,10 @@ export default function LatestPage() {
             <span className="flex h-5 w-5 items-center justify-center rounded-[2px] border border-accent">
               <ArrowDown size={12} />
             </span>
-            {downloadMutation.isPending
-              ? "Starting..."
-              : `Download ${selected.size} selected`}
+            {downloadMutation.isPending ? "Starting..." : `Download ${selected.size} selected`}
           </button>
         </div>
       )}
     </main>
-  );
+  )
 }

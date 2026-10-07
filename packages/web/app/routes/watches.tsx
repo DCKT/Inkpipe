@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { runApi } from "../lib/apiClient"
+import { runCapability } from "../lib/apiClient"
 import { ToastGroup } from "../ui/toast"
 import { WatchFormDialog } from "../components/WatchForm"
 import { PageHeader } from "../components/PageHeader"
@@ -12,14 +12,14 @@ export default function WatchesPage() {
 
   const watchesQuery = useQuery({
     queryKey: ["watches"],
-    queryFn: () => runApi((client) => client.watches.list({})),
+    queryFn: () => runCapability((client) => client.listWatches({})),
     refetchInterval: 30_000,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => runApi((client) => client.watches.delete({ params: { id } })),
+    mutationFn: (id: number) => runCapability((client) => client.deleteWatch({ id })),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["watches"] })
+      void queryClient.invalidateQueries({ queryKey: ["watches"] })
       ToastGroup.create.success("Watch deleted")
     },
     onError: (err) => {
@@ -29,21 +29,23 @@ export default function WatchesPage() {
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
-      runApi((client) => client.watches.update({ params: { id }, payload: { enabled } })),
+      runCapability((client) => client.updateWatch({ id, enabled })),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["watches"] })
+      void queryClient.invalidateQueries({ queryKey: ["watches"] })
     },
   })
 
   const triggerMutation = useMutation({
-    mutationFn: (id: number) => runApi((client) => client.watches.trigger({ params: { id } })),
+    mutationFn: (id: number) => runCapability((client) => client.triggerWatch({ id })),
     onSuccess: (data) => {
       if (data.matches === 0) {
         ToastGroup.create.success("No new matches found")
       } else {
-        ToastGroup.create.success(`${data.matches} new match${data.matches !== 1 ? "es" : ""} found`)
+        ToastGroup.create.success(
+          `${data.matches} new match${data.matches !== 1 ? "es" : ""} found`,
+        )
       }
-      queryClient.invalidateQueries({ queryKey: ["watches"] })
+      void queryClient.invalidateQueries({ queryKey: ["watches"] })
     },
     onError: (err) => {
       ToastGroup.create.error("Failed to trigger watch", err.message)
@@ -52,9 +54,9 @@ export default function WatchesPage() {
 
   const dismissMutation = useMutation({
     mutationFn: (watchId: number) =>
-      runApi((client) => client.watches.acknowledgeAllAlerts({ params: { id: watchId } })),
+      runCapability((client) => client.acknowledgeAllAlerts({ id: watchId })),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["watches"] })
+      void queryClient.invalidateQueries({ queryKey: ["watches"] })
     },
     onError: (err) => {
       ToastGroup.create.error("Failed to dismiss alerts", err.message)
@@ -79,7 +81,7 @@ export default function WatchesPage() {
       <div className="mb-6 flex items-center justify-end">
         <WatchFormDialog
           onCreated={() => {
-            queryClient.invalidateQueries({ queryKey: ["watches"] })
+            void queryClient.invalidateQueries({ queryKey: ["watches"] })
           }}
         />
       </div>
@@ -114,9 +116,7 @@ export default function WatchesPage() {
         </div>
       )}
 
-      {watchesQuery.isLoading && (
-        <p className="text-sm text-secondary">Loading watches...</p>
-      )}
+      {watchesQuery.isLoading && <p className="text-sm text-secondary">Loading watches...</p>}
 
       {watchesQuery.isError && (
         <div className="island-shell mb-6 rounded-2xl border-red-200 p-4 text-sm text-red-600">
@@ -128,9 +128,7 @@ export default function WatchesPage() {
         <div className="blank-page flex flex-col items-center gap-3 p-8 text-center">
           <div className="blank-page-icon" />
           <p className="font-display text-lg italic text-primary">No watches yet</p>
-          <p className="text-sm text-secondary">
-            Create one to monitor Prowlarr for new content.
-          </p>
+          <p className="text-sm text-secondary">Create one to monitor Prowlarr for new content.</p>
         </div>
       )}
 
@@ -147,7 +145,9 @@ export default function WatchesPage() {
                   <span className="text-sm font-semibold text-primary break-words">
                     {watch.name}
                   </span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${watch.enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                  <span
+                    className={`text-xs px-1.5 py-0.5 rounded-full ${watch.enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
+                  >
                     {watch.enabled ? "Active" : "Paused"}
                   </span>
                   {(watch.unreadCount ?? 0) > 0 && (
@@ -159,7 +159,11 @@ export default function WatchesPage() {
                 <p className="text-xs text-secondary mt-0.5 truncate">
                   Query: {watch.query} · Every {watch.intervalSeconds}s
                   {watch.filterGroups.length > 0 && (
-                    <> · {watch.filterGroups.length} filter group{watch.filterGroups.length !== 1 ? "s" : ""}</>
+                    <>
+                      {" "}
+                      · {watch.filterGroups.length} filter group
+                      {watch.filterGroups.length !== 1 ? "s" : ""}
+                    </>
                   )}
                 </p>
               </div>

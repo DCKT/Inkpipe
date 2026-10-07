@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "semi": false,
+  "singleQuote": false,
+  "printWidth": 100,
+  "ignorePatterns": [
+    "repos/**",
+    "docs/**",
+    "**/dist/**",
+    "**/.react-router/**",
+    "CHANGELOG.md",
+    "bun.lock",
+    ".agents/**",
+    ".claude/**",
+    "skills-lock.json"
+  ]
+}
