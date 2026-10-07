@@ -39,12 +39,6 @@
       }
     },
     {
-      "files": ["packages/web/**"],
-      "rules": {
-        "typescript/no-floating-promises": "off"
-      }
-    },
-    {
       "files": ["packages/db/src/migrations/**"],
       "rules": {
         "typescript/no-base-to-string": "off"

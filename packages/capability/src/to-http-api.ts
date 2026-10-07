@@ -283,11 +283,20 @@ const routedEndpoint = (
           Object.fromEntries(Object.entries(fields).filter(([name]) => !names.includes(name))),
         )
 
+  // A route with nothing left to read (all input is in the path, or there is none) declares no
+  // payload or query, so a body-less POST works.
+  const hasInput = Object.keys(input.fields).length > 0
+  const inputPart = !hasInput
+    ? {}
+    : BODY_METHODS.has(http.method)
+      ? { payload: input }
+      : { query: input }
+
   return route(http.method)(contract.name, http.path, {
     error,
     params: names.length === 0 ? undefined : Schema.Struct(params),
     success: contract.output,
-    ...(BODY_METHODS.has(http.method) ? { payload: input } : { query: input }),
+    ...inputPart,
   })
 }
 
@@ -308,7 +317,7 @@ const inputOf = (
   const parts = BODY_METHODS.has(contract.http.method) ? request.payload : request.query
 
   if (pathParamNames(contract.http.path).length === 0) {
-    return Effect.succeed(parts)
+    return Effect.succeed(parts ?? {})
   }
 
   return HttpApiError.HttpApiSchemaError.wrap(

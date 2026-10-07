@@ -15,7 +15,8 @@ const StartPayload = Schema.Struct({
   options: Schema.optional(Schema.String),
 })
 
-const IdQuery = Schema.Struct({ id: Schema.String })
+// The id names a directory under the temp base, so only the UUIDs this server mints may pass.
+const IdQuery = Schema.Struct({ id: Schema.String.check(Schema.isUUID()) })
 
 const errorBody = (status: number, tag: string, message: string) =>
   HttpServerResponse.jsonUnsafe({ _tag: tag, message }, { status })

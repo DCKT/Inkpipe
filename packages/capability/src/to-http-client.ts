@@ -13,11 +13,21 @@ export class UnexpectedResponse extends Data.TaggedError("UnexpectedResponse")<{
   readonly message: string
 }> {}
 
+// Query strings can only carry scalars and lists of scalars; anything else cannot round-trip.
+export class UnsupportedRequestValue extends Data.TaggedError("UnsupportedRequestValue")<{
+  readonly field: string
+  readonly message: string
+}> {}
+
 type ContractCall<C extends AnyContract> = (
   input: InputOf<C>["Type"],
 ) => Effect.Effect<
   OutputOf<C>["Type"],
-  FailureOf<C>["Type"] | UnexpectedResponse | HttpClientError.HttpClientError | Schema.SchemaError,
+  | FailureOf<C>["Type"]
+  | UnexpectedResponse
+  | UnsupportedRequestValue
+  | HttpClientError.HttpClientError
+  | Schema.SchemaError,
   HttpClient.HttpClient
 >
 
@@ -36,12 +46,24 @@ const pathParams = (path: string): readonly string[] =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
 
-const queryValues = (value: unknown): readonly string[] =>
-  value === undefined || value === null
-    ? []
-    : Array.isArray(value)
-      ? value.map((item) => (typeof item === "string" ? item : JSON.stringify(item)))
-      : [typeof value === "string" ? value : JSON.stringify(value)]
+const isScalar = (value: unknown): value is string | number | boolean =>
+  typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+
+// A list becomes repeated params; an empty list sends nothing, so contracts whose server side
+// requires the key must default it.
+const queryValues = (field: string, value: unknown) => {
+  if (value === undefined || value === null) return Effect.succeed<readonly string[]>([])
+  const items = Array.isArray(value) ? value : [value]
+  if (!items.every(isScalar)) {
+    return Effect.fail(
+      new UnsupportedRequestValue({
+        field,
+        message: `${field} is not a scalar or a list of scalars, so it cannot travel in a query string`,
+      }),
+    )
+  }
+  return Effect.succeed(items.map(String))
+}
 
 const callContract = (contract: AnyContract, baseUrl: string) => {
   const route = contract.http ?? { method: "POST" as const, path: `/${contract.name}` as const }
@@ -54,10 +76,19 @@ const callContract = (contract: AnyContract, baseUrl: string) => {
     Effect.gen(function* () {
       const encoded = yield* encodeInput(input as never)
       const fields = isRecord(encoded) ? encoded : {}
-      const path = names.reduce(
-        (url, name) => url.replace(`:${name}`, encodeURIComponent(String(fields[name]))),
-        route.path as string,
-      )
+      const path = yield* Effect.forEach(route.path.split("/"), (segment) => {
+        if (!segment.startsWith(":")) return Effect.succeed(segment)
+        const name = segment.slice(1)
+        const value = fields[name]
+        return isScalar(value)
+          ? Effect.succeed(encodeURIComponent(String(value)))
+          : Effect.fail(
+              new UnsupportedRequestValue({
+                field: name,
+                message: `path parameter ${name} must be a string, number or boolean`,
+              }),
+            )
+      }).pipe(Effect.map((segments) => segments.join("/")))
       const rest = Object.entries(fields).filter(([key]) => !names.includes(key))
 
       let request = HttpClientRequest.make(route.method)(`${baseUrl}${path}`)
@@ -65,7 +96,7 @@ const callContract = (contract: AnyContract, baseUrl: string) => {
         request = yield* HttpClientRequest.bodyJson(request, Object.fromEntries(rest))
       } else {
         for (const [key, value] of rest) {
-          for (const item of queryValues(value)) {
+          for (const item of yield* queryValues(key, value)) {
             request = HttpClientRequest.appendUrlParam(request, key, item)
           }
         }
@@ -76,6 +107,12 @@ const callContract = (contract: AnyContract, baseUrl: string) => {
       const body: unknown = yield* response.json.pipe(Effect.orElseSucceed(() => undefined))
 
       if (response.status >= 200 && response.status < 300) {
+        if (body === undefined) {
+          return yield* new UnexpectedResponse({
+            status: response.status,
+            message: `${contract.name} answered ${response.status} without a JSON body`,
+          })
+        }
         return yield* decodeOutput(body)
       }
 
@@ -96,7 +133,7 @@ export const toHttpClient = <const Contracts extends readonly AnyContract[]>(
   contracts: Contracts,
   options?: { readonly baseUrl?: string | undefined },
 ): HttpClientProjection<Contracts> => {
-  const baseUrl = options?.baseUrl ?? ""
+  const baseUrl = (options?.baseUrl ?? "").replace(/\/+$/, "")
   const entries = contracts.map((contract) => [contract.name, callContract(contract, baseUrl)])
   // SAFETY: each entry is keyed by its contract name and typed by `ContractCall<C>` through the mapped return type.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions

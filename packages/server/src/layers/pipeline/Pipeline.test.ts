@@ -1,5 +1,5 @@
 import type { Context } from "effect"
-import { Duration, Effect, Fiber, Layer } from "effect"
+import { Deferred, Duration, Effect, Fiber, Layer } from "effect"
 import { TestClock } from "effect/testing"
 import { describe, it, expect, vi, beforeEach, afterEach } from "@effect/vitest"
 import type { AppConfig, Job, ProwlarrResult, DebridFile } from "@inkpipe/shared"
@@ -253,11 +253,12 @@ describe("PipelineService", () => {
   it.effect("fails the job when AllDebrid reports a terminal magnet error while polling", () =>
     Effect.gen(function* () {
       const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
-      yield* makeProgram((svc) => svc.runPipeline(testResult), {
+      const failure = yield* makeProgram((svc) => svc.runPipeline(testResult), {
         updateJobSpy,
         uploadMagnet: () => Effect.succeed({ id: 1, ready: false }),
         getMagnetStatus: () => Effect.succeed({ ready: false, statusCode: 5, status: "Error" }),
-      })
+      }).pipe(Effect.flip)
+      expect(failure._tag).toBe("PipelineError")
 
       const failedCall = updateJobSpy.mock.calls.find(
         (call) => (call[1] as { stage?: string }).stage === "FAILED",
@@ -270,10 +271,11 @@ describe("PipelineService", () => {
   it.effect("fails the job when AllDebrid returns no files", () =>
     Effect.gen(function* () {
       const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
-      yield* makeProgram((svc) => svc.runPipeline(testResult), {
+      const failure = yield* makeProgram((svc) => svc.runPipeline(testResult), {
         updateJobSpy,
         getMagnetFiles: () => Effect.succeed([]),
-      })
+      }).pipe(Effect.flip)
+      expect(failure._tag).toBe("PipelineError")
 
       const failedCall = updateJobSpy.mock.calls.find(
         (call) => (call[1] as { stage?: string }).stage === "FAILED",
@@ -364,12 +366,13 @@ describe("PipelineService", () => {
     Effect.gen(function* () {
       const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
       const deleteMagnetSpy = vi.fn((_id: number) => Effect.void)
-      yield* makeProgram((svc) => svc.runPipeline(testResult), {
+      const failure = yield* makeProgram((svc) => svc.runPipeline(testResult), {
         updateJobSpy,
         deleteMagnetSpy,
         deleteMagnet: deleteMagnetSpy,
         unlockLink: () => Effect.fail(new AllDebridHttpError({ message: "unlock failed" })),
-      })
+      }).pipe(Effect.flip)
+      expect(failure._tag).toBe("PipelineError")
 
       const failedCall = updateJobSpy.mock.calls.find(
         (call) => (call[1] as { stage?: string }).stage === "FAILED",
@@ -383,10 +386,11 @@ describe("PipelineService", () => {
   it.effect("cleans up the created Copyparty folder on failure", () =>
     Effect.gen(function* () {
       const deleteFolderSpy = vi.fn((_name: string) => Effect.void)
-      yield* makeProgram((svc) => svc.runPipeline(testResult, "NewFolder", true), {
+      const failure = yield* makeProgram((svc) => svc.runPipeline(testResult, "NewFolder", true), {
         deleteFolder: deleteFolderSpy,
         unlockLink: () => Effect.fail(new AllDebridHttpError({ message: "boom" })),
-      })
+      }).pipe(Effect.flip)
+      expect(failure._tag).toBe("PipelineError")
 
       expect(deleteFolderSpy).toHaveBeenCalledWith("NewFolder")
     }),
@@ -395,12 +399,83 @@ describe("PipelineService", () => {
   it.effect("does not attempt folder cleanup on failure when it did not create one", () =>
     Effect.gen(function* () {
       const deleteFolderSpy = vi.fn((_name: string) => Effect.void)
-      yield* makeProgram((svc) => svc.runPipeline(testResult, "ExistingFolder", false), {
-        deleteFolder: deleteFolderSpy,
-        unlockLink: () => Effect.fail(new AllDebridHttpError({ message: "boom" })),
-      })
+      const failure = yield* makeProgram(
+        (svc) => svc.runPipeline(testResult, "ExistingFolder", false),
+        {
+          deleteFolder: deleteFolderSpy,
+          unlockLink: () => Effect.fail(new AllDebridHttpError({ message: "boom" })),
+        },
+      ).pipe(Effect.flip)
+      expect(failure._tag).toBe("PipelineError")
 
       expect(deleteFolderSpy).not.toHaveBeenCalled()
+    }),
+  )
+
+  const settle = Effect.forEach(Array.from({ length: 25 }), () => Effect.yieldNow)
+
+  it.effect("waits the full 3s between AllDebrid polls", () =>
+    Effect.gen(function* () {
+      let calls = 0
+      const fiber = yield* Effect.forkChild(
+        makeProgram((svc) => svc.runPipeline(testResult), {
+          uploadMagnet: () => Effect.succeed({ id: 1, ready: false }),
+          getMagnetStatus: () => {
+            calls++
+            return Effect.succeed({ ready: false, statusCode: 1, status: "Downloading" })
+          },
+        }),
+      )
+      yield* settle
+      expect(calls).toBe(1)
+
+      yield* TestClock.adjust(Duration.seconds(2))
+      yield* settle
+      expect(calls).toBe(1)
+
+      yield* TestClock.adjust(Duration.seconds(1))
+      yield* settle
+      expect(calls).toBe(2)
+
+      yield* Fiber.interrupt(fiber)
+    }),
+  )
+
+  it.effect("interrupts in-flight work before deleting the magnet and job directory", () =>
+    Effect.gen(function* () {
+      const order: string[] = []
+      const downloading = yield* Deferred.make<void>()
+      const fiber = yield* Effect.forkChild(
+        makeProgram((svc) => svc.runPipeline(testResult), {
+          downloadFile: () =>
+            Deferred.succeed(downloading, undefined).pipe(
+              Effect.andThen(Effect.never),
+              Effect.onInterrupt(() => Effect.sync(() => void order.push("download interrupted"))),
+            ),
+          deleteMagnet: (id) => Effect.sync(() => void order.push(`deleteMagnet ${id}`)),
+        }),
+      )
+      yield* Deferred.await(downloading)
+      yield* Fiber.interrupt(fiber)
+
+      expect(order).toEqual(["download interrupted", "deleteMagnet 1"])
+    }),
+  )
+
+  it.effect("records a defect in a stage as a FAILED job and fails the run with its message", () =>
+    Effect.gen(function* () {
+      const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
+      const failure = yield* makeProgram((svc) => svc.runPipeline(testResult), {
+        updateJobSpy,
+        kccConvert: () => Effect.die(new Error("kcc exploded")),
+      }).pipe(Effect.flip)
+
+      expect(failure._tag).toBe("PipelineError")
+      expect(failure.message).toContain("kcc exploded")
+      const failed = updateJobSpy.mock.calls.find(
+        (call) => (call[1] as { stage?: string }).stage === "FAILED",
+      )
+      expect((failed![1] as { error?: string }).error).toContain("kcc exploded")
     }),
   )
 })

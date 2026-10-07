@@ -34,7 +34,7 @@ export default function HomePage() {
     }) => runCapability((client) => client.download({ items, subfolder, newFolder })),
     onSuccess: (data) => {
       setSelected(new Set())
-      queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] })
+      void queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] })
       ToastGroup.create.success(
         `Started ${data.started} downloads`,
         "Check the Jobs page for progress.",

@@ -8,7 +8,7 @@ import { ConvertRoutesLive } from "./convert-routes"
 import { JobsWsRouteLive, StaticFallbackRouteLive } from "./raw"
 import { metrics } from "./Metrics"
 import { CapabilityHttp } from "./capabilityApi"
-import { McpLive, mcpEnabled } from "./mcp"
+import { makeMcpLive, mcpToken } from "./mcp"
 
 const CorsLive = HttpRouter.cors({
   allowedOrigins: ["*"],
@@ -24,7 +24,8 @@ const CapabilityApiLive = HttpApiBuilder.layer(CapabilityHttp.api, {
 
 const SwaggerLive = HttpApiSwagger.layer(CapabilityHttp.api, { path: "/docs" })
 
-const McpOptionalLive = mcpEnabled() ? McpLive : Layer.empty
+const token = mcpToken()
+const McpOptionalLive = token === undefined ? Layer.empty : makeMcpLive(token)
 
 // Order matters for readability only — the underlying router (find-my-way)
 // resolves static/param routes ahead of the catch-all wildcard regardless of

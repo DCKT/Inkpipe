@@ -56,8 +56,9 @@ export const PipelineServiceLive = Layer.effect(
         const jl = log.withJob(String(job.id))
         yield* jl.info("jobs", "Created job")
 
-        // The machine records its own failures on the job, so the run itself never fails.
-        yield* runPipelineMachine({
+        // The machine records the failure on the job; the run then fails too, so callers that wait
+        // on it (the Telegram listener) report the real outcome.
+        const outcome = yield* runPipelineMachine({
           jobId: job.id,
           magnetOrUrl,
           subfolder,
@@ -71,6 +72,10 @@ export const PipelineServiceLive = Layer.effect(
               }
             }),
         }).pipe(Effect.provideContext(services))
+
+        if (outcome._tag === "Failed") {
+          return yield* new PipelineError({ message: outcome.message })
+        }
       })
 
     return { runPipeline }

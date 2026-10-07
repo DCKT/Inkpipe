@@ -56,4 +56,9 @@ export {
 } from "./to-http-api.js"
 
 export { toToolkit, type ToolkitProjection, type ToolsOf } from "./to-toolkit.js"
-export { toHttpClient, UnexpectedResponse, type HttpClientProjection } from "./to-http-client.js"
+export {
+  toHttpClient,
+  UnexpectedResponse,
+  UnsupportedRequestValue,
+  type HttpClientProjection,
+} from "./to-http-client.js"

@@ -89,7 +89,7 @@ const ENDPOINTS: EndpointDef[] = [
     group: "Convert",
     label: "Download",
     method: "GET",
-    path: "/api/convert",
+    path: "/api/convert/download",
     queryKey: "id",
     binary: true,
   },
@@ -485,7 +485,7 @@ export default function DebugPage() {
                   onClick={() => {
                     navigator.serviceWorker.ready
                       .then((reg) => {
-                        reg.showNotification("Inkpipe Test", {
+                        void reg.showNotification("Inkpipe Test", {
                           body: "This is a test notification from the debug page.",
                         })
                         setPushTestResult("Test notification sent")

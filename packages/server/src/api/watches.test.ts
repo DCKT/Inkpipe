@@ -103,6 +103,15 @@ describe("watches HTTP mechanics", () => {
     expect(body).toEqual({ count: 3 })
   })
 
+  it("accepts a POST with no body when everything it needs is in the path", async () => {
+    const { handler } = makeHandler()
+    const res = await handler(
+      new Request("http://localhost/api/watches/1/alerts/acknowledge-all", { method: "POST" }),
+    )
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ success: true })
+  })
+
   it("applies CORS headers on both success and error responses", async () => {
     const { handler } = makeHandler()
     const ok = await handler(new Request("http://localhost/api/watches"))

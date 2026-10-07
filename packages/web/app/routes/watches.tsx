@@ -19,7 +19,7 @@ export default function WatchesPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => runCapability((client) => client.deleteWatch({ id })),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["watches"] })
+      void queryClient.invalidateQueries({ queryKey: ["watches"] })
       ToastGroup.create.success("Watch deleted")
     },
     onError: (err) => {
@@ -31,7 +31,7 @@ export default function WatchesPage() {
     mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
       runCapability((client) => client.updateWatch({ id, enabled })),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["watches"] })
+      void queryClient.invalidateQueries({ queryKey: ["watches"] })
     },
   })
 
@@ -45,7 +45,7 @@ export default function WatchesPage() {
           `${data.matches} new match${data.matches !== 1 ? "es" : ""} found`,
         )
       }
-      queryClient.invalidateQueries({ queryKey: ["watches"] })
+      void queryClient.invalidateQueries({ queryKey: ["watches"] })
     },
     onError: (err) => {
       ToastGroup.create.error("Failed to trigger watch", err.message)
@@ -56,7 +56,7 @@ export default function WatchesPage() {
     mutationFn: (watchId: number) =>
       runCapability((client) => client.acknowledgeAllAlerts({ id: watchId })),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["watches"] })
+      void queryClient.invalidateQueries({ queryKey: ["watches"] })
     },
     onError: (err) => {
       ToastGroup.create.error("Failed to dismiss alerts", err.message)
@@ -81,7 +81,7 @@ export default function WatchesPage() {
       <div className="mb-6 flex items-center justify-end">
         <WatchFormDialog
           onCreated={() => {
-            queryClient.invalidateQueries({ queryKey: ["watches"] })
+            void queryClient.invalidateQueries({ queryKey: ["watches"] })
           }}
         />
       </div>

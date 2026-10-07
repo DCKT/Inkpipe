@@ -62,7 +62,7 @@ export function JobsDrawer() {
   const clearMutation = useMutation({
     mutationFn: () => runCapability((client) => client.clearJobs({})),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["jobs"] })
+      void queryClient.invalidateQueries({ queryKey: ["jobs"] })
       ToastGroup.create.success("Cleared completed jobs")
     },
     onError: (err) => {

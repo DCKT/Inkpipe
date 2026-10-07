@@ -106,7 +106,7 @@ export default function KomgaPage() {
   useEffect(() => {
     if (configQuery.isSuccess) {
       if (!configQuery.data.komga.url || !configQuery.data.komga.apiKey) {
-        navigate("/settings?komgaNotConfigured=true")
+        void navigate("/settings?komgaNotConfigured=true")
       }
     }
   }, [configQuery.isSuccess, configQuery.data, navigate])

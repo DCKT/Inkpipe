@@ -48,7 +48,7 @@ export default function FolderSelect({
   })
 
   useEffect(() => {
-    if (open) foldersQuery.refetch()
+    if (open) void foldersQuery.refetch()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 

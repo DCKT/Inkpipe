@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import SettingsForm from "../components/SettingsForm"
 import { PageHeader } from "../components/PageHeader"
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 import { AppConfigSchema } from "@inkpipe/shared"
 import { runCapability } from "../lib/apiClient"
 import type { AppConfig } from "../lib/types"
@@ -25,7 +25,7 @@ export default function SettingsPage() {
   const saveMutation = useMutation({
     mutationFn: (config: AppConfig) => runCapability((client) => client.updateSettings(config)),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings"] })
+      void queryClient.invalidateQueries({ queryKey: ["settings"] })
       ToastGroup.create.success("Settings saved successfully.")
     },
     onError: (err) => {
@@ -54,7 +54,13 @@ export default function SettingsPage() {
     if (!file) return
     try {
       const text = await file.text()
-      const config = Schema.decodeUnknownSync(AppConfigSchema)(JSON.parse(text))
+      const config = await Effect.runPromise(
+        Schema.decodeUnknownEffect(AppConfigSchema)(JSON.parse(text)),
+      ).catch((error: unknown) => {
+        throw new Error(
+          `Invalid settings file: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      })
       await runCapability((client) => client.updateSettings(config))
       await queryClient.invalidateQueries({ queryKey: ["settings"] })
       setFormKey((k) => k + 1)

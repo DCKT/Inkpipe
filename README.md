@@ -102,7 +102,7 @@ volumes:
 
 Settings are persisted to `~/.inkpipe/inkpipe.db` (Bun SQLite). Set `INKPIPE_DATA_DIR` to override this path (Docker uses `/data` by default). Required:
 
-Set `INKPIPE_MCP=true` to also serve every API action as an MCP tool at `/mcp` (off by default: there is no authentication, and the tools include settings and deletions).
+Set `INKPIPE_MCP=true` and `INKPIPE_MCP_TOKEN=<a secret of 16+ characters>` to also serve every API action as an MCP tool at `/mcp`. Clients must send `Authorization: Bearer <token>`. It stays off without the token because the tools include settings (API keys) and deletions.
 
 - **Prowlarr** — URL + API key for torrent search
 - **AllDebrid** — API key for debrid service

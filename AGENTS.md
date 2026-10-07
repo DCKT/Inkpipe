@@ -46,7 +46,8 @@ inkpipe/
 │   │   └── src/
 │   │       ├── main.ts          # Entry point
 │   │       ├── layers/          # Effect services (business logic + data access)
-│   │       └── routes/          # HTTP route handlers
+│   │       ├── capabilities/    # Contract handlers (implement(...))
+│   │       └── api/             # HTTP projection + raw routes (convert, job WebSocket)
 │   ├── watcher/         # Standalone Bun process, Effect-based (reuses server layers) ← WATCHER
 │   │   └── src/
 │   │       ├── index.ts         # Entry point — loads watches, runs scheduler
@@ -154,7 +155,7 @@ bun run typecheck     # TypeScript type checking
 
 ### Backend (packages/shared + packages/server)
 
-**Effect-based** — functional, type-safe, composable. Shared schemas in `shared/`, layer services in `server/src/layers/`, route handlers in `server/src/api/handlers/`.
+**Effect-based** — functional, type-safe, composable. Shared schemas in `shared/`, layer services in `server/src/layers/`, capability handlers in `server/src/capabilities/`.
 
 **Read these docs:**
 
@@ -166,7 +167,7 @@ bun run typecheck     # TypeScript type checking
 1. **Define schemas first** — domain types in `packages/shared/src/schemas.ts`, API contracts in `packages/shared/src/api.ts`
 2. **Errors in `packages/shared/src/errors.ts`** — use `Schema.TaggedErrorClass` for all domain errors
 3. **Services as Effect layers** — each `.ts` file in `server/src/layers/` exports a service class and its live implementation
-4. **Routes call services** — route handlers in `server/src/api/handlers/` import and call layer services, never access SQLite directly
+4. **Capabilities call services** — handlers in `server/src/capabilities/` import and call layer services, never access SQLite directly
 5. **Layers compose in `main.ts`** — service dependencies are wired via `Layer.provide`
 
 ### Watcher (packages/watcher)
@@ -197,7 +198,7 @@ When implementing a feature that spans layers:
 
 1. **Shared schemas/types** in `packages/shared`
 2. **Layer service** in `packages/server/src/layers/`
-3. **Route handler** in `packages/server/src/api/handlers/`
+3. **Contract** in `packages/shared/src/capabilities/` and **handler** in `packages/server/src/capabilities/` (see Capabilities below)
 4. **Frontend page + API calls** in `packages/web`
 5. **Watcher integration** (if needed) in `packages/watcher` — any feature that needs recurring background work
 
@@ -235,8 +236,8 @@ Most API routes are capabilities, not hand-written HttpApi groups.
 
 - **Contract**: `packages/shared/src/capabilities/*.ts` — `defineContract(name, { input, output, failure, http, annotations })`. Input/output/failure are Effect schemas. Errors use the status-annotated `*S` wrappers from `httpApi/errors.ts`.
 - **Handler**: `packages/server/src/capabilities/*.ts` — `implement(contract, handler)`, listed in `capabilities/index.ts`.
-- **Projections** (`packages/capability`): `toHttpApi` serves routes + OpenAPI (`/openapi.json`, Swagger at `/docs`) from `server/src/api/capabilityApi.ts`; `toHttpClient` is the contracts-only client the web app uses via `runCapability`; `toCommand`/`toToolkit` are available for a future CLI/MCP.
+- **Projections** (`packages/capability`): `toHttpApi` serves routes + OpenAPI (`/openapi.json`, Swagger at `/docs`) from `server/src/api/capabilityApi.ts`; `toHttpClient` is the contracts-only client the web app uses via `runCapability`; `toToolkit` serves the same list as MCP at `/mcp` when `INKPIPE_MCP=true` and `INKPIPE_MCP_TOKEN` is set (bearer auth; see ADR 0009); `toCommand` is available for a CLI.
 - **Add a route**: contract → add to `allContracts` → `implement` → add to `capabilities` → call `runCapability((client) => client.<name>(input))`. Never import handlers in web code.
-- Contract names are unique across the API. DELETE/GET inputs travel in the query string; POST/PUT/PATCH in the JSON body.
+- Contract names are unique across the API. GET/DELETE input travels in the query string, so use string-like schemas there (`Schema.FiniteFromString` for numbers); the client rejects objects. A route whose input is entirely in the path declares no body, so body-less POSTs work. DELETE/GET inputs travel in the query string; POST/PUT/PATCH in the JSON body.
 - Not capabilities: `convert` (multipart upload, SSE, binary download) in `api/convert-routes.ts`, the job WebSocket and the static fallback in `api/raw.ts`. Raw routes read services from the request context, so tests must provide them with `Layer.provideMerge`.
 - Pipeline lifecycle is an XState machine (`layers/pipeline/PipelineMachine.ts`); Effect does the work, XState owns transitions and the poll cadence.

@@ -34,7 +34,7 @@ export default function AnnasArchivePage() {
     }) => runCapability((client) => client.downloadAnnasArchive({ items, subfolder, newFolder })),
     onSuccess: (data) => {
       setSelected(new Set())
-      queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] })
+      void queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] })
       ToastGroup.create.success(
         `Started ${data.started} downloads`,
         "Check the Jobs page for progress.",

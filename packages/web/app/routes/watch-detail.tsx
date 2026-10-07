@@ -29,16 +29,16 @@ export default function WatchDetailPage() {
     mutationFn: (alertId: number) =>
       runCapability((client) => client.acknowledgeAlert({ id: Number(id), alertId })),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
-      queryClient.invalidateQueries({ queryKey: ["unread-count"] })
+      void queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
+      void queryClient.invalidateQueries({ queryKey: ["unread-count"] })
     },
   })
 
   const ackAllMutation = useMutation({
     mutationFn: () => runCapability((client) => client.acknowledgeAllAlerts({ id: Number(id) })),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
-      queryClient.invalidateQueries({ queryKey: ["unread-count"] })
+      void queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
+      void queryClient.invalidateQueries({ queryKey: ["unread-count"] })
       ToastGroup.create.success("All alerts acknowledged")
     },
   })
@@ -55,10 +55,12 @@ export default function WatchDetailPage() {
         }),
       ),
     onSuccess: (data, alert) => {
-      queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] })
-      runCapability((client) => client.acknowledgeAlert({ id: Number(id), alertId: alert.id }))
-      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
-      queryClient.invalidateQueries({ queryKey: ["unread-count"] })
+      void queryClient.invalidateQueries({ queryKey: ["copyparty-folders"] })
+      void runCapability((client) =>
+        client.acknowledgeAlert({ id: Number(id), alertId: alert.id }),
+      ).catch((error: unknown) => console.error("Failed to acknowledge alert", error))
+      void queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
+      void queryClient.invalidateQueries({ queryKey: ["unread-count"] })
       ToastGroup.create.success(
         `Started ${data.started} download`,
         "Check the Jobs page for progress.",
@@ -75,9 +77,11 @@ export default function WatchDetailPage() {
         client.saveMagnet({ magnetUrl: alert.magnetUrl, downloadUrl: alert.downloadUrl }),
       ),
     onSuccess: (_data, alert) => {
-      runCapability((client) => client.acknowledgeAlert({ id: Number(id), alertId: alert.id }))
-      queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
-      queryClient.invalidateQueries({ queryKey: ["unread-count"] })
+      void runCapability((client) =>
+        client.acknowledgeAlert({ id: Number(id), alertId: alert.id }),
+      ).catch((error: unknown) => console.error("Failed to acknowledge alert", error))
+      void queryClient.invalidateQueries({ queryKey: ["watch-alerts", id] })
+      void queryClient.invalidateQueries({ queryKey: ["unread-count"] })
       ToastGroup.create.success("Saved to AllDebrid")
     },
     onError: (err) => {
@@ -170,8 +174,8 @@ export default function WatchDetailPage() {
             <WatchFormDialog
               existing={watchQuery.data}
               onCreated={() => {
-                queryClient.invalidateQueries({ queryKey: ["watches", id] })
-                queryClient.invalidateQueries({ queryKey: ["watches"] })
+                void queryClient.invalidateQueries({ queryKey: ["watches", id] })
+                void queryClient.invalidateQueries({ queryKey: ["watches"] })
               }}
             />
           </div>

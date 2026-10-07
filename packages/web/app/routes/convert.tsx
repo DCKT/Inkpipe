@@ -30,7 +30,7 @@ export default function ConvertPage() {
     runCapability((client) => client.getSettings({}))
       .then((config) => {
         if (!config.kcc.dockerImage) {
-          navigate("/settings")
+          void navigate("/settings")
           return
         }
         setDefaultKcc(config.kcc)

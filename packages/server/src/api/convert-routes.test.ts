@@ -9,7 +9,7 @@ import { Effect, Layer } from "effect"
 import { describe, it, expect, beforeEach, afterEach } from "@effect/vitest"
 import { HttpRouter } from "effect/http"
 import * as BunHttpServer from "@effect/platform-bun/BunHttpServer"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { KccService } from "../layers/integrations/Kcc"
@@ -94,16 +94,43 @@ describe("convert API", () => {
 
   it("progress returns 404 for an unknown job id", async () => {
     const handler = makeHandler(() => Effect.succeed(""))
-    const res = await handler(new Request("http://localhost/api/convert/progress?id=nope"))
+    const res = await handler(
+      new Request("http://localhost/api/convert/progress?id=00000000-0000-4000-8000-000000000000"),
+    )
     expect(res.status).toBe(404)
   })
 
   it("download returns 404 NotFoundError for an unknown job id", async () => {
     const handler = makeHandler(() => Effect.succeed(""))
-    const res = await handler(new Request("http://localhost/api/convert/download?id=nope"))
+    const res = await handler(
+      new Request("http://localhost/api/convert/download?id=00000000-0000-4000-8000-000000000000"),
+    )
     expect(res.status).toBe(404)
     const body = (await res.json()) as { _tag: string }
     expect(body._tag).toBe("NotFoundError")
+  })
+
+  it("download refuses an id that is not a UUID and never touches the directory it points at", async () => {
+    const victim = join(tempBase, "victim")
+    await mkdir(victim, { recursive: true })
+    await writeFile(join(victim, "secret.epub"), "data")
+    const handler = makeHandler(() => Effect.succeed(""))
+
+    for (const id of ["x/../victim", "../victim", "..", "convert-x", "a b", ""]) {
+      const res = await handler(
+        new Request(`http://localhost/api/convert/download?id=${encodeURIComponent(id)}`),
+      )
+      expect(res.status).toBe(400)
+      const body = (await res.json()) as { _tag: string }
+      expect(body._tag).toBe("RequestValidationError")
+    }
+    expect(await readdir(victim)).toEqual(["secret.epub"])
+  })
+
+  it("progress refuses an id that is not a UUID", async () => {
+    const handler = makeHandler(() => Effect.succeed(""))
+    const res = await handler(new Request("http://localhost/api/convert/progress?id=..%2Fx"))
+    expect(res.status).toBe(400)
   })
 
   it("download returns 400 ConvertError while the job is still running", async () => {
