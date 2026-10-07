@@ -3,8 +3,8 @@
 ```
 ┌─────────────────────────────────────────────┐
 │              FRONTEND (packages/web)         │
-│  React Router + Ark UI + HttpApiClient       │
-│  Effect only via typed HttpApiClient         │
+│  React Router + Ark UI + contracts client│
+│  Effect only via the contracts-only client   │
 └─────────────────────────────────────────────┘
                     │ HTTP (HttpApi)
                     ▼
@@ -135,7 +135,7 @@ inkpipe/
 
 **NO Effect code in frontend.** Key patterns:
 
-1. **Use the typed `HttpApiClient` (`app/lib/apiClient.ts`)** — all HTTP calls go through it
+1. **Use `runCapability` (`app/lib/apiClient.ts`)** — all HTTP calls go through it
 2. **Handle empty states** — every list/data view needs an empty state with CTA
 3. **Handle loading states** — show loading indicators during data fetching
 4. **Handle error states** — surface API errors to the user
