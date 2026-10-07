@@ -102,15 +102,15 @@ inkpipe/
 
 ## Key Files
 
-| File                                                                         | Purpose                                                                |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `vitest.config.ts`                                                           | Test project configuration (shared, server, web)                       |
-| `packages/server/src/main.ts`                                                | Server entry point — composes layers, starts Bun.serve                 |
-| `packages/watcher/src/index.ts`                                              | Watcher entry point — loads watches, runs scheduler                    |
-| `packages/web/app/router.tsx`                                                | TanStack Router route definitions                                      |
-| `packages/web/app/lib/apiClient.ts`                                          | Typed `HttpApiClient` for `InkpipeApi` (all API calls go through this) |
-| https://github.com/9001/copyparty/blob/hovudstraum/docs/devnotes.md#http-api | Copyparty HTTP API reference                                           |
-| https://docs.alldebrid.com/#magnet                                           | AllDebrid API reference (auth: Bearer header, /v4/magnet/* endpoints)  |
+| File                                                                         | Purpose                                                                        |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `vitest.config.ts`                                                           | Test project configuration (shared, server, web)                               |
+| `packages/server/src/main.ts`                                                | Server entry point — composes layers, starts Bun.serve                         |
+| `packages/watcher/src/index.ts`                                              | Watcher entry point — loads watches, runs scheduler                            |
+| `packages/web/app/router.tsx`                                                | TanStack Router route definitions                                              |
+| `packages/web/app/lib/apiClient.ts`                                          | `runCapability` over the contracts-only client (all API calls go through this) |
+| https://github.com/9001/copyparty/blob/hovudstraum/docs/devnotes.md#http-api | Copyparty HTTP API reference                                                   |
+| https://docs.alldebrid.com/#magnet                                           | AllDebrid API reference (auth: Bearer header, /v4/magnet/* endpoints)          |
 
 ## Quick Start: Critical Rules
 
@@ -227,7 +227,7 @@ Single-context repo — one `CONTEXT.md` at root, one `docs/adr/` for architectu
 - `bun run check` = oxfmt check + oxlint + typecheck + tests. CI and lefthook run the same pieces.
 - Lint: `oxlint` with `@effect/tsgo` presets (`.oxlintrc.json`); `bun run lint:fix` autofixes. Format: `oxfmt` (`.oxfmtrc.json`).
 - Effect 4.0.1 stable: import from `effect/http`, `effect/http-api`, `effect/sql`, `effect/observability`, `effect/socket` (not `effect/unstable/*`). `unstableApiUsage` diagnostic is off on purpose.
-- Warn-level legacy rules (`no-base-to-string`, `restrict-template-expressions`, `unsafe-effect-type-assertion`, …) are a cleanup backlog — don't add new violations.
+- Lint is clean at error level; keep it that way. Fix findings instead of downgrading rules.
 
 ## Capabilities (one contract, one handler)
 
@@ -235,8 +235,8 @@ Most API routes are capabilities, not hand-written HttpApi groups.
 
 - **Contract**: `packages/shared/src/capabilities/*.ts` — `defineContract(name, { input, output, failure, http, annotations })`. Input/output/failure are Effect schemas. Errors use the status-annotated `*S` wrappers from `httpApi/errors.ts`.
 - **Handler**: `packages/server/src/capabilities/*.ts` — `implement(contract, handler)`, listed in `capabilities/index.ts`.
-- **Projections** (`packages/capability`): `toHttpApi` serves routes + OpenAPI (`/openapi/capabilities.json`, Swagger at `/docs/capabilities`) from `server/src/api/capabilityApi.ts`; `toHttpClient` is the contracts-only client the web app uses via `runCapability`; `toCommand`/`toToolkit` are available for a future CLI/MCP.
+- **Projections** (`packages/capability`): `toHttpApi` serves routes + OpenAPI (`/openapi.json`, Swagger at `/docs`) from `server/src/api/capabilityApi.ts`; `toHttpClient` is the contracts-only client the web app uses via `runCapability`; `toCommand`/`toToolkit` are available for a future CLI/MCP.
 - **Add a route**: contract → add to `allContracts` → `implement` → add to `capabilities` → call `runCapability((client) => client.<name>(input))`. Never import handlers in web code.
 - Contract names are unique across the API. DELETE/GET inputs travel in the query string; POST/PUT/PATCH in the JSON body.
-- Still hand-written (`InkpipeApi`): `settings` export/import and `convert` (file download / multipart).
+- Not capabilities: `convert` (multipart upload, SSE, binary download) in `api/convert-routes.ts`, the job WebSocket and the static fallback in `api/raw.ts`. Raw routes read services from the request context, so tests must provide them with `Layer.provideMerge`.
 - Pipeline lifecycle is an XState machine (`layers/pipeline/PipelineMachine.ts`); Effect does the work, XState owns transitions and the poll cadence.

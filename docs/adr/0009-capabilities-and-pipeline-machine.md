@@ -24,8 +24,8 @@ Not adopted: Alchemy and Cloudflare (inkpipe is self-hosted Docker and shells ou
 ## Consequences
 
 - A new route is one contract and one handler; the web app calls it by name through `runCapability`.
-- `settings` export/import and `convert` stay hand-written in `InkpipeApi` (file download and multipart).
-- Two OpenAPI documents exist: `/openapi.json` (legacy groups) and `/openapi/capabilities.json`.
+- `convert` (multipart, SSE, binary) stays outside the registry as plain router routes, like the job WebSocket. Settings export/import were removed: they duplicated get/update, which the web app now uses.
+- One OpenAPI document, `/openapi.json`, with Swagger at `/docs`; it covers capabilities only, not convert.
 - DELETE inputs moved from a JSON body to the query string.
 - `xstate` and `@xstate/effect` are pre-release (`6.0.0-alpha.63`, `0.1.0-alpha.6`); pin them and expect churn.
 - MCP is off by default because inkpipe has no authentication and the toolkit includes settings and deletions.

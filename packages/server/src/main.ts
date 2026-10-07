@@ -2,56 +2,24 @@ import { Effect, Layer } from "effect"
 import { BunHttpServer, BunRuntime } from "@effect/platform-bun"
 import { DbMigratedLayer } from "@inkpipe/db"
 import { ConfigServiceLive } from "./layers/core/Config"
-import type { ConfigService } from "./layers/core/Config"
 import { JobStoreServiceLive } from "./layers/storage/JobStore"
-import type { JobStoreService } from "./layers/storage/JobStore"
 import { LogServiceLive } from "./layers/core/Log"
-import type { LogService } from "./layers/core/Log"
 import { makeOtelLive } from "./layers/core/Otel"
 import { ProwlarrServiceLive } from "./layers/integrations/Prowlarr"
-import type { ProwlarrService } from "./layers/integrations/Prowlarr"
 import { AllDebridServiceLive } from "./layers/integrations/AllDebrid"
-import type { AllDebridService } from "./layers/integrations/AllDebrid"
 import { KomgaServiceLive } from "./layers/integrations/Komga"
-import type { KomgaService } from "./layers/integrations/Komga"
 import { TelegramServiceLive } from "./layers/integrations/Telegram"
-import type { TelegramService } from "./layers/integrations/Telegram"
 import { CopypartyServiceLive } from "./layers/integrations/Copyparty"
-import type { CopypartyService } from "./layers/integrations/Copyparty"
 import { KccServiceLive } from "./layers/integrations/Kcc"
-import type { KccService } from "./layers/integrations/Kcc"
 import { AnnasArchiveServiceLive } from "./layers/integrations/AnnasArchive"
-import type { AnnasArchiveService } from "./layers/integrations/AnnasArchive"
 import { AnnasArchivePipelineServiceLive } from "./layers/pipeline/AnnasArchivePipeline"
-import type { AnnasArchivePipelineService } from "./layers/pipeline/AnnasArchivePipeline"
 import { FileManagerServiceLive } from "./layers/pipeline/FileManager"
-import type { FileManagerService } from "./layers/pipeline/FileManager"
 import { PipelineServiceLive } from "./layers/pipeline/Pipeline"
-import type { PipelineService } from "./layers/pipeline/Pipeline"
 import { WatchStoreServiceLive } from "./layers/storage/WatchStore"
-import type { WatchStoreService } from "./layers/storage/WatchStore"
 import { PushServiceLive } from "./layers/pipeline/Push"
-import type { PushService } from "./layers/pipeline/Push"
 import { TelegramCallbackListenerServiceLive } from "./layers/pipeline/TelegramCallbackListener"
 import { TelegramCallbackListenerService } from "./layers/pipeline/TelegramCallbackListener"
 import { HttpServerLive } from "./api/server"
-
-type AllServices =
-  | PushService
-  | LogService
-  | ConfigService
-  | JobStoreService
-  | FileManagerService
-  | ProwlarrService
-  | AllDebridService
-  | KomgaService
-  | CopypartyService
-  | KccService
-  | PipelineService
-  | WatchStoreService
-  | AnnasArchiveService
-  | AnnasArchivePipelineService
-  | TelegramService
 
 // Base layer — services with no dependencies of their own.
 // PushServiceLive requires LogService; use provideMerge to satisfy it
@@ -135,7 +103,7 @@ const MainLayer = Layer.mergeAll(
   AnnasArchiveLayer,
   AnnasArchivePipelineLayer,
   TelegramCallbackListenerRunnerLive,
-) as Layer.Layer<AllServices, never, never>
+)
 
 const PORT = Number(process.env.PORT || 3000)
 

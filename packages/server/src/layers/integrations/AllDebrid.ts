@@ -67,7 +67,7 @@ function fetchWithAuth(url: string, apiKey: string, init?: RequestInit): Promise
   return fetch(url, {
     ...init,
     headers: {
-      ...init?.headers,
+      ...Object.fromEntries(new Headers(init?.headers)),
       Authorization: `Bearer ${apiKey}`,
     },
   })

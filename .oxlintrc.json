@@ -12,12 +12,12 @@
     "typescript/consistent-type-imports": "error",
     "effecttsgo/duplicate-package": "off",
     "effecttsgo/unstable-api-usage": "off",
-    "typescript/no-base-to-string": "warn",
-    "typescript/restrict-template-expressions": "warn",
-    "typescript/no-misused-spread": "warn",
-    "typescript/unbound-method": "warn",
-    "eslint/require-yield": "warn",
-    "effecttsgo/unsafe-effect-type-assertion": "warn"
+    "typescript/no-base-to-string": "error",
+    "typescript/restrict-template-expressions": "error",
+    "typescript/no-misused-spread": "error",
+    "typescript/unbound-method": "error",
+    "eslint/require-yield": "error",
+    "effecttsgo/unsafe-effect-type-assertion": "error"
   },
   "ignorePatterns": [
     "repos/**",
@@ -34,7 +34,8 @@
         "typescript/no-explicit-any": "off",
         "typescript/no-base-to-string": "off",
         "effecttsgo/any-unknown-in-error-context": "off",
-        "effecttsgo/unsafe-effect-type-assertion": "off"
+        "effecttsgo/unsafe-effect-type-assertion": "off",
+        "typescript/unbound-method": "off"
       }
     },
     {

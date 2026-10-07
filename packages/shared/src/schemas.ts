@@ -176,7 +176,7 @@ export const KccConfigSchema = Schema.Struct({
 })
 export type KccConfig = typeof KccConfigSchema.Type
 
-const KccConfigDefaults = Schema.decodeUnknownSync(KccConfigSchema)({})
+const KccConfigDefaults = Schema.decodeSync(KccConfigSchema)({})
 
 export const CopypartyConfigSchema = Schema.Struct({
   url: Schema.String.pipe(Schema.withDecodingDefaultType(Effect.succeed(""))),

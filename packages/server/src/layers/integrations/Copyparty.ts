@@ -74,8 +74,8 @@ export const CopypartyServiceLive = Layer.effect(
 
         yield* Effect.tryPromise({
           try: async () => {
-            const { basename } = await import("node:path")
-            const filename = basename(filePath)
+            const nodePath = await import("node:path")
+            const filename = nodePath.basename(filePath)
             const fileBuf = await Bun.file(filePath).arrayBuffer()
 
             const base = url.replace(/\/+$/, "")

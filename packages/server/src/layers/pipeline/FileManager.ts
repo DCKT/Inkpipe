@@ -29,7 +29,7 @@ const DOCKER_TEMP_DIR = "/tmp/inkpipe"
 
 export const FileManagerServiceLive = Layer.effect(
   FileManagerService,
-  Effect.gen(function* () {
+  Effect.sync(() => {
     const getTempBase = Effect.sync(() =>
       existsSync("/.dockerenv") ? DOCKER_TEMP_DIR : join(tmpdir(), "inkpipe"),
     )

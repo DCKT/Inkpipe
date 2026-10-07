@@ -32,6 +32,9 @@ interface KomgaPage<T> {
   number: number
 }
 
+const errorText = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
 export const KomgaServiceLive = Layer.effect(
   KomgaService,
   Effect.gen(function* () {
@@ -56,7 +59,7 @@ export const KomgaServiceLive = Layer.effect(
             headers: {
               "X-API-Key": info.apiKey,
               "Content-Type": "application/json",
-              ...init?.headers,
+              ...Object.fromEntries(new Headers(init?.headers)),
             },
           })
           if (!response.ok) {
@@ -82,7 +85,7 @@ export const KomgaServiceLive = Layer.effect(
       const response = yield* komgaFetch(info, "api/v1/libraries")
       const data = yield* Effect.tryPromise({
         try: () => response.json() as Promise<KomgaLibrary[]>,
-        catch: (e) => new KomgaHttpError({ message: `Failed to parse libraries: ${e}` }),
+        catch: (e) => new KomgaHttpError({ message: `Failed to parse libraries: ${errorText(e)}` }),
       })
       yield* log.info("komga", `listLibraries — ${data.length} libraries`)
       return data
@@ -113,7 +116,8 @@ export const KomgaServiceLive = Layer.effect(
           )
           const data = (yield* Effect.tryPromise({
             try: () => response.json(),
-            catch: (e) => new KomgaHttpError({ message: `Failed to parse series: ${e}` }),
+            catch: (e) =>
+              new KomgaHttpError({ message: `Failed to parse series: ${errorText(e)}` }),
           })) as KomgaPage<KomgaSeries>
           all.push(...data.content)
           totalPages = data.totalPages
@@ -130,7 +134,8 @@ export const KomgaServiceLive = Layer.effect(
         const response = yield* komgaFetch(info, `api/v1/series/${seriesId}/thumbnail`)
         const arrayBuffer = yield* Effect.tryPromise({
           try: () => response.arrayBuffer(),
-          catch: (e) => new KomgaHttpError({ message: `Failed to read thumbnail: ${e}` }),
+          catch: (e) =>
+            new KomgaHttpError({ message: `Failed to read thumbnail: ${errorText(e)}` }),
         })
         const base64 = Buffer.from(arrayBuffer).toString("base64")
         return `data:image/jpeg;base64,${base64}`
@@ -152,7 +157,7 @@ export const KomgaServiceLive = Layer.effect(
         })
         const data = (yield* Effect.tryPromise({
           try: () => response.json(),
-          catch: (e) => new KomgaHttpError({ message: `Failed to parse books: ${e}` }),
+          catch: (e) => new KomgaHttpError({ message: `Failed to parse books: ${errorText(e)}` }),
         })) as KomgaPage<KomgaBook>
         yield* log.info("komga", `getBooksForSeries — ${data.content.length} books`)
         return data.content

@@ -1,10 +1,12 @@
-import { Context, Effect, Layer } from "effect"
+import { Context, Data, Effect, Layer } from "effect"
 import { join } from "node:path"
 import { homedir } from "node:os"
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs"
 import webpush from "web-push"
 import type { PushSubscriptionRequest } from "@inkpipe/shared"
 import { LogService } from "../core/Log"
+
+class PushSendError extends Data.TaggedError("PushSendError")<{ readonly message: string }> {}
 
 export class PushService extends Context.Service<
   PushService,
@@ -100,12 +102,8 @@ export const PushServiceLive = Layer.effect(
             writeSubscriptionsSync(subs.filter((s) => !expiredEndpoints.has(s.endpoint)))
           }
         },
-        catch: (e) => {
-          if (e instanceof Error)
-            Effect.runSyncWith(context)(log.error("push", "Failed to send:", e.message))
-          return undefined as void
-        },
-      }) as Effect.Effect<void>
+        catch: (e) => new PushSendError({ message: e instanceof Error ? e.message : String(e) }),
+      }).pipe(Effect.catch((e) => log.error("push", "Failed to send:", e.message)))
 
     return { getVapidPublicKey, addSubscription, removeSubscription, sendNotification }
   }),
