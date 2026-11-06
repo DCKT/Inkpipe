@@ -22,12 +22,7 @@
     "unicorn/prefer-add-event-listener": "off",
     "import/no-unassigned-import": "off"
   },
-  "ignorePatterns": [
-    "repos/**",
-    "**/dist/**",
-    "node_modules/**",
-    "**/public/sw.js"
-  ],
+  "ignorePatterns": ["repos/**", "**/dist/**", "node_modules/**", "**/public/sw.js"],
   "overrides": [
     {
       "files": ["**/*.test.ts", "**/*.test.tsx", "**/__mocks__/**"],

@@ -19,8 +19,8 @@
     "prepare": "effect-tsgo patch",
     "lint": "oxlint packages",
     "lint:fix": "oxlint --fix packages",
-    "format": "oxfmt packages docs",
-    "format:check": "oxfmt --check packages docs"
+    "format": "oxfmt packages docs README.md AGENTS.md CONTEXT.md .oxlintrc.json",
+    "format:check": "oxfmt --check packages docs README.md AGENTS.md CONTEXT.md .oxlintrc.json"
   },
   "dependencies": {
     "web-push": "^3.6.7"

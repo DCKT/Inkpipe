@@ -55,13 +55,13 @@ Notes:
 
 Monorepo: five packages managed by Bun workspaces.
 
-| Package            | Description                         | Stack                                                                |
-| ------------------ | ----------------------------------- | -------------------------------------------------------------------- |
-| `packages/shared`  | Domain types, API contracts, errors | Effect Schema v4                                                     |
-| `packages/db`      | SQLite database layer (WAL mode)    | Bun SQLite, Effect v4                                                |
-| `packages/server`  | HTTP API + pipeline orchestration   | Bun.serve, Effect v4, @effect/platform-bun                           |
-| `packages/watcher` | Background watch process            | Effect v4, web-push, Telegram Bot API                                |
-| `packages/web`     | Foldkit SPA frontend                | Foldkit (Effect), @foldkit/ui, Tailwind v4, Vite                      |
+| Package            | Description                         | Stack                                            |
+| ------------------ | ----------------------------------- | ------------------------------------------------ |
+| `packages/shared`  | Domain types, API contracts, errors | Effect Schema v4                                 |
+| `packages/db`      | SQLite database layer (WAL mode)    | Bun SQLite, Effect v4                            |
+| `packages/server`  | HTTP API + pipeline orchestration   | Bun.serve, Effect v4, @effect/platform-bun       |
+| `packages/watcher` | Background watch process            | Effect v4, web-push, Telegram Bot API            |
+| `packages/web`     | Foldkit SPA frontend                | Foldkit (Effect), @foldkit/ui, Tailwind v4, Vite |
 
 ## Local development
 

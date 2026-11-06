@@ -8,7 +8,7 @@ import {
   findBestMatch,
 } from "@inkpipe/shared"
 import { Checkbox } from "@foldkit/ui"
-import { Array as Arr, Effect, Option, Schema } from "effect"
+import { Array as Arr, Effect, Option, Record, Schema } from "effect"
 import { AsyncData, Command, Submodel, type Update } from "foldkit"
 import type { Html } from "foldkit/html"
 import { defineMessageUnion } from "foldkit/message"
@@ -68,7 +68,7 @@ export type Message = typeof Message.Type
  * properties count.
  */
 export const lookup = <A>(record: Readonly<Record<string, A>>, key: string): Option.Option<A> =>
-  Object.hasOwn(record, key) ? Option.some(record[key] as A) : Option.none()
+  Record.get(record, key)
 
 const SIZE_UNITS = ["B", "KB", "MB", "GB"] as const
 const BYTES_PER_UNIT = 1024
