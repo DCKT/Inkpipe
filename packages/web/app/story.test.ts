@@ -133,6 +133,8 @@ describe("subscriptions", () => {
   test("the root registers both the toast and the sidebar subscriptions", () => {
     const keys = Object.keys(subscriptions)
     expect(keys).toContain("refreshUnreadCount")
+    // jobs: socket + poll + clock must be lifted too, or live updates silently stop
+    expect(keys).toEqual(expect.arrayContaining(["socket", "poll", "clock"]))
     expect(keys.length).toBeGreaterThan(1)
   })
 })

@@ -7,7 +7,7 @@ import { existsSync } from "node:fs"
 import { resolve } from "node:path"
 import { JobStoreService } from "../layers/storage/JobStore"
 import { subscribeJobEvents, subscribeJobListEvents } from "../lib/jobEvents"
-import type { Job } from "@inkpipe/shared"
+import type { Job, JobsSocketEvent } from "@inkpipe/shared"
 
 // --- WebSocket broadcaster for /api/jobs/ws ---
 //
@@ -19,7 +19,7 @@ type Writer = Socket.Writer["write"]
 
 const jobSocketWriters = new Set<Writer>()
 
-function broadcastToJobSockets(payload: unknown): void {
+function broadcastToJobSockets(payload: JobsSocketEvent): void {
   const message = JSON.stringify(payload)
   for (const write of jobSocketWriters) {
     Effect.runFork(write(message).pipe(Effect.ignore))
@@ -41,7 +41,7 @@ const jobsWsHandler = Effect.gen(function* () {
 
   const sendInitialJobs = Effect.gen(function* () {
     const jobs = yield* jobStore.getAllJobs
-    yield* write(JSON.stringify({ type: "init", jobs }))
+    yield* write(JSON.stringify({ type: "init", jobs } satisfies JobsSocketEvent))
   }).pipe(Effect.ignore)
 
   yield* sendInitialJobs

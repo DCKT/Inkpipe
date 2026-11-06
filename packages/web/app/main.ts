@@ -7,6 +7,7 @@ import { modifyFields } from "foldkit/struct"
 import { Url, toString as urlToString } from "foldkit/url"
 
 import type { ApiClientService } from "./api"
+import * as Jobs from "./jobs"
 import * as Sidebar from "./sidebar"
 import { toastEntryClass, toastEntryView } from "./toastView"
 import { Toast, ToastRequest, initialToasts, toShowInput } from "./toast"
@@ -20,6 +21,7 @@ export const Model = Schema.Struct({
   route: AppRoute,
   toasts: Toast.Model,
   sidebar: Sidebar.Model,
+  jobs: Jobs.Model,
 })
 
 export type Model = typeof Model.Type
@@ -33,6 +35,7 @@ export const Message = defineMessageUnion({
   ChangedUrl: { url: Url },
   GotToastMessage: { message: Toast.Message },
   GotSidebarMessage: { message: Sidebar.Message },
+  GotJobsMessage: { message: Jobs.Message },
   RequestedToast: { request: ToastRequest },
 })
 
@@ -41,14 +44,21 @@ export type Message = typeof Message.Type
 // INIT
 
 export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResources> = (url) =>
-  Update.foldChildInit(Sidebar.init(), {
-    toParentModel: (sidebar) => ({
-      route: urlToAppRoute(url),
-      toasts: initialToasts(),
-      sidebar,
-    }),
-    toParentMessage: (message) => Message.GotSidebarMessage({ message }),
-  })
+  Update.foldChildInits(
+    { sidebar: Sidebar.init(), jobs: Jobs.init() },
+    {
+      toParentModel: ({ sidebar, jobs }) => ({
+        route: urlToAppRoute(url),
+        toasts: initialToasts(),
+        sidebar,
+        jobs,
+      }),
+      folds: {
+        sidebar: { toParentMessage: (message) => Message.GotSidebarMessage({ message }) },
+        jobs: { toParentMessage: (message) => Message.GotJobsMessage({ message }) },
+      },
+    },
+  )
 
 // COMMAND
 
@@ -99,6 +109,13 @@ const foldSidebar = Update.foldChild({
   toParentMessage: (message) => Message.GotSidebarMessage({ message }),
 })
 
+const foldJobs = Update.foldChild({
+  update: Jobs.update,
+  read: (model: Model) => Option.some(model.jobs),
+  write: (model, jobs) => modifyFields(model, { jobs: () => jobs }),
+  toParentMessage: (message) => Message.GotJobsMessage({ message }),
+})
+
 const foldCloseMobileNav = Update.foldChildStep({
   update: Sidebar.closeMobileNav,
   read: (model: Model) => Option.some(model.sidebar),
@@ -129,6 +146,8 @@ export const update = (model: Model, message: Message): UpdateReturn =>
 
     GotSidebarMessage: ({ message }) => foldSidebar(model, message),
 
+    GotJobsMessage: ({ message }) => foldJobs(model, message),
+
     RequestedToast: ({ request }) => foldToastShow(model, toShowInput(request)),
   })
 
@@ -142,6 +161,10 @@ export const subscriptions = Subscription.aggregate(
   Subscription.lift(Sidebar.subscriptions)<Model, Message>({
     read: (model) => Option.some(model.sidebar),
     toParentMessage: (message) => Message.GotSidebarMessage({ message }),
+  }),
+  Subscription.lift(Jobs.subscriptions)<Model, Message>({
+    read: (model) => Option.some(model.jobs),
+    toParentMessage: (message) => Message.GotJobsMessage({ message }),
   }),
 )
 
@@ -173,6 +196,12 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
         toParentMessage: (message) => Message.GotSidebarMessage({ message }),
       }),
       h.div([h.Class("min-w-0 flex-1 pt-14 xl:pt-0")], [pageView(model.route, h)]),
+      h.submodel({
+        slotId: "jobs",
+        model: model.jobs,
+        view: Jobs.view,
+        toParentMessage: (message) => Message.GotJobsMessage({ message }),
+      }),
       h.submodel({
         slotId: model.toasts.id,
         model: model.toasts,
