@@ -28,6 +28,15 @@ export const JobsResponseSchema = Schema.Struct({
 })
 export type JobsResponse = typeof JobsResponseSchema.Type
 
+// --- Jobs WebSocket (/api/jobs/ws) ---
+
+/** Every frame the server pushes on the jobs socket. */
+export const JobsSocketEventSchema = Schema.Union([
+  Schema.Struct({ type: Schema.Literal("init"), jobs: Schema.Array(JobSchema) }),
+  Schema.Struct({ type: Schema.Literal("update"), job: JobSchema }),
+])
+export type JobsSocketEvent = typeof JobsSocketEventSchema.Type
+
 // --- Settings ---
 
 export const SettingsResponseSchema = AppConfigSchema

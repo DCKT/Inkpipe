@@ -9,28 +9,20 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ark-ui/react": "^5.40.0",
+    "@effect/platform-browser": "4.1.2",
+    "@foldkit/ui": "0.170.0",
     "@inkpipe/shared": "workspace:*",
-    "@tanstack/react-query": "^5.106.1",
     "effect": "4.1.2",
-    "lucide-react": "^1.70.0",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "react-router-dom": "^7.18.5",
+    "foldkit": "0.170.0",
     "tailwindcss": "^4.3.4"
   },
   "devDependencies": {
+    "@foldkit/vite-plugin": "0.29.0",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.4",
-    "@testing-library/dom": "^10.4.2",
-    "@testing-library/react": "^16.3.3",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.2.1",
-    "jsdom": "^31.0.0",
+    "happy-dom": "^20.14.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.6",
-    "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^5.1.0"
   }
 }

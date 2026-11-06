@@ -1,9 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["app/**/*.ts", "app/**/*.tsx"],
+  "include": ["app/**/*.ts", "vite.config.ts", "vitest.config.ts"],
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "noEmit": true,
     "types": ["vite/client"]
   }
 }
