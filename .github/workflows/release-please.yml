@@ -48,7 +48,7 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
           BUMP="none"
-          if   echo "$COMMITS" | grep -qE "^(feat|fix)!.*:"; then BUMP="major"
+          if   echo "$COMMITS" | grep -qE "^[a-z]+(\(.*\))?!:"; then BUMP="major"
           elif echo "$COMMITS" | grep -qE "^feat(\(.*\))?:"; then BUMP="minor"
           elif echo "$COMMITS" | grep -qE "^fix(\(.*\))?:";  then BUMP="patch"
           fi
