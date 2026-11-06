@@ -37,7 +37,7 @@ const b = makeResult({
 })
 
 const start = (items = [a, b], nowMillis = Date.parse("2026-06-15T12:00:00.000Z")) =>
-  Results.setItems(Results.init().model, items, nowMillis)
+  Results.setItems(Results.init(), items, nowMillis)
 
 // The Komga series fetch is pending in every fresh model.
 const settled = (model: Results.Model) =>

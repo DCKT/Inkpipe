@@ -15,6 +15,8 @@ export const buttonClass = {
     "rounded-[3px] bg-accent px-6 py-2.5 text-sm font-semibold text-on-accent transition hover:bg-accent-hover disabled:opacity-50",
   secondary:
     "rounded-[3px] border-[1.5px] border-primary px-5 py-2 text-sm font-semibold text-primary transition hover:bg-surface-2 disabled:opacity-50",
+  submitInline:
+    "rounded-[3px] border-[1.5px] border-accent bg-accent-tint px-6 py-3 text-sm font-semibold text-accent-hover transition hover:bg-accent/20 disabled:opacity-50",
   submit:
     "w-full rounded-[3px] border-[1.5px] border-accent bg-accent-tint px-6 py-3 text-sm font-semibold text-accent-hover transition hover:bg-accent/20 disabled:opacity-50",
 } as const

@@ -203,19 +203,29 @@ export const SaveMagnet = Command.define("SaveMagnet", {
 
 type UpdateReturn = Update.Return<Model, Message, ApiClientService>
 
-/** Komga series are fetched silently: without them rows just have no badge. */
-export const init = (): UpdateReturn => ({
-  model: {
-    items: [],
-    selected: [],
-    saves: {},
-    series: SeriesData.Loading(),
-    matches: {},
-    nowMillis: 0,
-    listVersion: 0,
-  },
-  commands: [FetchSeries()],
+export const init = (): Model => ({
+  items: [],
+  selected: [],
+  saves: {},
+  series: SeriesData.Idle(),
+  matches: {},
+  nowMillis: 0,
+  listVersion: 0,
 })
+
+/**
+ * Fetch the Komga series if we don't have them (or last time failed). Silent
+ * on failure: without series rows just have no badge. Pages call this when
+ * they are entered, so a big library is only fetched where it's used.
+ */
+export const ensureSeries = (model: Model): UpdateReturn =>
+  Option.match(AsyncData.loadIfMissing(model.series), {
+    onNone: () => ({ model }),
+    onSome: (series) => ({
+      model: modifyFields(model, { series: () => series }),
+      commands: [FetchSeries()],
+    }),
+  })
 
 // UPDATE
 

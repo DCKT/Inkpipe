@@ -72,6 +72,9 @@ export const findExisting = (
   )
 }
 
+/** A fetch is in flight, so the list may not yet reflect what exists. */
+export const isPending = (model: Model): boolean => AsyncData.isPending(model.folders)
+
 /** Whether the folder list is known, so "new" is a fact rather than a guess. */
 export const isListKnown = (model: Model): boolean => AsyncData.hasData(model.folders)
 
@@ -106,7 +109,17 @@ export const FetchFolders = Command.define("FetchFolders", {
 
 type UpdateReturn = Update.Return<Model, Message, ApiClientService>
 
-/** `value` pre-fills the box (an existing, possibly URI-encoded, subfolder). */
+/**
+ * Nothing fetched yet. Pickers that live in a dialog start here and call
+ * `refresh` when the dialog opens. `value` pre-fills the box (an existing,
+ * possibly URI-encoded, subfolder).
+ */
+export const initial = (value = ""): Model => ({
+  folders: FoldersData.Idle(),
+  input: safeDecode(value),
+})
+
+/** A picker that is visible straight away: starts fetching immediately. */
 export const init = (value = ""): UpdateReturn => ({
   model: { folders: FoldersData.Loading(), input: safeDecode(value) },
   commands: [FetchFolders()],
@@ -123,6 +136,23 @@ export const refresh = (model: Model): UpdateReturn =>
       commands: [FetchFolders()],
     }),
   })
+
+/** Clear what's typed (a fresh dialog should not remember the last folder). */
+export const clearInput = (model: Model): Model => modifyFields(model, { input: () => "" })
+
+/**
+ * What to tell the server about the chosen folder. "New" is only claimed when
+ * the existing folders are actually known: a wrong "new" makes the server
+ * create (and, if a later item fails, delete) a folder that already exists.
+ * With an unknown list the folder is sent without any claim.
+ */
+export const requestFor = (
+  model: Model,
+): Option.Option<{ subfolder: string; newFolder: Option.Option<boolean> }> =>
+  Option.map(selection(model), ({ subfolder, isNewFolder }) => ({
+    subfolder,
+    newFolder: isListKnown(model) ? Option.some(isNewFolder) : Option.none(),
+  }))
 
 /** Replace what's typed, e.g. when a form is reopened for a different item. */
 export const setValue = (model: Model, value: string): Model =>

@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest"
 import { ApiClientService } from "./api"
 import * as Results from "./results"
 import { makeResult, makeSeries } from "./resultsFixtures"
+import { requestJson } from "./testHttp"
 
 const a = makeResult({
   guid: "a",
@@ -20,14 +21,34 @@ const b = makeResult({
   magnetUrl: null,
   downloadUrl: "http://t/b.torrent",
 })
-const withItems = (items = [a, b]) => Results.setItems(Results.init().model, items, 1_000)
+const withItems = (items = [a, b]) => Results.setItems(Results.init(), items, 1_000)
 
 describe("init and setItems", () => {
-  test("init fetches the Komga series and starts empty", () => {
+  test("init starts empty and fetches nothing", () => {
     const started = Results.init()
-    expect(started.model.items).toStrictEqual([])
-    expect(AsyncData.isLoading(started.model.series)).toBe(true)
-    expect(started.commands?.map((c) => c.name)).toStrictEqual(["FetchSeries"])
+    expect(started.items).toStrictEqual([])
+    expect(AsyncData.isIdle(started.series)).toBe(true)
+  })
+
+  test("ensureSeries fetches once, retries after a failure, and leaves loaded series alone", () => {
+    const first = Results.ensureSeries(Results.init())
+    expect(AsyncData.isLoading(first.model.series)).toBe(true)
+    expect(first.commands?.map((c) => c.name)).toStrictEqual(["FetchSeries"])
+
+    expect(Results.ensureSeries(first.model).commands ?? []).toHaveLength(0)
+
+    const failed = Results.update(
+      first.model,
+      Results.Message.FailedFetchSeries({ reason: "x" }),
+    ).model
+    expect(Results.ensureSeries(failed).commands?.map((c) => c.name)).toStrictEqual(["FetchSeries"])
+
+    const loaded = Results.update(
+      first.model,
+      Results.Message.SucceededFetchSeries({ series: [makeSeries()] }),
+    ).model
+    expect(Results.ensureSeries(loaded).commands ?? []).toHaveLength(0)
+    expect(Results.ensureSeries(loaded).model).toStrictEqual(loaded)
   })
 
   test("new items clear the selection and save marks, and stamp the time", () => {
@@ -45,7 +66,7 @@ describe("init and setItems", () => {
 
   test("matches are computed against whatever series are already known", () => {
     const known = Results.update(
-      Results.init().model,
+      Results.init(),
       Results.Message.SucceededFetchSeries({ series: [makeSeries()] }),
     ).model
     expect(Object.keys(Results.setItems(known, [a, b], 0).matches)).toStrictEqual(["a"])
@@ -87,7 +108,7 @@ describe("selection", () => {
 
   test("select all on an empty list stays empty", () => {
     expect(
-      Results.update(Results.init().model, Results.Message.ToggledAll()).model.selected,
+      Results.update(Results.init(), Results.Message.ToggledAll()).model.selected,
     ).toStrictEqual([])
   })
 
@@ -211,7 +232,7 @@ describe("hostile guids and duplicates", () => {
     "a release whose guid is %j behaves like any other",
     (guid) => {
       const odd = makeResult({ guid, title: "Odd one" })
-      const base = Results.setItems(Results.init().model, [odd], 0)
+      const base = Results.setItems(Results.init(), [odd], 0)
       const saving = Results.update(base, Results.Message.ClickedSaveToAllDebrid({ guid }))
       expect(saving.commands?.map((c) => c.name)).toStrictEqual(["SaveMagnet"])
       expect(Results.lookup(saving.model.saves, guid)).toStrictEqual(
@@ -234,14 +255,14 @@ describe("hostile guids and duplicates", () => {
   })
 
   test("the same release listed twice becomes one row, one selection, one download", () => {
-    const dup = Results.setItems(Results.init().model, [a, b, a], 0)
+    const dup = Results.setItems(Results.init(), [a, b, a], 0)
     expect(dup.items.map((i) => i.guid)).toStrictEqual(["a", "b"])
     const picked = Results.update(dup, Results.Message.ToggledResult({ guid: "a" })).model
     expect(Results.selectedItems(picked)).toHaveLength(1)
   })
 
   test("every setItems starts a new list version", () => {
-    const first = Results.setItems(Results.init().model, [a], 0)
+    const first = Results.setItems(Results.init(), [a], 0)
     expect(Results.setItems(first, [a], 0).listVersion).toBe(first.listVersion + 1)
   })
 })
@@ -307,12 +328,7 @@ describe("Commands (against a stubbed API)", () => {
     )
     expect(ok).toStrictEqual(Results.Message.SucceededSaveMagnet({ guid: "a", listVersion: 1 }))
     expect(seen[0]?.url).toBe("http://api.test/api/alldebrid/save-magnet")
-    const body = seen[0]?.body
-    expect(
-      body && "body" in body
-        ? JSON.parse(new TextDecoder().decode(body.body as Uint8Array))
-        : undefined,
-    ).toStrictEqual({
+    expect(requestJson(seen[0])).toStrictEqual({
       magnetUrl: "magnet:a",
       downloadUrl: null,
     })

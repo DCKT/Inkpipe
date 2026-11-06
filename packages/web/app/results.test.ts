@@ -117,11 +117,11 @@ describe("selection helpers", () => {
   const b = makeResult({ guid: "b" })
 
   test("selectedItems follows the list's order, not the click order", () => {
-    const model = { ...setItems(init().model, [a, b], 0), selected: ["b", "a"] }
+    const model = { ...setItems(init(), [a, b], 0), selected: ["b", "a"] }
     expect(selectedItems(model).map((i) => i.guid)).toStrictEqual(["a", "b"])
   })
 
   test("isAllSelected is false for an empty list", () => {
-    expect(isAllSelected(init().model)).toBe(false)
+    expect(isAllSelected(init())).toBe(false)
   })
 })

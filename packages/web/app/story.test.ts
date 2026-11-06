@@ -7,6 +7,8 @@ import { describe, expect, test } from "vitest"
 
 import { Dialog, Toast as UiToast } from "@foldkit/ui"
 
+import * as Prowlarr from "./prowlarr"
+import * as Results from "./results"
 import * as Settings from "./settings"
 import * as Sidebar from "./sidebar"
 import { defaultConfig } from "./settingsFixtures"
@@ -174,7 +176,7 @@ describe("settings page integration", () => {
         expect(m.settings.isKomgaNotConfigured).toBe(true)
         expect(AsyncData.isFailure(m.settings.form)).toBe(true)
       }),
-      message(Message.ChangedUrl({ url: urlOrThrow("http://localhost/") })),
+      message(Message.ChangedUrl({ url: urlOrThrow("http://localhost/komga") })),
       message(Message.ChangedUrl({ url: urlOrThrow("http://localhost/settings") })),
       Command.resolve(
         Settings.FetchSettings,
@@ -192,6 +194,22 @@ describe("settings page integration", () => {
     expect(cold.model.settings.isKomgaNotConfigured).toBe(true)
     expect(AsyncData.isLoading(cold.model.settings.form)).toBe(true)
     expect(cold.commands?.map((c) => c.name)).toContain("FetchSettings")
+  })
+
+  test("navigating to the search page from elsewhere loads Komga series and focuses the box", () => {
+    story(
+      update,
+      given(onSettings),
+      message(Message.ChangedUrl({ url: urlOrThrow("http://localhost/") })),
+      Command.resolve(Prowlarr.FocusSearch, Prowlarr.Message.CompletedFocusSearch()),
+      Command.resolve(
+        Results.FetchSeries,
+        Results.Message.FailedFetchSeries({ reason: "no komga" }),
+      ),
+      model((m) => {
+        expect(m.route).toStrictEqual(AppRoute.Prowlarr())
+      }),
+    )
   })
 
   test("a cold load elsewhere does not fetch settings", () => {

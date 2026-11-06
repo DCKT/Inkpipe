@@ -8,6 +8,7 @@ import { Url, toString as urlToString } from "foldkit/url"
 
 import type { ApiClientService } from "./api"
 import * as Jobs from "./jobs"
+import * as Prowlarr from "./prowlarr"
 import * as Settings from "./settings"
 import * as Sidebar from "./sidebar"
 import { toastEntryClass, toastEntryView } from "./toastView"
@@ -24,6 +25,7 @@ export const Model = Schema.Struct({
   sidebar: Sidebar.Model,
   jobs: Jobs.Model,
   settings: Settings.Model,
+  prowlarr: Prowlarr.Model,
 })
 
 export type Model = typeof Model.Type
@@ -39,12 +41,16 @@ export const Message = defineMessageUnion({
   GotSidebarMessage: { message: Sidebar.Message },
   GotJobsMessage: { message: Jobs.Message },
   GotSettingsMessage: { message: Settings.Message },
+  GotProwlarrMessage: { message: Prowlarr.Message },
   RequestedToast: { request: ToastRequest },
 })
 
 export type Message = typeof Message.Type
 
 // INIT
+
+const initialProwlarr = (route: AppRoute) =>
+  route._tag === "Prowlarr" ? Prowlarr.enter(Prowlarr.init()) : { model: Prowlarr.init() }
 
 const initialSettings = (route: AppRoute) =>
   route._tag === "Settings"
@@ -55,14 +61,20 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
   const route = urlToAppRoute(url)
 
   return Update.foldChildInits(
-    { sidebar: Sidebar.init(), jobs: Jobs.init(), settings: initialSettings(route) },
     {
-      toParentModel: ({ sidebar, jobs, settings }) => ({
+      sidebar: Sidebar.init(),
+      jobs: Jobs.init(),
+      settings: initialSettings(route),
+      prowlarr: initialProwlarr(route),
+    },
+    {
+      toParentModel: ({ sidebar, jobs, settings, prowlarr }) => ({
         route,
         toasts: initialToasts(),
         sidebar,
         jobs,
         settings,
+        prowlarr,
       }),
       folds: {
         sidebar: { toParentMessage: (message) => Message.GotSidebarMessage({ message }) },
@@ -70,6 +82,10 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         settings: {
           toParentMessage: (message) => Message.GotSettingsMessage({ message }),
           foldOutMessage: foldSettingsOutMessage,
+        },
+        prowlarr: {
+          toParentMessage: (message) => Message.GotProwlarrMessage({ message }),
+          foldOutMessage: foldProwlarrOutMessage,
         },
       },
     },
@@ -158,6 +174,24 @@ const foldSettingsOutMessage = Settings.OutMessage.match<Step>({
     ]),
 })
 
+const foldProwlarrOutMessage = Prowlarr.OutMessage.match<Step>({
+  RequestedToast:
+    ({ request }) =>
+    (model) =>
+      foldToastShow(model, toShowInput(request)),
+})
+
+const prowlarrFold = {
+  read: (model: Model) => Option.some(model.prowlarr),
+  write: (model: Model, prowlarr: Prowlarr.Model) =>
+    modifyFields(model, { prowlarr: () => prowlarr }),
+  toParentMessage: (message: Prowlarr.Message) => Message.GotProwlarrMessage({ message }),
+  foldOutMessage: foldProwlarrOutMessage,
+}
+
+const foldProwlarr = Update.foldChild({ update: Prowlarr.update, ...prowlarrFold })
+const foldEnterProwlarr = Update.foldChildStep({ update: Prowlarr.enter, ...prowlarrFold })
+
 const settingsFold = {
   read: (model: Model) => Option.some(model.settings),
   write: (model: Model, settings: Settings.Model) =>
@@ -175,10 +209,17 @@ const foldEnterSettings = (isKomgaNotConfigured: boolean) =>
     ...settingsFold,
   })
 
-const enterPage = (previous: AppRoute, next: AppRoute): Step =>
-  next._tag === "Settings" && previous._tag !== "Settings"
-    ? foldEnterSettings(Option.isSome(next.komgaNotConfigured))
-    : (model) => ({ model })
+const enterPage = (previous: AppRoute, next: AppRoute): Step => {
+  if (next._tag === "Settings" && previous._tag !== "Settings") {
+    return foldEnterSettings(Option.isSome(next.komgaNotConfigured))
+  }
+
+  if (next._tag === "Prowlarr" && previous._tag !== "Prowlarr") {
+    return foldEnterProwlarr
+  }
+
+  return (model) => ({ model })
+}
 
 const foldCloseMobileNav = Update.foldChildStep({
   update: Sidebar.closeMobileNav,
@@ -221,6 +262,8 @@ export const update = (model: Model, message: Message): UpdateReturn =>
 
     GotSettingsMessage: ({ message }) => foldSettings(model, message),
 
+    GotProwlarrMessage: ({ message }) => foldProwlarr(model, message),
+
     RequestedToast: ({ request }) => foldToastShow(model, toShowInput(request)),
   })
 
@@ -252,7 +295,13 @@ const pageView = (model: Model, h: HtmlBuilder<Message>): Html =>
         view: Settings.view,
         toParentMessage: (message) => Message.GotSettingsMessage({ message }),
       }),
-    Prowlarr: () => placeholderPage(model.route, h),
+    Prowlarr: () =>
+      h.submodel({
+        slotId: "prowlarr",
+        model: model.prowlarr,
+        view: Prowlarr.view,
+        toParentMessage: (message) => Message.GotProwlarrMessage({ message }),
+      }),
     Latest: () => placeholderPage(model.route, h),
     AnnasArchive: () => placeholderPage(model.route, h),
     Komga: () => placeholderPage(model.route, h),

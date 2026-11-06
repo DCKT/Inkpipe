@@ -97,12 +97,51 @@ describe("selection", () => {
   })
 })
 
+describe("safe requests", () => {
+  test("a request names 'new' only when the existing folders are known", () => {
+    const known = loaded(["manga"], "fresh")
+    expect(Folders.requestFor(known)).toStrictEqual(
+      Option.some({ subfolder: "fresh", newFolder: Option.some(true) }),
+    )
+    expect(Folders.requestFor(loaded(["manga"], "manga"))).toStrictEqual(
+      Option.some({ subfolder: "manga", newFolder: Option.some(false) }),
+    )
+    const unknown = { ...Folders.init().model, input: "manga" }
+    expect(Folders.requestFor(unknown)).toStrictEqual(
+      Option.some({ subfolder: "manga", newFolder: Option.none() }),
+    )
+    expect(Folders.requestFor(loaded(["manga"], ""))).toStrictEqual(Option.none())
+  })
+
+  test("clearInput empties the text and keeps the folders", () => {
+    const cleared = Folders.clearInput(loaded(["manga"], "typed"))
+    expect(cleared.input).toBe("")
+    expect(AsyncData.getData(cleared.folders)).toStrictEqual(Option.some(["manga"]))
+  })
+
+  test("isPending is true only while a fetch is in flight", () => {
+    expect(Folders.isPending(Folders.init().model)).toBe(true)
+    expect(Folders.isPending(Folders.initial())).toBe(false)
+    expect(Folders.isPending(loaded(["a"]))).toBe(false)
+    expect(Folders.isPending(Folders.refresh(loaded(["a"])).model)).toBe(true)
+  })
+})
+
 describe("update", () => {
   test("init fetches once and decodes the pre-filled value", () => {
     const started = Folders.init("My%20Manga")
     expect(started.model.input).toBe("My Manga")
     expect(AsyncData.isLoading(started.model.folders)).toBe(true)
     expect(started.commands?.map((c) => c.name)).toStrictEqual(["FetchFolders"])
+  })
+
+  test("initial() fetches nothing and leaves loading to refresh", () => {
+    const idle = Folders.initial("My%20Manga")
+    expect(AsyncData.isIdle(idle.folders)).toBe(true)
+    expect(idle.input).toBe("My Manga")
+    const refreshed = Folders.refresh(idle)
+    expect(AsyncData.isLoading(refreshed.model.folders)).toBe(true)
+    expect(refreshed.commands?.map((c) => c.name)).toStrictEqual(["FetchFolders"])
   })
 
   test("typing changes only the input", () => {
