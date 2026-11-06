@@ -212,6 +212,29 @@ describe("settings page integration", () => {
     )
   })
 
+  test("a cold load straight onto /latest fetches the releases", () => {
+    const cold = init(urlOrThrow("http://localhost/latest"))
+    expect(cold.model.latest.load._tag).toBe("Loading")
+    expect(cold.commands?.map((c) => c.name)).toContain("FetchLatest")
+    expect(init(urlOrThrow("http://localhost/watches")).commands?.map((c) => c.name)).not.toContain(
+      "FetchLatest",
+    )
+  })
+
+  test("navigating to /latest loads it once, and staying on it does not reload", () => {
+    const entered = update(
+      onProwlarr,
+      Message.ChangedUrl({ url: urlOrThrow("http://localhost/latest") }),
+    )
+    expect(entered.commands?.map((c) => c.name)).toContain("FetchLatest")
+    expect(
+      update(
+        entered.model,
+        Message.ChangedUrl({ url: urlOrThrow("http://localhost/latest") }),
+      ).commands?.map((c) => c.name) ?? [],
+    ).not.toContain("FetchLatest")
+  })
+
   test("a cold load elsewhere does not fetch settings", () => {
     const cold = init(urlOrThrow("http://localhost/watches"))
     expect(cold.commands?.map((c) => c.name)).not.toContain("FetchSettings")

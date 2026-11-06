@@ -8,6 +8,7 @@ import { Url, toString as urlToString } from "foldkit/url"
 
 import type { ApiClientService } from "./api"
 import * as Jobs from "./jobs"
+import * as Latest from "./latest"
 import * as Prowlarr from "./prowlarr"
 import * as Settings from "./settings"
 import * as Sidebar from "./sidebar"
@@ -26,6 +27,7 @@ export const Model = Schema.Struct({
   jobs: Jobs.Model,
   settings: Settings.Model,
   prowlarr: Prowlarr.Model,
+  latest: Latest.Model,
 })
 
 export type Model = typeof Model.Type
@@ -42,6 +44,7 @@ export const Message = defineMessageUnion({
   GotJobsMessage: { message: Jobs.Message },
   GotSettingsMessage: { message: Settings.Message },
   GotProwlarrMessage: { message: Prowlarr.Message },
+  GotLatestMessage: { message: Latest.Message },
   RequestedToast: { request: ToastRequest },
 })
 
@@ -51,6 +54,9 @@ export type Message = typeof Message.Type
 
 const initialProwlarr = (route: AppRoute) =>
   route._tag === "Prowlarr" ? Prowlarr.enter(Prowlarr.init()) : { model: Prowlarr.init() }
+
+const initialLatest = (route: AppRoute) =>
+  route._tag === "Latest" ? Latest.enter(Latest.init()) : { model: Latest.init() }
 
 const initialSettings = (route: AppRoute) =>
   route._tag === "Settings"
@@ -66,15 +72,17 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
       jobs: Jobs.init(),
       settings: initialSettings(route),
       prowlarr: initialProwlarr(route),
+      latest: initialLatest(route),
     },
     {
-      toParentModel: ({ sidebar, jobs, settings, prowlarr }) => ({
+      toParentModel: ({ sidebar, jobs, settings, prowlarr, latest }) => ({
         route,
         toasts: initialToasts(),
         sidebar,
         jobs,
         settings,
         prowlarr,
+        latest,
       }),
       folds: {
         sidebar: { toParentMessage: (message) => Message.GotSidebarMessage({ message }) },
@@ -86,6 +94,10 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         prowlarr: {
           toParentMessage: (message) => Message.GotProwlarrMessage({ message }),
           foldOutMessage: foldProwlarrOutMessage,
+        },
+        latest: {
+          toParentMessage: (message) => Message.GotLatestMessage({ message }),
+          foldOutMessage: foldLatestOutMessage,
         },
       },
     },
@@ -192,6 +204,23 @@ const prowlarrFold = {
 const foldProwlarr = Update.foldChild({ update: Prowlarr.update, ...prowlarrFold })
 const foldEnterProwlarr = Update.foldChildStep({ update: Prowlarr.enter, ...prowlarrFold })
 
+const foldLatestOutMessage = Latest.OutMessage.match<Step>({
+  RequestedToast:
+    ({ request }) =>
+    (model) =>
+      foldToastShow(model, toShowInput(request)),
+})
+
+const latestFold = {
+  read: (model: Model) => Option.some(model.latest),
+  write: (model: Model, latest: Latest.Model) => modifyFields(model, { latest: () => latest }),
+  toParentMessage: (message: Latest.Message) => Message.GotLatestMessage({ message }),
+  foldOutMessage: foldLatestOutMessage,
+}
+
+const foldLatest = Update.foldChild({ update: Latest.update, ...latestFold })
+const foldEnterLatest = Update.foldChildStep({ update: Latest.enter, ...latestFold })
+
 const settingsFold = {
   read: (model: Model) => Option.some(model.settings),
   write: (model: Model, settings: Settings.Model) =>
@@ -216,6 +245,10 @@ const enterPage = (previous: AppRoute, next: AppRoute): Step => {
 
   if (next._tag === "Prowlarr" && previous._tag !== "Prowlarr") {
     return foldEnterProwlarr
+  }
+
+  if (next._tag === "Latest" && previous._tag !== "Latest") {
+    return foldEnterLatest
   }
 
   return (model) => ({ model })
@@ -264,6 +297,8 @@ export const update = (model: Model, message: Message): UpdateReturn =>
 
     GotProwlarrMessage: ({ message }) => foldProwlarr(model, message),
 
+    GotLatestMessage: ({ message }) => foldLatest(model, message),
+
     RequestedToast: ({ request }) => foldToastShow(model, toShowInput(request)),
   })
 
@@ -302,7 +337,13 @@ const pageView = (model: Model, h: HtmlBuilder<Message>): Html =>
         view: Prowlarr.view,
         toParentMessage: (message) => Message.GotProwlarrMessage({ message }),
       }),
-    Latest: () => placeholderPage(model.route, h),
+    Latest: () =>
+      h.submodel({
+        slotId: "latest",
+        model: model.latest,
+        view: Latest.view,
+        toParentMessage: (message) => Message.GotLatestMessage({ message }),
+      }),
     AnnasArchive: () => placeholderPage(model.route, h),
     Komga: () => placeholderPage(model.route, h),
     Watches: () => placeholderPage(model.route, h),

@@ -4,6 +4,7 @@ import { Command } from "foldkit/scene"
 
 import { Model } from "./main"
 import * as Jobs from "./jobs"
+import * as Latest from "./latest"
 import * as Prowlarr from "./prowlarr"
 import * as Settings from "./settings"
 import * as Sidebar from "./sidebar"
@@ -19,6 +20,7 @@ export const modelAt = (route: AppRoute): Model =>
     jobs: Jobs.init().model,
     settings: Settings.init().model,
     prowlarr: Prowlarr.init(),
+    latest: Latest.init(),
   })
 
 /**
