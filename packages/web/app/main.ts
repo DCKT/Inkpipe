@@ -10,6 +10,7 @@ import type { ApiClientService } from "./api"
 import * as AnnasArchive from "./annasArchive"
 import * as Convert from "./convert"
 import * as Jobs from "./jobs"
+import * as Komga from "./komga"
 import * as Latest from "./latest"
 import * as Prowlarr from "./prowlarr"
 import * as Settings from "./settings"
@@ -32,6 +33,7 @@ export const Model = Schema.Struct({
   latest: Latest.Model,
   annasArchive: AnnasArchive.Model,
   convert: Convert.Model,
+  komga: Komga.Model,
 })
 
 export type Model = typeof Model.Type
@@ -51,6 +53,7 @@ export const Message = defineMessageUnion({
   GotLatestMessage: { message: Latest.Message },
   GotAnnasArchiveMessage: { message: AnnasArchive.Message },
   GotConvertMessage: { message: Convert.Message },
+  GotKomgaMessage: { message: Komga.Message },
   RequestedToast: { request: ToastRequest },
 })
 
@@ -72,6 +75,9 @@ const initialAnnasArchive = (route: AppRoute) =>
 const initialConvert = (route: AppRoute) =>
   route._tag === "Convert" ? Convert.enter(Convert.init()) : { model: Convert.init() }
 
+const initialKomga = (route: AppRoute) =>
+  route._tag === "Komga" ? Komga.enter(Komga.init()) : { model: Komga.init() }
+
 const initialSettings = (route: AppRoute) =>
   route._tag === "Settings"
     ? Settings.enter(Option.isSome(route.komgaNotConfigured))
@@ -89,9 +95,19 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
       latest: initialLatest(route),
       annasArchive: initialAnnasArchive(route),
       convert: initialConvert(route),
+      komga: initialKomga(route),
     },
     {
-      toParentModel: ({ sidebar, jobs, settings, prowlarr, latest, annasArchive, convert }) => ({
+      toParentModel: ({
+        sidebar,
+        jobs,
+        settings,
+        prowlarr,
+        latest,
+        annasArchive,
+        convert,
+        komga,
+      }) => ({
         route,
         toasts: initialToasts(),
         sidebar,
@@ -101,6 +117,7 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         latest,
         annasArchive,
         convert,
+        komga,
       }),
       folds: {
         sidebar: { toParentMessage: (message) => Message.GotSidebarMessage({ message }) },
@@ -124,6 +141,10 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         convert: {
           toParentMessage: (message) => Message.GotConvertMessage({ message }),
           foldOutMessage: foldConvertOutMessage,
+        },
+        komga: {
+          toParentMessage: (message) => Message.GotKomgaMessage({ message }),
+          foldOutMessage: foldKomgaOutMessage,
         },
       },
     },
@@ -290,6 +311,24 @@ const convertFold = {
 const foldConvert = Update.foldChild({ update: Convert.update, ...convertFold })
 const foldEnterConvert = Update.foldChildStep({ update: Convert.enter, ...convertFold })
 
+const foldKomgaOutMessage = Komga.OutMessage.match<Step>({
+  // Only if the user is still on the Komga page when the answer arrives.
+  RequestedSettings: () => (model) =>
+    model.route._tag === "Komga"
+      ? { model, commands: [NavigateInternal({ url: "/settings?komgaNotConfigured=true" })] }
+      : { model },
+})
+
+const komgaFold = {
+  read: (model: Model) => Option.some(model.komga),
+  write: (model: Model, komga: Komga.Model) => modifyFields(model, { komga: () => komga }),
+  toParentMessage: (message: Komga.Message) => Message.GotKomgaMessage({ message }),
+  foldOutMessage: foldKomgaOutMessage,
+}
+
+const foldKomga = Update.foldChild({ update: Komga.update, ...komgaFold })
+const foldEnterKomga = Update.foldChildStep({ update: Komga.enter, ...komgaFold })
+
 const settingsFold = {
   read: (model: Model) => Option.some(model.settings),
   write: (model: Model, settings: Settings.Model) =>
@@ -326,6 +365,10 @@ const enterPage = (previous: AppRoute, next: AppRoute): Step => {
 
   if (next._tag === "Convert" && previous._tag !== "Convert") {
     return foldEnterConvert
+  }
+
+  if (next._tag === "Komga" && previous._tag !== "Komga") {
+    return foldEnterKomga
   }
 
   return (model) => ({ model })
@@ -380,6 +423,8 @@ export const update = (model: Model, message: Message): UpdateReturn =>
 
     GotConvertMessage: ({ message }) => foldConvert(model, message),
 
+    GotKomgaMessage: ({ message }) => foldKomga(model, message),
+
     RequestedToast: ({ request }) => foldToastShow(model, toShowInput(request)),
   })
 
@@ -432,7 +477,13 @@ const pageView = (model: Model, h: HtmlBuilder<Message>): Html =>
         view: AnnasArchive.view,
         toParentMessage: (message) => Message.GotAnnasArchiveMessage({ message }),
       }),
-    Komga: () => placeholderPage(model.route, h),
+    Komga: () =>
+      h.submodel({
+        slotId: "komga",
+        model: model.komga,
+        view: Komga.view,
+        toParentMessage: (message) => Message.GotKomgaMessage({ message }),
+      }),
     Watches: () => placeholderPage(model.route, h),
     WatchDetail: () => placeholderPage(model.route, h),
     Convert: () =>

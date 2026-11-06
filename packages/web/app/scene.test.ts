@@ -82,8 +82,8 @@ describe("view", () => {
   test("the page heading reflects the route", () => {
     scene(
       { update, view },
-      given(at(AppRoute.Komga())),
-      sceneExpect(role("heading", { name: "Komga · Inkpipe" })).toExist(),
+      given(at(AppRoute.Watches())),
+      sceneExpect(role("heading", { name: "Watches · Inkpipe" })).toExist(),
     )
   })
 })

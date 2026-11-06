@@ -6,6 +6,7 @@ import { Model } from "./main"
 import * as AnnasArchive from "./annasArchive"
 import * as Convert from "./convert"
 import * as Jobs from "./jobs"
+import * as Komga from "./komga"
 import * as Latest from "./latest"
 import * as Prowlarr from "./prowlarr"
 import * as Settings from "./settings"
@@ -25,6 +26,7 @@ export const modelAt = (route: AppRoute): Model =>
     latest: Latest.init(),
     annasArchive: AnnasArchive.init(),
     convert: Convert.init(),
+    komga: Komga.init(),
   })
 
 /**
