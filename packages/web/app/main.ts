@@ -8,6 +8,7 @@ import { Url, toString as urlToString } from "foldkit/url"
 
 import type { ApiClientService } from "./api"
 import * as AnnasArchive from "./annasArchive"
+import * as Convert from "./convert"
 import * as Jobs from "./jobs"
 import * as Latest from "./latest"
 import * as Prowlarr from "./prowlarr"
@@ -30,6 +31,7 @@ export const Model = Schema.Struct({
   prowlarr: Prowlarr.Model,
   latest: Latest.Model,
   annasArchive: AnnasArchive.Model,
+  convert: Convert.Model,
 })
 
 export type Model = typeof Model.Type
@@ -48,6 +50,7 @@ export const Message = defineMessageUnion({
   GotProwlarrMessage: { message: Prowlarr.Message },
   GotLatestMessage: { message: Latest.Message },
   GotAnnasArchiveMessage: { message: AnnasArchive.Message },
+  GotConvertMessage: { message: Convert.Message },
   RequestedToast: { request: ToastRequest },
 })
 
@@ -66,6 +69,9 @@ const initialAnnasArchive = (route: AppRoute) =>
     ? AnnasArchive.enter(AnnasArchive.init())
     : { model: AnnasArchive.init() }
 
+const initialConvert = (route: AppRoute) =>
+  route._tag === "Convert" ? Convert.enter(Convert.init()) : { model: Convert.init() }
+
 const initialSettings = (route: AppRoute) =>
   route._tag === "Settings"
     ? Settings.enter(Option.isSome(route.komgaNotConfigured))
@@ -82,9 +88,10 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
       prowlarr: initialProwlarr(route),
       latest: initialLatest(route),
       annasArchive: initialAnnasArchive(route),
+      convert: initialConvert(route),
     },
     {
-      toParentModel: ({ sidebar, jobs, settings, prowlarr, latest, annasArchive }) => ({
+      toParentModel: ({ sidebar, jobs, settings, prowlarr, latest, annasArchive, convert }) => ({
         route,
         toasts: initialToasts(),
         sidebar,
@@ -93,6 +100,7 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         prowlarr,
         latest,
         annasArchive,
+        convert,
       }),
       folds: {
         sidebar: { toParentMessage: (message) => Message.GotSidebarMessage({ message }) },
@@ -112,6 +120,10 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         annasArchive: {
           toParentMessage: (message) => Message.GotAnnasArchiveMessage({ message }),
           foldOutMessage: foldAnnasArchiveOutMessage,
+        },
+        convert: {
+          toParentMessage: (message) => Message.GotConvertMessage({ message }),
+          foldOutMessage: foldConvertOutMessage,
         },
       },
     },
@@ -256,6 +268,28 @@ const foldEnterAnnasArchive = Update.foldChildStep({
   ...annasArchiveFold,
 })
 
+const foldConvertOutMessage = Convert.OutMessage.match<Step>({
+  RequestedToast:
+    ({ request }) =>
+    (model) =>
+      foldToastShow(model, toShowInput(request)),
+  // Only if the user is still looking at Convert when the answer arrives.
+  RequestedSettings: () => (model) =>
+    model.route._tag === "Convert"
+      ? { model, commands: [NavigateInternal({ url: "/settings" })] }
+      : { model },
+})
+
+const convertFold = {
+  read: (model: Model) => Option.some(model.convert),
+  write: (model: Model, convert: Convert.Model) => modifyFields(model, { convert: () => convert }),
+  toParentMessage: (message: Convert.Message) => Message.GotConvertMessage({ message }),
+  foldOutMessage: foldConvertOutMessage,
+}
+
+const foldConvert = Update.foldChild({ update: Convert.update, ...convertFold })
+const foldEnterConvert = Update.foldChildStep({ update: Convert.enter, ...convertFold })
+
 const settingsFold = {
   read: (model: Model) => Option.some(model.settings),
   write: (model: Model, settings: Settings.Model) =>
@@ -288,6 +322,10 @@ const enterPage = (previous: AppRoute, next: AppRoute): Step => {
 
   if (next._tag === "AnnasArchive" && previous._tag !== "AnnasArchive") {
     return foldEnterAnnasArchive
+  }
+
+  if (next._tag === "Convert" && previous._tag !== "Convert") {
+    return foldEnterConvert
   }
 
   return (model) => ({ model })
@@ -339,6 +377,8 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     GotLatestMessage: ({ message }) => foldLatest(model, message),
 
     GotAnnasArchiveMessage: ({ message }) => foldAnnasArchive(model, message),
+
+    GotConvertMessage: ({ message }) => foldConvert(model, message),
 
     RequestedToast: ({ request }) => foldToastShow(model, toShowInput(request)),
   })
@@ -395,7 +435,13 @@ const pageView = (model: Model, h: HtmlBuilder<Message>): Html =>
     Komga: () => placeholderPage(model.route, h),
     Watches: () => placeholderPage(model.route, h),
     WatchDetail: () => placeholderPage(model.route, h),
-    Convert: () => placeholderPage(model.route, h),
+    Convert: () =>
+      h.submodel({
+        slotId: "convert",
+        model: model.convert,
+        view: Convert.view,
+        toParentMessage: (message) => Message.GotConvertMessage({ message }),
+      }),
     Debug: () => placeholderPage(model.route, h),
     NotFound: () => placeholderPage(model.route, h),
   })

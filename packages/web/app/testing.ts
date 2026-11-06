@@ -4,6 +4,7 @@ import { Command } from "foldkit/scene"
 
 import { Model } from "./main"
 import * as AnnasArchive from "./annasArchive"
+import * as Convert from "./convert"
 import * as Jobs from "./jobs"
 import * as Latest from "./latest"
 import * as Prowlarr from "./prowlarr"
@@ -23,6 +24,7 @@ export const modelAt = (route: AppRoute): Model =>
     prowlarr: Prowlarr.init(),
     latest: Latest.init(),
     annasArchive: AnnasArchive.init(),
+    convert: Convert.init(),
   })
 
 /**
