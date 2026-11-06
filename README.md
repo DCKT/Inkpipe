@@ -61,7 +61,7 @@ Monorepo: five packages managed by Bun workspaces.
 | `packages/db`      | SQLite database layer (WAL mode)    | Bun SQLite, Effect v4                                                |
 | `packages/server`  | HTTP API + pipeline orchestration   | Bun.serve, Effect v4, @effect/platform-bun                           |
 | `packages/watcher` | Background watch process            | Effect v4, web-push, Telegram Bot API                                |
-| `packages/web`     | React SPA frontend                  | React 19, React Router v7, Ark UI v5, Tailwind v4, TanStack Query v5 |
+| `packages/web`     | Foldkit SPA frontend                | Foldkit (Effect), @foldkit/ui, Tailwind v4, Vite                      |
 
 ## Local development
 

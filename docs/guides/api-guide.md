@@ -1,6 +1,6 @@
 # API Guide
 
-This is the consolidated guide for API development in the Accountability project, covering Effect HttpApi patterns on the backend and openapi-fetch client usage on the frontend.
+This is the consolidated guide for API development in the Accountability project, covering Effect HttpApi patterns on the backend and the typed Foldkit client on the frontend.
 
 ---
 
@@ -11,16 +11,15 @@ This is the consolidated guide for API development in the Accountability project
 3. [Request/Response Schemas](#requestresponse-schemas)
 4. [Implementing Handlers](#implementing-handlers)
 5. [Authentication & Middleware](#authentication--middleware)
-6. [Generated Client (Frontend)](#generated-client-frontend)
-7. [SSR Patterns with TanStack Start](#ssr-patterns-with-tanstack-start)
-8. [Anti-Patterns to Avoid](#anti-patterns-to-avoid)
+6. [Typed Client (Frontend)](#typed-client-frontend)
+7. [Anti-Patterns to Avoid](#anti-patterns-to-avoid)
 
 ---
 
 ## Architecture Overview
 
 ```
-Frontend (openapi-fetch) → API (Effect HttpApi) → Service → Repository → Database
+Frontend (Foldkit + HttpApiClient) → API (Effect HttpApi) → Service → Repository → Database
 ```
 
 **Backend (Effect):**
@@ -29,11 +28,10 @@ Frontend (openapi-fetch) → API (Effect HttpApi) → Service → Repository →
 - `HttpApiBuilder` - Implement handlers with full type safety
 - Auto-generates OpenAPI spec
 
-**Frontend (React):**
+**Frontend (Foldkit):**
 
-- `openapi-fetch` - Type-safe client generated from OpenAPI spec
-- No Effect code - just typed fetch calls
-- TanStack Start loaders for SSR
+- `HttpApiClient` - Type-safe client derived from the same `InkpipeApi` definition
+- Calls live in Foldkit Commands (`callApi`); results come back as Messages
 
 ---
 
@@ -299,170 +297,38 @@ HttpServerResponse.setCookie("session", token, {
 
 ---
 
-## Generated Client (Frontend)
+## Typed Client (Frontend)
 
-### Client Generation
-
-```bash
-# Generate typed client from OpenAPI spec
-pnpm generate:api
-```
-
-### Making API Calls
+The web app (Foldkit) builds a typed client straight from the shared `InkpipeApi` definition, so there is no code generation step:
 
 ```typescript
-import { api } from "@/api/client"
-
-// GET with query params
-const { data, error } = await api.GET("/api/v1/accounts", {
-  params: {
-    query: { companyId: "comp_123", page: 1, limit: 20 },
-  },
-})
-
-// GET with path params
-const { data, error } = await api.GET("/api/v1/accounts/{accountId}", {
-  params: {
-    path: { accountId: "acc_456" },
-  },
-})
-
-// POST
-const { data, error } = await api.POST("/api/v1/accounts", {
-  body: {
-    name: "Cash",
-    type: "Asset",
-    companyId: "comp_123",
-  },
-})
-
-// PATCH
-const { data, error } = await api.PATCH("/api/v1/accounts/{accountId}", {
-  params: { path: { accountId: "acc_456" } },
-  body: { name: "Updated Name" },
-})
-
-// DELETE
-const { data, error } = await api.DELETE("/api/v1/accounts/{accountId}", {
-  params: { path: { accountId: "acc_456" } },
-})
+// packages/web/app/api.ts
+HttpApiClient.make(InkpipeApi, { baseUrl })
 ```
 
-### Error Handling
+Commands call it through `callApi`, which folds every failure (typed API error, transport error, decode error) into one `ApiFailure`:
 
 ```typescript
-const { data, error } = await api.POST("/api/v1/accounts", { body })
-
-if (error) {
-  if (error.status === 422) {
-    // ValidationError
-    console.log(error.body.errors)
-  } else if (error.status === 401) {
-    // UnauthorizedError
-    redirect({ to: "/login" })
-  } else if (error.status === 404) {
-    // NotFoundError
-    console.log(error.body.message)
-  }
-  return
-}
-
-// data is typed as the success response
-console.log(data.id, data.name)
-```
-
----
-
-## SSR Patterns with TanStack Start
-
-### Route with SSR Data Fetching
-
-**IMPORTANT**: Always forward the cookie header for authenticated endpoints.
-
-```typescript
-export const Route = createFileRoute("/organizations/")({
-  beforeLoad: async ({ context }) => {
-    if (!context.user) {
-      throw redirect({ to: "/login" })
-    }
-  },
-
-  loader: async ({ request }) => {
-    // Forward cookie from request to API
-    const cookie = request.headers.get("cookie")
-
-    const { data, error } = await api.GET("/api/v1/organizations", {
-      headers: cookie ? { cookie } : undefined
-    })
-
-    if (error) {
-      throw new Error("Failed to load organizations")
-    }
-    return { organizations: data ?? [] }
-  },
-
-  component: OrganizationsPage
-})
-
-function OrganizationsPage() {
-  const { organizations } = Route.useLoaderData()
-  // Data is immediately available - no loading state needed
-  return <ul>{organizations.map(org => <li key={org.id}>{org.name}</li>)}</ul>
-}
-```
-
-### Root Route with Auth Context
-
-```typescript
-export const Route = createRootRouteWithContext<RouterContext>()({
-  beforeLoad: async ({ request }) => {
-    const cookie = request?.headers?.get("cookie")
-
-    if (!cookie) {
-      return { user: null }
-    }
-
-    // Forward cookie header to API
-    const { data, error } = await api.GET("/api/auth/me", {
-      headers: { cookie },
-    })
-
-    return { user: error ? null : (data?.user ?? null) }
-  },
-
-  component: RootComponent,
+export const FetchWatches = Command.define("FetchWatches", {
+  args: { seq: Schema.Int },
+  messages: [Message.SucceededFetchWatches, Message.FailedFetchWatches],
+  execute: ({ seq }) =>
+    callApi((client) => client.watches.list()).pipe(
+      Effect.match({
+        onSuccess: ({ watches }) => Message.SucceededFetchWatches({ seq, watches }),
+        onFailure: ({ message }) => Message.FailedFetchWatches({ seq, reason: message }),
+      }),
+    ),
 })
 ```
 
-### Client-Side Mutations with Revalidation
+Rules:
 
-```typescript
-function CreateOrganizationForm() {
-  const router = useRouter()
-  const [name, setName] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
-    const { data, error } = await api.POST("/api/v1/organizations", {
-      body: { name }
-    })
-
-    if (error) {
-      setIsSubmitting(false)
-      return
-    }
-
-    // Revalidate loader data
-    await router.invalidate()
-    router.navigate({ to: `/organizations/${data.id}` })
-  }
-
-  return <form onSubmit={handleSubmit}>...</form>
-}
-```
+- Endpoints, payloads and errors are defined once in `packages/shared/src/httpApi`; the client follows automatically.
+- Commands never throw: failures become Messages, so `update` decides what the user sees.
+- Tag each request with a sequence number (or the entity id) and ignore answers that no longer match, so a slow response can't overwrite newer state.
+- Tests stub `HttpClient` (see `watches.test.ts`) and assert on the Message a Command produces.
+- The Debug page is the one place that uses raw `fetch`, on purpose.
 
 ---
 
@@ -507,23 +373,6 @@ HttpServerResponse.setCookie("session", token, {
 return { user: { id, email, displayName } }
 ```
 
-### DO NOT Use createServerFn for API Calls
-
-```typescript
-// WRONG
-import { createServerFn } from "@tanstack/react-start"
-const fetchData = createServerFn({ method: "GET" }).handler(async () => { ... })
-
-// CORRECT - use loader with api client
-loader: async ({ request }) => {
-  const cookie = request.headers.get("cookie")
-  const { data } = await api.GET("/api/v1/data", {
-    headers: cookie ? { cookie } : undefined
-  })
-  return { data }
-}
-```
-
 ### DO NOT Manually Decode in Handlers
 
 ```typescript
@@ -556,4 +405,3 @@ loader: async ({ request }) => {
 4. **Response body**: Return domain entities or wrap in response classes
 5. **Errors**: Annotate with HTTP status codes
 6. **No manual decoding**: If calling `Schema.decode*` in a handler, reconsider the API schema
-7. **Forward cookies**: Always forward the cookie header in SSR loaders

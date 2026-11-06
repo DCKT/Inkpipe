@@ -1,5 +1,7 @@
 # ADR 0003: Ark UI for component primitives
 
+**Status: Superseded by [ADR 0009](0009-foldkit-frontend.md).**
+
 ## Context
 
 Inkpipe's web UI used zero component libraries — every interactive element (modals, selects, checkboxes, autocompletes, progress bars, toggles) was hand-built with native HTML elements and manual state management. Two modals had hand-rolled click-outside detection, Escape-key handling, focus management, and overlay positioning. Five `<select>` elements were native. Autocomplete was a custom input + filtered list. This meant duplicated accessibility logic and no composable primitive API.

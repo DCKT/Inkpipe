@@ -3,10 +3,10 @@
 ```
 ┌─────────────────────────────────────────────┐
 │              FRONTEND (packages/web)         │
-│  React + TanStack Router + Ark UI + ky       │
-│  NO Effect code                              │
+│  Foldkit (Elm architecture on Effect)        │
+│  + @foldkit/ui, typed HttpApiClient          │
 └─────────────────────────────────────────────┘
-                    │ HTTP (ky)
+                    │ HTTP (typed client)
                     ▼
 ┌─────────────────────────────────────────────┐
 │              SERVER (packages/server)         │
@@ -54,17 +54,16 @@ inkpipe/
 │   │       ├── store.ts         # Watch + alert SQLite access
 │   │       ├── prowlarr.ts      # Prowlarr search client
 │   │       └── push.ts          # Web push notification sender
-│   └── web/             # React SPA, TanStack Router, Ark UI       ← FRONTEND
+│   └── web/             # Foldkit SPA (Elm architecture)            ← FRONTEND
 │       ├── public/
 │       │   └── sw.js            # Service worker (push notifications)
 │       └── app/
-│           ├── root.tsx         # Root layout
-│           ├── router.tsx       # TanStack Router definition
-│           ├── routes/          # Page components
-│           ├── components/      # Shared UI components
-│           ├── hooks/           # API client hook
-│           ├── lib/             # Frontend type helpers
-│           └── ui/              # Ark UI primitives
+│           ├── entry.ts         # Runtime bootstrap
+│           ├── main.ts          # Root Model/Message/update/view, routing, OutMessage folds
+│           ├── route.ts         # Route union + parsers
+│           ├── api.ts           # Typed client service + callApi
+│           ├── <page>.ts        # One Submodel per page (settings, watches, komga, ...)
+│           └── *.test.ts        # Story / Scene / Command tests next to the code
 ├── docs/
 │   ├── adr/             # Architectural decisions
 │   │   ├── 0006-filter-group-dsl.md   # Watch filter DSL
@@ -90,7 +89,7 @@ inkpipe/
 3. **Frontend workarounds are NOT acceptable** - if the spec says "update API", update the API
 4. **Run tests** - `bun run test && bun run typecheck` MUST pass before marking work complete
 
-**Data flow**: Frontend (web) → HTTP (ky) → Server routes → Layer services → SQLite
+**Data flow**: Frontend (web) → HTTP (typed client) → Server routes → Layer services → SQLite
 **Watcher flow**: Watcher (Effect process) → reuses server layers (ConfigService, ProwlarrService, WatchStoreService) → SQLite → sends push
 **All layers must be consistent.**
 
@@ -108,8 +107,9 @@ inkpipe/
 | `vitest.config.ts`                                                           | Test project configuration (shared, server, web)                      |
 | `packages/server/src/main.ts`                                                | Server entry point — composes layers, starts Bun.serve                |
 | `packages/watcher/src/index.ts`                                              | Watcher entry point — loads watches, runs scheduler                   |
-| `packages/web/app/router.tsx`                                                | TanStack Router route definitions                                     |
-| `packages/web/app/hooks/useApiClient.ts`                                     | KY HTTP client factory (all API calls go through this)                |
+| `packages/web/app/main.ts`                                                   | Frontend root: Model, update, view, routing, subscriptions            |
+| `packages/web/app/route.ts`                                                  | Route union and URL parsers                                           |
+| `packages/web/app/api.ts`                                                    | Typed API client service + `callApi` (all API calls go through this)  |
 | https://github.com/9001/copyparty/blob/hovudstraum/docs/devnotes.md#http-api | Copyparty HTTP API reference                                          |
 | https://docs.alldebrid.com/#magnet                                           | AllDebrid API reference (auth: Bearer header, /v4/magnet/* endpoints) |
 
@@ -132,14 +132,16 @@ inkpipe/
 11. **Use `Layer.effect` or `Layer.scoped`** — avoid `Layer.succeed` and `Tag.of`
 12. **ALWAYS use precise domain schemas** — never lose type precision by using primitives when a richer domain type exists
 
-### Frontend (React code in packages/web)
+### Frontend (Foldkit code in packages/web)
 
-**NO Effect code in frontend.** Key patterns:
+The frontend is a Foldkit app (Elm architecture on Effect; see ADR 0009). The vendored source in `repos/foldkit` is the reference. Key patterns:
 
-1. **Use `ky` via `useApiClient` hook** — all HTTP calls go through the shared API client
-2. **Handle empty states** — every list/data view needs an empty state with CTA
-3. **Handle loading states** — show loading indicators during data fetching
-4. **Handle error states** — surface API errors to the user
+1. **Model / Message / update / view per page** — each page is a Submodel in its own flat module; the root (`main.ts`) folds children with `Update.foldChild*`
+2. **No side effects in `update` or `view`** — HTTP, browser APIs and timers live in `Command`s, `Mount`s and `Subscription`s
+3. **All HTTP goes through `callApi`** (typed `InkpipeApi` client) — Commands turn failures into Messages, never throw. Exception: the dev-only Debug page
+4. **Page → root communication uses OutMessages** (toasts, sidebar refresh, navigation); pages never touch each other's state
+5. **Guard async answers** — tag requests with a sequence number or entity id and ignore stale answers
+6. **Handle empty, loading and error states** — every list/data view needs all three, with the error shown where the user can see it (inside a Dialog, never a toast behind it)
 
 ## Quick Reference Commands
 
@@ -184,15 +186,16 @@ bun run format        # oxfmt (format:check to verify)
 
 ### Frontend (packages/web)
 
-**Read existing patterns** in `web/app/routes/` and `web/app/components/` for conventions.
+**Read an existing page** (e.g. `web/app/watches.ts` + `watches.test.ts`) for conventions.
 
 **Guidelines:**
 
-1. **Use `useApiClient` for all HTTP calls** — never use raw `fetch` or `ky` directly
-2. **Type API responses** — use shared types from `@inkpipe/shared`
+1. **Use `callApi` for all HTTP calls** — never raw `fetch` (except the Debug page)
+2. **Type API responses** — use shared types from `@inkpipe/shared`; use branded ids
 3. **Handle loading, empty, and error states** — every data-fetching page needs all three
-4. **Use Ark UI components** from `web/app/ui/` — buttons, dialogs, selects, etc.
-5. For any Ark UI interrogation, check <https://ark-ui.com/llms.txt>
+4. **Use `@foldkit/ui` primitives** (Dialog, Select, Checkbox, Input, Toast, ...) through the helpers in `form.ts`
+5. **Test every page** — Story tests for `update`, Scene tests for `view`, stubbed-`HttpClient` tests for Commands, `TestClock` for subscriptions
+6. For any Foldkit interrogation, read `repos/foldkit` (its `CLAUDE.md` is Foldkit's own contributor guide, not this project's rules)
 
 ### Full Stack Features
 
