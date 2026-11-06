@@ -20,10 +20,22 @@ describe("urlToAppRoute", () => {
     ["/komga", "Komga"],
     ["/watches", "Watches"],
     ["/convert", "Convert"],
-    ["/settings", "Settings"],
     ["/debug", "Debug"],
   ] as const)("%s -> %s", (path, tag) => {
     expect(parse(path)._tag).toBe(tag)
+  })
+
+  test("/settings carries the optional komgaNotConfigured flag", () => {
+    expect(parse("/settings")).toStrictEqual(
+      AppRoute.Settings({ komgaNotConfigured: Option.none() }),
+    )
+    expect(parse("/settings?komgaNotConfigured=true")).toStrictEqual(
+      AppRoute.Settings({ komgaNotConfigured: Option.some("true") }),
+    )
+  })
+
+  test("any other komgaNotConfigured value is not a valid flag", () => {
+    expect(parse("/settings?komgaNotConfigured=nope")._tag).not.toBe("Settings")
   })
 
   test("/watches/:id captures the numeric id", () => {
@@ -64,6 +76,10 @@ describe("routeToPath", () => {
     "/debug",
   ])("round-trips %s", (path) => {
     expect(routeToPath(parse(path))).toBe(path)
+  })
+
+  test("Settings maps to its bare path even with the flag set", () => {
+    expect(routeToPath(parse("/settings?komgaNotConfigured=true"))).toBe("/settings")
   })
 
   test("NotFound keeps the unmatched path", () => {

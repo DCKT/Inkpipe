@@ -10,7 +10,8 @@ export const AppRoute = defineRouteUnion({
   Watches: {},
   WatchDetail: { watchId: Schema.Int },
   Convert: {},
-  Settings: {},
+  /** `?komgaNotConfigured=true` is how the Komga page sends people here. */
+  Settings: { komgaNotConfigured: Schema.Option(Schema.Literal("true")) },
   Debug: {},
   NotFound: { path: Schema.String },
 })
@@ -28,7 +29,13 @@ export const watchDetailRouter = pipe(
   Route.mapTo(AppRoute.WatchDetail),
 )
 export const convertRouter = pipe(literal("convert"), Route.mapTo(AppRoute.Convert))
-export const settingsRouter = pipe(literal("settings"), Route.mapTo(AppRoute.Settings))
+export const settingsRouter = pipe(
+  literal("settings"),
+  Route.query(
+    Schema.Struct({ komgaNotConfigured: Schema.OptionFromOptional(Schema.Literal("true")) }),
+  ),
+  Route.mapTo(AppRoute.Settings),
+)
 export const debugRouter = pipe(literal("debug"), Route.mapTo(AppRoute.Debug))
 
 const routeParser = Route.oneOf(
@@ -45,7 +52,7 @@ const routeParser = Route.oneOf(
 
 export const urlToAppRoute = Route.parseUrlWithFallback(routeParser, AppRoute.NotFound)
 
-/** Canonical pathname for a route — the inverse of `urlToAppRoute`. */
+/** Canonical pathname (no query) for a route — used for nav highlighting. */
 export const routeToPath = (route: AppRoute): string =>
   AppRoute.match(route, {
     Prowlarr: prowlarrRouter,
@@ -55,10 +62,10 @@ export const routeToPath = (route: AppRoute): string =>
     Watches: watchesRouter,
     WatchDetail: ({ watchId }) => watchDetailRouter({ watchId }),
     Convert: convertRouter,
-    Settings: settingsRouter,
+    Settings: ({ komgaNotConfigured }) => settingsRouter({ komgaNotConfigured }),
     Debug: debugRouter,
     NotFound: ({ path }) => path,
-  })
+  }).split("?")[0] ?? "/"
 
 export const routeTitle = (route: AppRoute): string =>
   AppRoute.match(route, {

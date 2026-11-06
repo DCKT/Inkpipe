@@ -1,6 +1,10 @@
 // Test-only fixtures. Not imported by app code.
+import { Animation, Toast as UiToast } from "@foldkit/ui"
+import { Command } from "foldkit/scene"
+
 import { Model } from "./main"
 import * as Jobs from "./jobs"
+import * as Settings from "./settings"
 import * as Sidebar from "./sidebar"
 import { initialToasts } from "./toast"
 import type { AppRoute } from "./route"
@@ -12,4 +16,33 @@ export const modelAt = (route: AppRoute): Model =>
     toasts: initialToasts(),
     sidebar: Sidebar.init().model,
     jobs: Jobs.init().model,
+    settings: Settings.init().model,
   })
+
+/**
+ * Scene counterpart of `Toast.test.drainEntry`: resolves a toast's whole
+ * enter / auto-dismiss / leave lifecycle so a scene can end cleanly.
+ */
+export const drainToast = (entryId: string) =>
+  Command.resolveAll(
+    [
+      Animation.WaitForPaint({ generation: 1 }),
+      Animation.Message.CompletedWaitForPaint({ generation: 1 }),
+    ],
+    [
+      Animation.WaitForAnimationSettled({ id: entryId, generation: 1 }),
+      Animation.Message.EndedAnimation({ generation: 1 }),
+    ],
+    [
+      UiToast.WaitBeforeDismissal,
+      UiToast.Message.CompletedWaitBeforeDismissal({ entryId, version: 0 }),
+    ],
+    [
+      Animation.WaitForPaint({ generation: 2 }),
+      Animation.Message.CompletedWaitForPaint({ generation: 2 }),
+    ],
+    [
+      Animation.WaitForAnimationSettled({ id: entryId, generation: 2 }),
+      Animation.Message.EndedAnimation({ generation: 2 }),
+    ],
+  )

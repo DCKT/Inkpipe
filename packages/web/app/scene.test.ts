@@ -1,3 +1,4 @@
+import { Option } from "effect"
 import { Command, click, expect as sceneExpect, given, role, scene, selector } from "foldkit/scene"
 import { Animation } from "@foldkit/ui"
 import { describe, test } from "vitest"
@@ -54,7 +55,7 @@ describe("view", () => {
   test("settings uses the quiet active style and no other link is active", () => {
     scene(
       { update, view },
-      given(at(AppRoute.Settings())),
+      given(at(AppRoute.Settings({ komgaNotConfigured: Option.none() }))),
       sceneExpect(role("link", { name: /Settings/ })).toHaveClass("is-active-quiet"),
       sceneExpect(role("link", { name: /Settings/ })).not.toHaveClass("is-active"),
       sceneExpect(selector(".spine-link.is-active")).toBeAbsent(),
@@ -81,8 +82,8 @@ describe("view", () => {
   test("the page heading reflects the route", () => {
     scene(
       { update, view },
-      given(at(AppRoute.Settings())),
-      sceneExpect(role("heading", { name: "Settings · Inkpipe" })).toExist(),
+      given(at(AppRoute.Komga())),
+      sceneExpect(role("heading", { name: "Komga · Inkpipe" })).toExist(),
     )
   })
 })

@@ -8,9 +8,10 @@ import { Url, toString as urlToString } from "foldkit/url"
 
 import type { ApiClientService } from "./api"
 import * as Jobs from "./jobs"
+import * as Settings from "./settings"
 import * as Sidebar from "./sidebar"
 import { toastEntryClass, toastEntryView } from "./toastView"
-import { Toast, ToastRequest, initialToasts, toShowInput } from "./toast"
+import { Toast, ToastRequest, initialToasts, toShowInput, toast } from "./toast"
 import { AppRoute, routeTitle, urlToAppRoute } from "./route"
 
 export { AppRoute } from "./route"
@@ -22,6 +23,7 @@ export const Model = Schema.Struct({
   toasts: Toast.Model,
   sidebar: Sidebar.Model,
   jobs: Jobs.Model,
+  settings: Settings.Model,
 })
 
 export type Model = typeof Model.Type
@@ -36,6 +38,7 @@ export const Message = defineMessageUnion({
   GotToastMessage: { message: Toast.Message },
   GotSidebarMessage: { message: Sidebar.Message },
   GotJobsMessage: { message: Jobs.Message },
+  GotSettingsMessage: { message: Settings.Message },
   RequestedToast: { request: ToastRequest },
 })
 
@@ -43,22 +46,35 @@ export type Message = typeof Message.Type
 
 // INIT
 
-export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResources> = (url) =>
-  Update.foldChildInits(
-    { sidebar: Sidebar.init(), jobs: Jobs.init() },
+const initialSettings = (route: AppRoute) =>
+  route._tag === "Settings"
+    ? Settings.enter(Option.isSome(route.komgaNotConfigured))
+    : Settings.init()
+
+export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResources> = (url) => {
+  const route = urlToAppRoute(url)
+
+  return Update.foldChildInits(
+    { sidebar: Sidebar.init(), jobs: Jobs.init(), settings: initialSettings(route) },
     {
-      toParentModel: ({ sidebar, jobs }) => ({
-        route: urlToAppRoute(url),
+      toParentModel: ({ sidebar, jobs, settings }) => ({
+        route,
         toasts: initialToasts(),
         sidebar,
         jobs,
+        settings,
       }),
       folds: {
         sidebar: { toParentMessage: (message) => Message.GotSidebarMessage({ message }) },
         jobs: { toParentMessage: (message) => Message.GotJobsMessage({ message }) },
+        settings: {
+          toParentMessage: (message) => Message.GotSettingsMessage({ message }),
+          foldOutMessage: foldSettingsOutMessage,
+        },
       },
     },
   )
+}
 
 // COMMAND
 
@@ -116,6 +132,54 @@ const foldJobs = Update.foldChild({
   toParentMessage: (message) => Message.GotJobsMessage({ message }),
 })
 
+const foldRefreshCopypartyUrl = Update.foldChildStep({
+  update: Sidebar.refreshCopypartyUrl,
+  read: (model: Model) => Option.some(model.sidebar),
+  write: (model, sidebar) => modifyFields(model, { sidebar: () => sidebar }),
+  toParentMessage: (message) => Message.GotSidebarMessage({ message }),
+})
+
+const foldSettingsOutMessage = Settings.OutMessage.match<Step>({
+  RequestedToast:
+    ({ request }) =>
+    (model) =>
+      foldToastShow(model, toShowInput(request)),
+  SavedSettings: () => (model) =>
+    Update.combine(model, [
+      (stepModel) =>
+        foldToastShow(stepModel, toShowInput(toast.success("Settings saved successfully."))),
+      foldRefreshCopypartyUrl,
+    ]),
+  ImportedSettings: () => (model) =>
+    Update.combine(model, [
+      (stepModel) =>
+        foldToastShow(stepModel, toShowInput(toast.success("Settings imported successfully."))),
+      foldRefreshCopypartyUrl,
+    ]),
+})
+
+const settingsFold = {
+  read: (model: Model) => Option.some(model.settings),
+  write: (model: Model, settings: Settings.Model) =>
+    modifyFields(model, { settings: () => settings }),
+  toParentMessage: (message: Settings.Message) => Message.GotSettingsMessage({ message }),
+  foldOutMessage: foldSettingsOutMessage,
+}
+
+const foldSettings = Update.foldChild({ update: Settings.update, ...settingsFold })
+
+/** Entering the page reloads it from the server, so stale edits never linger. */
+const foldEnterSettings = (isKomgaNotConfigured: boolean) =>
+  Update.foldChildStep({
+    update: () => Settings.enter(isKomgaNotConfigured),
+    ...settingsFold,
+  })
+
+const enterPage = (previous: AppRoute, next: AppRoute): Step =>
+  next._tag === "Settings" && previous._tag !== "Settings"
+    ? foldEnterSettings(Option.isSome(next.komgaNotConfigured))
+    : (model) => ({ model })
+
 const foldCloseMobileNav = Update.foldChildStep({
   update: Sidebar.closeMobileNav,
   read: (model: Model) => Option.some(model.sidebar),
@@ -139,14 +203,23 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       }),
 
     // Navigating always dismisses the mobile drawer.
-    ChangedUrl: ({ url }) =>
-      Update.combine(model, [setRoute(urlToAppRoute(url)), foldCloseMobileNav]),
+    ChangedUrl: ({ url }) => {
+      const nextRoute = urlToAppRoute(url)
+
+      return Update.combine(model, [
+        setRoute(nextRoute),
+        enterPage(model.route, nextRoute),
+        foldCloseMobileNav,
+      ])
+    },
 
     GotToastMessage: ({ message }) => foldToast(model, message),
 
     GotSidebarMessage: ({ message }) => foldSidebar(model, message),
 
     GotJobsMessage: ({ message }) => foldJobs(model, message),
+
+    GotSettingsMessage: ({ message }) => foldSettings(model, message),
 
     RequestedToast: ({ request }) => foldToastShow(model, toShowInput(request)),
   })
@@ -170,7 +243,28 @@ export const subscriptions = Subscription.aggregate(
 
 // VIEW
 
-const pageView = (route: AppRoute, h: HtmlBuilder<Message>): Html =>
+const pageView = (model: Model, h: HtmlBuilder<Message>): Html =>
+  AppRoute.match(model.route, {
+    Settings: () =>
+      h.submodel({
+        slotId: "settings",
+        model: model.settings,
+        view: Settings.view,
+        toParentMessage: (message) => Message.GotSettingsMessage({ message }),
+      }),
+    Prowlarr: () => placeholderPage(model.route, h),
+    Latest: () => placeholderPage(model.route, h),
+    AnnasArchive: () => placeholderPage(model.route, h),
+    Komga: () => placeholderPage(model.route, h),
+    Watches: () => placeholderPage(model.route, h),
+    WatchDetail: () => placeholderPage(model.route, h),
+    Convert: () => placeholderPage(model.route, h),
+    Debug: () => placeholderPage(model.route, h),
+    NotFound: () => placeholderPage(model.route, h),
+  })
+
+/** Pages not ported yet render their title only. */
+const placeholderPage = (route: AppRoute, h: HtmlBuilder<Message>): Html =>
   h.main(
     [h.Class("page-wrap py-8")],
     [h.h1([h.Class("display-title text-2xl")], [routeTitle(route)])],
@@ -195,7 +289,7 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
         viewInputs: { route: model.route },
         toParentMessage: (message) => Message.GotSidebarMessage({ message }),
       }),
-      h.div([h.Class("min-w-0 flex-1 pt-14 xl:pt-0")], [pageView(model.route, h)]),
+      h.div([h.Class("min-w-0 flex-1 pt-14 xl:pt-0")], [pageView(model, h)]),
       h.submodel({
         slotId: "jobs",
         model: model.jobs,
