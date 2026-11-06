@@ -4,12 +4,23 @@ import { UrlRequest } from "foldkit/navigation"
 import { fromString } from "foldkit/url"
 import { describe, expect, test } from "vitest"
 
-import { AppRoute, LoadExternal, Message, Model, NavigateInternal, update } from "./main"
+import { Toast as UiToast } from "@foldkit/ui"
+
+import { initialToasts, toast } from "./toast"
+import {
+  AppRoute,
+  LoadExternal,
+  Message,
+  Model,
+  NavigateInternal,
+  subscriptions,
+  update,
+} from "./main"
 
 const urlOrThrow = (raw: string) =>
   Option.getOrThrowWith(fromString(raw), () => new Error(`Failed to parse url: ${raw}`))
 
-const onProwlarr = Model.make({ route: AppRoute.Prowlarr() })
+const onProwlarr = Model.make({ route: AppRoute.Prowlarr(), toasts: initialToasts() })
 
 describe("update", () => {
   test("ChangedUrl updates the route", () => {
@@ -64,5 +75,49 @@ describe("update", () => {
         expect(m.route).toStrictEqual(AppRoute.Prowlarr())
       }),
     )
+  })
+})
+
+describe("toasts", () => {
+  test("RequestedToast adds one entry with the requested variant and payload", () => {
+    story(
+      update,
+      given(onProwlarr),
+      message(Message.RequestedToast({ request: toast.error("Failed to clear jobs", "boom") })),
+      model((m) => {
+        expect(m.toasts.entries).toHaveLength(1)
+        expect(m.toasts.entries[0]?.variant).toBe("Error")
+        expect(m.toasts.entries[0]?.payload).toStrictEqual({
+          title: "Failed to clear jobs",
+          maybeDescription: Option.some("boom"),
+        })
+      }),
+      UiToast.test.drainEntry({ entryId: "toasts-entry-0" }),
+      model((m) => {
+        expect(m.toasts.entries).toHaveLength(0)
+      }),
+    )
+  })
+
+  test("a second request gets its own entry once the first is gone", () => {
+    story(
+      update,
+      given(onProwlarr),
+      message(Message.RequestedToast({ request: toast.success("One") })),
+      UiToast.test.drainEntry({ entryId: "toasts-entry-0" }),
+      message(Message.RequestedToast({ request: toast.info("Two") })),
+      model((m) => {
+        expect(m.toasts.entries.map((e) => [e.id, e.payload.title])).toStrictEqual([
+          ["toasts-entry-1", "Two"],
+        ])
+      }),
+      UiToast.test.drainEntry({ entryId: "toasts-entry-1" }),
+    )
+  })
+})
+
+describe("subscriptions", () => {
+  test("the toast subscriptions are registered on the root model", () => {
+    expect(Object.keys(subscriptions).length).toBeGreaterThan(0)
   })
 })

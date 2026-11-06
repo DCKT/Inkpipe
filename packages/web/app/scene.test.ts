@@ -1,9 +1,11 @@
-import { expect as sceneExpect, given, role, scene, selector } from "foldkit/scene"
+import { Command, click, expect as sceneExpect, given, role, scene, selector } from "foldkit/scene"
+import { Animation } from "@foldkit/ui"
 import { describe, expect, test } from "vitest"
 
-import { AppRoute, Model, isSubLinkActive, update, view } from "./main"
+import { AppRoute, Message, Model, isSubLinkActive, update, view } from "./main"
+import { initialToasts, toast } from "./toast"
 
-const at = (route: AppRoute) => Model.make({ route })
+const at = (route: AppRoute) => Model.make({ route, toasts: initialToasts() })
 
 describe("view", () => {
   test("primary nav lists every section and settings", () => {
@@ -84,6 +86,38 @@ describe("view", () => {
   })
 })
 
+describe("toasts", () => {
+  const withToast = (request: ReturnType<typeof toast.success>) =>
+    update(at(AppRoute.Prowlarr()), Message.RequestedToast({ request })).model
+
+  test("the toast region is always present for screen readers", () => {
+    scene(
+      { update, view },
+      given(at(AppRoute.Prowlarr())),
+      sceneExpect(role("region", { name: "Notifications" })).toExist(),
+    )
+  })
+
+  test("a requested toast renders its title, description and a dismiss button", () => {
+    scene(
+      { update, view },
+      given(withToast(toast.error("Failed to clear jobs", "boom"))),
+      sceneExpect(role("alert")).toContainText("Failed to clear jobs"),
+      sceneExpect(role("alert")).toContainText("boom"),
+      sceneExpect(role("button", { name: "Dismiss notification" })).toExist(),
+    )
+  })
+
+  test("success toasts are announced politely (status), errors assertively (alert)", () => {
+    scene(
+      { update, view },
+      given(withToast(toast.success("Saved"))),
+      sceneExpect(role("status")).toContainText("Saved"),
+      sceneExpect(role("alert")).toBeAbsent(),
+    )
+  })
+})
+
 describe("isSubLinkActive", () => {
   const prowlarr = { label: "Prowlarr", path: "/", end: true } as const
   const watches = { label: "Watches", path: "/watches" } as const
@@ -97,5 +131,32 @@ describe("isSubLinkActive", () => {
     expect(isSubLinkActive("/watches/3", watches)).toBe(true)
     expect(isSubLinkActive("/watches", watches)).toBe(true)
     expect(isSubLinkActive("/watchesX", watches)).toBe(false)
+  })
+})
+
+describe("toast dismissal", () => {
+  test("clicking the dismiss button starts the entry's leave animation", () => {
+    const shown = update(
+      at(AppRoute.Prowlarr()),
+      Message.RequestedToast({ request: toast.success("Saved") }),
+    ).model
+
+    scene(
+      { update, view },
+      given(shown),
+      click(role("button", { name: "Dismiss notification" })),
+      sceneExpect(role("status")).toHaveAttr("data-leave", ""),
+      Command.resolveAll(
+        [
+          Animation.WaitForPaint({ generation: 2 }),
+          Animation.Message.CompletedWaitForPaint({ generation: 2 }),
+        ],
+        [
+          Animation.WaitForAnimationSettled({ id: "toasts-entry-0", generation: 2 }),
+          Animation.Message.EndedAnimation({ generation: 2 }),
+        ],
+      ),
+      sceneExpect(role("status")).toBeAbsent(),
+    )
   })
 })

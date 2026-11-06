@@ -2,7 +2,7 @@ import { Runtime } from "foldkit"
 
 import "./styles.css"
 import { ApiClientService } from "./api"
-import { Message, Model, init, update, view } from "./main"
+import { Message, Model, init, subscriptions, update, view } from "./main"
 
 if ("serviceWorker" in navigator) {
   void navigator.serviceWorker.register("/sw.js")
@@ -13,6 +13,7 @@ const application = Runtime.makeApplication({
   init,
   update,
   view,
+  subscriptions,
   container: document.getElementById("root"),
   resources: ApiClientService.Default,
   routing: {

@@ -1,5 +1,5 @@
-import { Effect, Schema } from "effect"
-import { Command, type Runtime, type Update } from "foldkit"
+import { Effect, Option, Schema } from "effect"
+import { Command, type Runtime, Subscription, Update } from "foldkit"
 import type { Document, Html, HtmlBuilder } from "foldkit/html"
 import { defineMessageUnion } from "foldkit/message"
 import { UrlRequest, load, pushUrl } from "foldkit/navigation"
@@ -8,6 +8,8 @@ import { Url, toString as urlToString } from "foldkit/url"
 
 import type { ApiClientService } from "./api"
 import { NAV_ITEMS, SETTINGS_NAV_ITEM, type NavSubLink } from "./lib/nav"
+import { toastEntryClass, toastEntryView } from "./toastView"
+import { Toast, ToastRequest, initialToasts, toShowInput } from "./toast"
 import { AppRoute, routeTitle, routeToPath, urlToAppRoute } from "./route"
 
 export { AppRoute } from "./route"
@@ -16,6 +18,7 @@ export { AppRoute } from "./route"
 
 export const Model = Schema.Struct({
   route: AppRoute,
+  toasts: Toast.Model,
 })
 
 export type Model = typeof Model.Type
@@ -27,6 +30,8 @@ export const Message = defineMessageUnion({
   CompletedLoadExternal: {},
   ClickedLink: { request: UrlRequest },
   ChangedUrl: { url: Url },
+  GotToastMessage: { message: Toast.Message },
+  RequestedToast: { request: ToastRequest },
 })
 
 export type Message = typeof Message.Type
@@ -34,7 +39,10 @@ export type Message = typeof Message.Type
 // INIT
 
 export const init: Runtime.RoutingApplicationInit<Model, Message> = (url) => ({
-  model: { route: urlToAppRoute(url) },
+  model: {
+    route: urlToAppRoute(url),
+    toasts: initialToasts(),
+  },
 })
 
 // COMMAND
@@ -58,6 +66,26 @@ export type AppResources = ApiClientService
 
 type UpdateReturn = Update.Return<Model, Message, AppResources>
 
+const foldToastOutMessage = Toast.OutMessage.match<Update.Step<Model, Message>>({
+  DismissedToast: () => (model) => ({ model }),
+})
+
+const foldToast = Update.foldChild({
+  update: Toast.update,
+  read: (model: Model) => Option.some(model.toasts),
+  write: (model, toasts) => modifyFields(model, { toasts: () => toasts }),
+  toParentMessage: (message) => Message.GotToastMessage({ message }),
+  foldOutMessage: foldToastOutMessage,
+})
+
+const foldToastShow = Update.foldChild({
+  update: Toast.show,
+  read: (model: Model) => Option.some(model.toasts),
+  write: (model, toasts) => modifyFields(model, { toasts: () => toasts }),
+  toParentMessage: (message) => Message.GotToastMessage({ message }),
+  foldOutMessage: foldToastOutMessage,
+})
+
 export const update = (model: Model, message: Message): UpdateReturn =>
   Message.match<UpdateReturn>(message, {
     CompletedNavigateInternal: () => ({ model }),
@@ -70,7 +98,18 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       }),
 
     ChangedUrl: ({ url }) => ({ model: modifyFields(model, { route: () => urlToAppRoute(url) }) }),
+
+    GotToastMessage: ({ message }) => foldToast(model, message),
+
+    RequestedToast: ({ request }) => foldToastShow(model, toShowInput(request)),
   })
+
+// SUBSCRIPTION
+
+export const subscriptions = Subscription.lift(Toast.subscriptions)<Model, Message>({
+  read: (model) => Option.some(model.toasts),
+  toParentMessage: (message) => Message.GotToastMessage({ message }),
+})
 
 // VIEW
 
@@ -211,6 +250,17 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
         [navView(model.route, h)],
       ),
       h.div([h.Class("min-w-0 flex-1")], [pageView(model.route, h)]),
+      h.submodel({
+        slotId: model.toasts.id,
+        model: model.toasts,
+        view: Toast.view,
+        viewInputs: {
+          position: "BottomRight",
+          entryToView: (entry, handlers) => toastEntryView(entry, handlers, h),
+          entryClassName: toastEntryClass,
+        },
+        toParentMessage: (message) => Message.GotToastMessage({ message }),
+      }),
     ],
   ),
 })
