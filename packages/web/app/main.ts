@@ -6,6 +6,7 @@ import { UrlRequest, load, pushUrl } from "foldkit/navigation"
 import { modifyFields } from "foldkit/struct"
 import { Url, toString as urlToString } from "foldkit/url"
 
+import type { ApiClientService } from "./api"
 import { NAV_ITEMS, SETTINGS_NAV_ITEM, type NavSubLink } from "./lib/nav"
 import { AppRoute, routeTitle, routeToPath, urlToAppRoute } from "./route"
 
@@ -52,7 +53,10 @@ export const LoadExternal = Command.define("LoadExternal", {
 
 // UPDATE
 
-type UpdateReturn = Update.Return<Model, Message>
+/** Services Commands may require; supplied by `resources` in entry.ts. */
+export type AppResources = ApiClientService
+
+type UpdateReturn = Update.Return<Model, Message, AppResources>
 
 export const update = (model: Model, message: Message): UpdateReturn =>
   Message.match<UpdateReturn>(message, {

@@ -1,6 +1,7 @@
 import { Runtime } from "foldkit"
 
 import "./styles.css"
+import { ApiClientService } from "./api"
 import { Message, Model, init, update, view } from "./main"
 
 if ("serviceWorker" in navigator) {
@@ -13,6 +14,7 @@ const application = Runtime.makeApplication({
   update,
   view,
   container: document.getElementById("root"),
+  resources: ApiClientService.Default,
   routing: {
     onUrlRequest: (request) => Message.ClickedLink({ request }),
     onUrlChange: (url) => Message.ChangedUrl({ url }),
