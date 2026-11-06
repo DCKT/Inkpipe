@@ -9,10 +9,11 @@ import { modifyFields } from "foldkit/struct"
 
 import { type ApiClientService, callApi } from "./api"
 import { downloadBar } from "./downloadBar"
+import { downloadDialogView } from "./downloadDialogView"
 import { STARTED_TOAST_DESCRIPTION, requestDownload, startedToastTitle } from "./downloadRequest"
 import * as FolderSelect from "./folderSelect"
-import { buttonClass, inputClass } from "./form"
 import { pageHeader } from "./pageHeader"
+import { searchForm } from "./searchForm"
 import * as Results from "./results"
 import { ToastRequest, toast } from "./toast"
 
@@ -297,27 +298,6 @@ const resultCountMeta = (model: Model): string | undefined =>
 
 export const view = Submodel.defineView<Model, Message>((model, h): Html => {
   const searching = isSearching(model)
-  const canSearch = !searching && Str.trim(model.queryInput) !== ""
-
-  const searchForm = h.form(
-    [h.Class("flex gap-3"), h.OnSubmit(Message.SubmittedSearch())],
-    [
-      h.input([
-        h.Id(SEARCH_INPUT_ID),
-        h.Type("text"),
-        h.Value(model.queryInput),
-        h.OnInput((value) => Message.ChangedQuery({ value })),
-        h.AriaLabel("Search for a book or comic"),
-        h.Placeholder("Search for a book or comic..."),
-        h.Autofocus(true),
-        h.Class(`${inputClass} px-4 py-3`),
-      ]),
-      h.button(
-        [h.Type("submit"), h.Disabled(!canSearch), h.Class(buttonClass.submitInline)],
-        [searching ? "Searching..." : "Search"],
-      ),
-    ],
-  )
 
   const body: ReadonlyArray<Html> = SearchState.match<ReadonlyArray<Html>>(model.search, {
     Idle: () => [
@@ -335,67 +315,13 @@ export const view = Submodel.defineView<Model, Message>((model, h): Html => {
 
   const chosenCount = selectedCount(model)
 
-  const dialogView = ({
-    dialog,
-    backdrop,
-    panel,
-    title,
-    closeButton,
-    isVisible,
-  }: Dialog.RenderInfo): Html =>
-    h.dialog(
-      [...dialog],
-      isVisible
-        ? [
-            h.div([...backdrop, h.Class("fixed inset-0 z-50 bg-black/50")]),
-            h.div(
-              [h.Class("fixed inset-0 z-50 flex items-center justify-center p-4")],
-              [
-                h.div(
-                  [
-                    ...panel,
-                    h.Class(
-                      "island-shell flex w-full max-w-md flex-col gap-5 rounded-2xl bg-surface p-6",
-                    ),
-                  ],
-                  [
-                    h.h2(
-                      [...title, h.Class("font-display text-lg italic text-primary")],
-                      [`Download ${chosenCount} item${chosenCount === 1 ? "" : "s"}`],
-                    ),
-                    h.submodel({
-                      slotId: "download-folder",
-                      model: model.folder,
-                      view: FolderSelect.view,
-                      viewInputs: {
-                        idPrefix: "download-folder",
-                        label: "Subfolder",
-                        placeholder: "e.g. manga/action or leave empty",
-                      },
-                      toParentMessage: (message) => Message.GotFolderMessage({ message }),
-                    }),
-                    h.div(
-                      [h.Class("flex justify-end gap-3")],
-                      [
-                        h.button([...closeButton, h.Class(buttonClass.secondary)], ["Cancel"]),
-                        h.button(
-                          [
-                            h.Type("button"),
-                            h.Disabled(isFolderUnsettled(model)),
-                            h.OnClick(Message.ConfirmedDownload()),
-                            h.Class(`${buttonClass.primary} rounded-full`),
-                          ],
-                          ["Download"],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ]
-        : [],
-    )
+  const dialogView = downloadDialogView(h, {
+    count: chosenCount,
+    folder: model.folder,
+    toFolderMessage: (message) => Message.GotFolderMessage({ message }),
+    onConfirm: Message.ConfirmedDownload(),
+    isConfirmDisabled: isFolderUnsettled(model),
+  })
 
   return h.main(
     [h.Class("page-wrap flex flex-col gap-4 pb-8 pt-8 sm:px-4")],
@@ -406,7 +332,20 @@ export const view = Submodel.defineView<Model, Message>((model, h): Html => {
         title: "Search",
         ...(resultCountMeta(model) === undefined ? {} : { meta: resultCountMeta(model) }),
       }),
-      h.section([], [searchForm]),
+      h.section(
+        [],
+        [
+          searchForm(h, {
+            inputId: SEARCH_INPUT_ID,
+            value: model.queryInput,
+            label: "Search for a book or comic",
+            placeholder: "Search for a book or comic...",
+            isSearching: searching,
+            onInput: (value) => Message.ChangedQuery({ value }),
+            onSubmit: Message.SubmittedSearch(),
+          }),
+        ],
+      ),
       ...body,
       h.submodel({
         slotId: "prowlarr-results",

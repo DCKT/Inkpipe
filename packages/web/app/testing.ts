@@ -3,6 +3,7 @@ import { Animation, Toast as UiToast } from "@foldkit/ui"
 import { Command } from "foldkit/scene"
 
 import { Model } from "./main"
+import * as AnnasArchive from "./annasArchive"
 import * as Jobs from "./jobs"
 import * as Latest from "./latest"
 import * as Prowlarr from "./prowlarr"
@@ -21,6 +22,7 @@ export const modelAt = (route: AppRoute): Model =>
     settings: Settings.init().model,
     prowlarr: Prowlarr.init(),
     latest: Latest.init(),
+    annasArchive: AnnasArchive.init(),
   })
 
 /**

@@ -7,6 +7,7 @@ import { modifyFields } from "foldkit/struct"
 import { Url, toString as urlToString } from "foldkit/url"
 
 import type { ApiClientService } from "./api"
+import * as AnnasArchive from "./annasArchive"
 import * as Jobs from "./jobs"
 import * as Latest from "./latest"
 import * as Prowlarr from "./prowlarr"
@@ -28,6 +29,7 @@ export const Model = Schema.Struct({
   settings: Settings.Model,
   prowlarr: Prowlarr.Model,
   latest: Latest.Model,
+  annasArchive: AnnasArchive.Model,
 })
 
 export type Model = typeof Model.Type
@@ -45,6 +47,7 @@ export const Message = defineMessageUnion({
   GotSettingsMessage: { message: Settings.Message },
   GotProwlarrMessage: { message: Prowlarr.Message },
   GotLatestMessage: { message: Latest.Message },
+  GotAnnasArchiveMessage: { message: AnnasArchive.Message },
   RequestedToast: { request: ToastRequest },
 })
 
@@ -57,6 +60,11 @@ const initialProwlarr = (route: AppRoute) =>
 
 const initialLatest = (route: AppRoute) =>
   route._tag === "Latest" ? Latest.enter(Latest.init()) : { model: Latest.init() }
+
+const initialAnnasArchive = (route: AppRoute) =>
+  route._tag === "AnnasArchive"
+    ? AnnasArchive.enter(AnnasArchive.init())
+    : { model: AnnasArchive.init() }
 
 const initialSettings = (route: AppRoute) =>
   route._tag === "Settings"
@@ -73,9 +81,10 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
       settings: initialSettings(route),
       prowlarr: initialProwlarr(route),
       latest: initialLatest(route),
+      annasArchive: initialAnnasArchive(route),
     },
     {
-      toParentModel: ({ sidebar, jobs, settings, prowlarr, latest }) => ({
+      toParentModel: ({ sidebar, jobs, settings, prowlarr, latest, annasArchive }) => ({
         route,
         toasts: initialToasts(),
         sidebar,
@@ -83,6 +92,7 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         settings,
         prowlarr,
         latest,
+        annasArchive,
       }),
       folds: {
         sidebar: { toParentMessage: (message) => Message.GotSidebarMessage({ message }) },
@@ -98,6 +108,10 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         latest: {
           toParentMessage: (message) => Message.GotLatestMessage({ message }),
           foldOutMessage: foldLatestOutMessage,
+        },
+        annasArchive: {
+          toParentMessage: (message) => Message.GotAnnasArchiveMessage({ message }),
+          foldOutMessage: foldAnnasArchiveOutMessage,
         },
       },
     },
@@ -221,6 +235,27 @@ const latestFold = {
 const foldLatest = Update.foldChild({ update: Latest.update, ...latestFold })
 const foldEnterLatest = Update.foldChildStep({ update: Latest.enter, ...latestFold })
 
+const foldAnnasArchiveOutMessage = AnnasArchive.OutMessage.match<Step>({
+  RequestedToast:
+    ({ request }) =>
+    (model) =>
+      foldToastShow(model, toShowInput(request)),
+})
+
+const annasArchiveFold = {
+  read: (model: Model) => Option.some(model.annasArchive),
+  write: (model: Model, annasArchive: AnnasArchive.Model) =>
+    modifyFields(model, { annasArchive: () => annasArchive }),
+  toParentMessage: (message: AnnasArchive.Message) => Message.GotAnnasArchiveMessage({ message }),
+  foldOutMessage: foldAnnasArchiveOutMessage,
+}
+
+const foldAnnasArchive = Update.foldChild({ update: AnnasArchive.update, ...annasArchiveFold })
+const foldEnterAnnasArchive = Update.foldChildStep({
+  update: AnnasArchive.enter,
+  ...annasArchiveFold,
+})
+
 const settingsFold = {
   read: (model: Model) => Option.some(model.settings),
   write: (model: Model, settings: Settings.Model) =>
@@ -249,6 +284,10 @@ const enterPage = (previous: AppRoute, next: AppRoute): Step => {
 
   if (next._tag === "Latest" && previous._tag !== "Latest") {
     return foldEnterLatest
+  }
+
+  if (next._tag === "AnnasArchive" && previous._tag !== "AnnasArchive") {
+    return foldEnterAnnasArchive
   }
 
   return (model) => ({ model })
@@ -299,6 +338,8 @@ export const update = (model: Model, message: Message): UpdateReturn =>
 
     GotLatestMessage: ({ message }) => foldLatest(model, message),
 
+    GotAnnasArchiveMessage: ({ message }) => foldAnnasArchive(model, message),
+
     RequestedToast: ({ request }) => foldToastShow(model, toShowInput(request)),
   })
 
@@ -344,7 +385,13 @@ const pageView = (model: Model, h: HtmlBuilder<Message>): Html =>
         view: Latest.view,
         toParentMessage: (message) => Message.GotLatestMessage({ message }),
       }),
-    AnnasArchive: () => placeholderPage(model.route, h),
+    AnnasArchive: () =>
+      h.submodel({
+        slotId: "annas-archive",
+        model: model.annasArchive,
+        view: AnnasArchive.view,
+        toParentMessage: (message) => Message.GotAnnasArchiveMessage({ message }),
+      }),
     Komga: () => placeholderPage(model.route, h),
     Watches: () => placeholderPage(model.route, h),
     WatchDetail: () => placeholderPage(model.route, h),
