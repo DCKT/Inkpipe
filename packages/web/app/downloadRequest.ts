@@ -28,6 +28,7 @@ export const requestDownload = (
     }),
   )
 
-export const startedToastTitle = (started: number): string => `Started ${started} downloads`
+export const startedToastTitle = (started: number): string =>
+  `Started ${started} download${started === 1 ? "" : "s"}`
 
 export const STARTED_TOAST_DESCRIPTION = "Check the Jobs page for progress."

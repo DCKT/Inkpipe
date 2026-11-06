@@ -1,3 +1,4 @@
+import { WatchId } from "@inkpipe/shared"
 import { Effect, Option, Schema } from "effect"
 import { Command, type Runtime, Subscription, Update } from "foldkit"
 import type { Document, Html, HtmlBuilder } from "foldkit/html"
@@ -14,6 +15,7 @@ import * as Komga from "./komga"
 import * as Latest from "./latest"
 import * as Prowlarr from "./prowlarr"
 import * as Settings from "./settings"
+import * as WatchDetail from "./watchDetail"
 import * as Watches from "./watches"
 import * as Sidebar from "./sidebar"
 import { toastEntryClass, toastEntryView } from "./toastView"
@@ -36,6 +38,7 @@ export const Model = Schema.Struct({
   convert: Convert.Model,
   komga: Komga.Model,
   watches: Watches.Model,
+  watchDetail: WatchDetail.Model,
 })
 
 export type Model = typeof Model.Type
@@ -57,6 +60,7 @@ export const Message = defineMessageUnion({
   GotConvertMessage: { message: Convert.Message },
   GotKomgaMessage: { message: Komga.Message },
   GotWatchesMessage: { message: Watches.Message },
+  GotWatchDetailMessage: { message: WatchDetail.Message },
   RequestedToast: { request: ToastRequest },
 })
 
@@ -84,6 +88,17 @@ const initialKomga = (route: AppRoute) =>
 const initialWatches = (route: AppRoute) =>
   route._tag === "Watches" ? Watches.enter(Watches.init()) : { model: Watches.init() }
 
+/** The URL holds a plain integer; the page wants the branded id. */
+const decodeWatchId = Schema.decodeUnknownOption(WatchId)
+
+const initialWatchDetail = (route: AppRoute) =>
+  route._tag === "WatchDetail"
+    ? Option.match(decodeWatchId(route.watchId), {
+        onNone: () => ({ model: WatchDetail.init() }),
+        onSome: (watchId) => WatchDetail.enter(WatchDetail.init(), watchId),
+      })
+    : { model: WatchDetail.init() }
+
 const initialSettings = (route: AppRoute) =>
   route._tag === "Settings"
     ? Settings.enter(Option.isSome(route.komgaNotConfigured))
@@ -103,6 +118,7 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
       convert: initialConvert(route),
       komga: initialKomga(route),
       watches: initialWatches(route),
+      watchDetail: initialWatchDetail(route),
     },
     {
       toParentModel: ({
@@ -115,6 +131,7 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         convert,
         komga,
         watches,
+        watchDetail,
       }) => ({
         route,
         toasts: initialToasts(),
@@ -127,6 +144,7 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         convert,
         komga,
         watches,
+        watchDetail,
       }),
       folds: {
         sidebar: { toParentMessage: (message) => Message.GotSidebarMessage({ message }) },
@@ -158,6 +176,10 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         watches: {
           toParentMessage: (message) => Message.GotWatchesMessage({ message }),
           foldOutMessage: foldWatchesOutMessage,
+        },
+        watchDetail: {
+          toParentMessage: (message) => Message.GotWatchDetailMessage({ message }),
+          foldOutMessage: foldWatchDetailOutMessage,
         },
       },
     },
@@ -367,6 +389,24 @@ const foldWatchesOutMessage = Watches.OutMessage.match<Step>({
       ]),
 })
 
+const foldWatchDetailOutMessage = WatchDetail.OutMessage.match<Step>({
+  RequestedToast:
+    ({ request }) =>
+    (model) =>
+      foldToastShow(model, toShowInput(request)),
+  ChangedAlerts:
+    ({ maybeToast }) =>
+    (model) =>
+      Update.combine(model, [
+        foldRefreshUnread,
+        (stepModel) =>
+          Option.match(maybeToast, {
+            onNone: () => ({ model: stepModel }),
+            onSome: (request) => foldToastShow(stepModel, toShowInput(request)),
+          }),
+      ]),
+})
+
 const watchesFold = {
   read: (model: Model) => Option.some(model.watches),
   write: (model: Model, watches: Watches.Model) => modifyFields(model, { watches: () => watches }),
@@ -377,6 +417,25 @@ const watchesFold = {
 const foldWatches = Update.foldChild({ update: Watches.update, ...watchesFold })
 const foldEnterWatches = Update.foldChildStep({ update: Watches.enter, ...watchesFold })
 const foldLeaveWatches = Update.foldChildStep({ update: Watches.leave, ...watchesFold })
+
+const watchDetailFold = {
+  read: (model: Model) => Option.some(model.watchDetail),
+  write: (model: Model, watchDetail: WatchDetail.Model) =>
+    modifyFields(model, { watchDetail: () => watchDetail }),
+  toParentMessage: (message: WatchDetail.Message) => Message.GotWatchDetailMessage({ message }),
+  foldOutMessage: foldWatchDetailOutMessage,
+}
+
+const foldWatchDetail = Update.foldChild({ update: WatchDetail.update, ...watchDetailFold })
+const foldEnterWatchDetail = (watchId: WatchId) =>
+  Update.foldChildStep({
+    update: (detail: WatchDetail.Model) => WatchDetail.enter(detail, watchId),
+    ...watchDetailFold,
+  })
+const foldLeaveWatchDetail = Update.foldChildStep({
+  update: WatchDetail.leave,
+  ...watchDetailFold,
+})
 
 const settingsFold = {
   read: (model: Model) => Option.some(model.settings),
@@ -424,12 +483,27 @@ const enterPage = (previous: AppRoute, next: AppRoute): Step => {
     return foldEnterWatches
   }
 
+  // Moving between two watches is also an entry: the page must switch to the new one.
+  if (
+    next._tag === "WatchDetail" &&
+    (previous._tag !== "WatchDetail" || previous.watchId !== next.watchId)
+  ) {
+    return Option.match(decodeWatchId(next.watchId), {
+      onNone: () => (model) => ({ model }),
+      onSome: foldEnterWatchDetail,
+    })
+  }
+
   return (model) => ({ model })
 }
 
 /** Leaving a page tidies it up (e.g. stops its polling). Runs alongside `enterPage`. */
 const leavePage = (previous: AppRoute, next: AppRoute): Step =>
-  previous._tag === "Watches" && next._tag !== "Watches" ? foldLeaveWatches : (model) => ({ model })
+  previous._tag === "Watches" && next._tag !== "Watches"
+    ? foldLeaveWatches
+    : previous._tag === "WatchDetail" && next._tag !== "WatchDetail"
+      ? foldLeaveWatchDetail
+      : (model) => ({ model })
 
 const foldCloseMobileNav = Update.foldChildStep({
   update: Sidebar.closeMobileNav,
@@ -484,6 +558,7 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     GotKomgaMessage: ({ message }) => foldKomga(model, message),
 
     GotWatchesMessage: ({ message }) => foldWatches(model, message),
+    GotWatchDetailMessage: ({ message }) => foldWatchDetail(model, message),
 
     RequestedToast: ({ request }) => foldToastShow(model, toShowInput(request)),
   })
@@ -502,6 +577,10 @@ export const subscriptions = Subscription.aggregate(
   Subscription.lift(Watches.subscriptions)<Model, Message>({
     read: (model) => Option.some(model.watches),
     toParentMessage: (message) => Message.GotWatchesMessage({ message }),
+  }),
+  Subscription.lift(WatchDetail.subscriptions)<Model, Message>({
+    read: (model) => Option.some(model.watchDetail),
+    toParentMessage: (message) => Message.GotWatchDetailMessage({ message }),
   }),
   Subscription.lift(Jobs.subscriptions)<Model, Message>({
     read: (model) => Option.some(model.jobs),
@@ -555,7 +634,13 @@ const pageView = (model: Model, h: HtmlBuilder<Message>): Html =>
         view: Watches.view,
         toParentMessage: (message) => Message.GotWatchesMessage({ message }),
       }),
-    WatchDetail: () => placeholderPage(model.route, h),
+    WatchDetail: () =>
+      h.submodel({
+        slotId: "watch-detail",
+        model: model.watchDetail,
+        view: WatchDetail.view,
+        toParentMessage: (message) => Message.GotWatchDetailMessage({ message }),
+      }),
     Convert: () =>
       h.submodel({
         slotId: "convert",

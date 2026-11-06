@@ -9,6 +9,7 @@ import { type ApiClientService, callApi } from "./api"
 import { buttonClass } from "./form"
 import { pageHeader } from "./pageHeader"
 import { ToastRequest, toast } from "./toast"
+import * as Push from "./push"
 import * as WatchForm from "./watchForm"
 
 export const POLL_INTERVAL = Duration.seconds(30)
@@ -23,6 +24,7 @@ const WatchesData = AsyncData.Schema(Schema.Array(WatchSchema), Schema.String)
 export const Model = Schema.Struct({
   watches: WatchesData.schema,
   form: WatchForm.Model,
+  push: Push.Model,
   /** On screen: only then is the list polled. */
   isActive: Schema.Boolean,
   /** Watches with an action in flight (their buttons are held), and which action. */
@@ -41,6 +43,7 @@ export const Message = defineMessageUnion({
   FailedFetchWatches: { seq: Schema.Int, reason: Schema.String },
   TickedPoll: {},
   GotFormMessage: { message: WatchForm.Message },
+  GotPushMessage: { message: Push.Message },
   ClickedNewWatch: {},
   ClickedDismiss: { watchId: WatchId },
   SucceededDismiss: { watchId: WatchId },
@@ -166,6 +169,7 @@ type UpdateReturn = Update.ReturnWithOutMessage<Model, Message, OutMessage, ApiC
 export const init = (): Model => ({
   watches: WatchesData.Idle(),
   form: WatchForm.init(),
+  push: Push.init(),
   isActive: false,
   busy: [],
   fetchSeq: 0,
@@ -198,7 +202,10 @@ const reload = (model: Model): UpdateReturn => {
 export const enter = (model: Model): UpdateReturn => {
   const loading = reload(model)
 
-  return { ...loading, model: modifyFields(loading.model, { isActive: () => true }) }
+  return Update.combine(modifyFields(loading.model, { isActive: () => true }), [
+    (stepModel) => ({ model: stepModel, commands: loading.commands }),
+    foldPushRefresh,
+  ])
 }
 
 /** Leaving the page: stop polling. */
@@ -228,6 +235,20 @@ const foldForm = Update.foldChild({
   write: (model, form) => modifyFields(model, { form: () => form }),
   toParentMessage: (message) => Message.GotFormMessage({ message }),
   foldOutMessage: foldFormOutMessage,
+})
+
+const foldPush = Update.foldChild({
+  update: Push.update,
+  read: (model: Model) => Option.some(model.push),
+  write: (model, push) => modifyFields(model, { push: () => push }),
+  toParentMessage: (message) => Message.GotPushMessage({ message }),
+})
+
+const foldPushRefresh = Update.foldChildStep({
+  update: Push.refresh,
+  read: (model: Model) => Option.some(model.push),
+  write: (model, push) => modifyFields(model, { push: () => push }),
+  toParentMessage: (message) => Message.GotPushMessage({ message }),
 })
 
 const foldOpenCreate = Update.foldChildStep({
@@ -271,6 +292,7 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       model.isActive && !AsyncData.isPending(model.watches) ? reload(model) : { model },
 
     GotFormMessage: ({ message }) => foldForm(model, message),
+    GotPushMessage: ({ message }) => foldPush(model, message),
     ClickedNewWatch: () => foldOpenCreate(model),
 
     ClickedDismiss: ({ watchId }) => act(model, watchId, "Dismiss", DismissAlerts({ watchId })),
@@ -528,6 +550,12 @@ export const view = Submodel.defineView<Model, Message>((model, h): Html => {
           ),
         ],
       ),
+      h.submodel({
+        slotId: "watches-push",
+        model: model.push,
+        view: Push.view,
+        toParentMessage: (message) => Message.GotPushMessage({ message }),
+      }),
       ...AsyncData.matchData(model.watches, {
         onEmpty: () => [
           h.p([h.Role("status"), h.Class("text-sm text-secondary")], ["Loading watches..."]),

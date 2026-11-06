@@ -12,6 +12,8 @@ import * as Results from "./results"
 import * as Settings from "./settings"
 import * as Sidebar from "./sidebar"
 import { defaultConfig } from "./settingsFixtures"
+import * as WatchDetail from "./watchDetail"
+import { wid } from "./watchFixtures"
 import { toast } from "./toast"
 import { modelAt } from "./testing"
 import {
@@ -35,6 +37,15 @@ describe("update", () => {
       update,
       given(onProwlarr),
       message(Message.ChangedUrl({ url: urlOrThrow("http://localhost/watches/3") })),
+      // The watch page starts loading as soon as it's entered.
+      Command.resolve(
+        WatchDetail.FetchWatch,
+        WatchDetail.Message.FailedFetchWatch({ watchId: wid(3), seq: 1, reason: "unused" }),
+      ),
+      Command.resolve(
+        WatchDetail.FetchAlerts,
+        WatchDetail.Message.FailedFetchAlerts({ watchId: wid(3), seq: 1, reason: "unused" }),
+      ),
       model((m) => {
         expect(m.route).toStrictEqual(AppRoute.WatchDetail({ watchId: 3 }))
       }),

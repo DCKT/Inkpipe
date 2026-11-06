@@ -225,7 +225,7 @@ describe("download flow", () => {
       sceneExpect(role("button", { name: "Starting..." })).toBeDisabled(),
       Command.resolve(Prowlarr.StartDownload, Prowlarr.Message.SucceededDownload({ started: 1 })),
       sceneExpect(role("button", { name: /^Download \d+ selected$/ })).toBeAbsent(),
-      sceneExpect(role("status")).toContainText("Started 1 downloads"),
+      sceneExpect(role("status")).toContainText("Started 1 download"),
       sceneExpect(role("status")).toContainText("Check the Jobs page for progress."),
       drainToast("toasts-entry-0"),
     )

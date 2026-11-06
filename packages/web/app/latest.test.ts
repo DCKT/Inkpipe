@@ -86,7 +86,7 @@ describe("update", () => {
     const ok = Latest.update(starting, Latest.Message.SucceededDownload({ started: 1 }))
     expect(ok.model.results.selected).toStrictEqual([])
     expect(ok.outMessage?._tag === "RequestedToast" && ok.outMessage.request.title).toBe(
-      "Started 1 downloads",
+      "Started 1 download",
     )
     const bad = Latest.update(starting, Latest.Message.FailedDownload({ reason: "down" }))
     expect(bad.model.results.selected).toStrictEqual(["a"])
@@ -257,7 +257,7 @@ describe("view", () => {
       click(role("button", { name: "Download 1 selected" })),
       sceneExpect(role("button", { name: "Starting..." })).toBeDisabled(),
       Command.resolve(Latest.StartDownload, Latest.Message.SucceededDownload({ started: 1 })),
-      sceneExpect(role("status")).toContainText("Started 1 downloads"),
+      sceneExpect(role("status")).toContainText("Started 1 download"),
       drainToast("toasts-entry-0"),
     )
   })

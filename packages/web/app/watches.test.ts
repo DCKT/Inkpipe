@@ -68,7 +68,10 @@ describe("loading", () => {
     const entered = Watches.enter(Watches.init())
     expect(entered.model.isActive).toBe(true)
     expect(AsyncData.isLoading(entered.model.watches)).toBe(true)
-    expect(entered.commands?.map((c) => c.name)).toStrictEqual(["FetchWatches"])
+    expect(entered.commands?.map((c) => c.name).sort()).toStrictEqual([
+      "DetectPushStatus",
+      "FetchWatches",
+    ])
   })
 
   test("re-entering keeps showing the old list while it reloads", () => {

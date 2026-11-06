@@ -185,7 +185,7 @@ describe("downloading", () => {
     const ok = AnnasArchive.update(starting, AnnasArchive.Message.SucceededDownload({ started: 1 }))
     expect(ok.model.results.selected).toStrictEqual([])
     expect(ok.outMessage?._tag === "RequestedToast" && ok.outMessage.request).toMatchObject({
-      title: "Started 1 downloads",
+      title: "Started 1 download",
       maybeDescription: Option.some("Check the Jobs page for progress."),
     })
     const bad = AnnasArchive.update(
@@ -420,7 +420,7 @@ describe("view", () => {
         AnnasArchive.Message.SucceededDownload({ started: 1 }),
       ),
       sceneExpect(role("button", { name: /^Download \d+ selected$/ })).toBeAbsent(),
-      sceneExpect(role("status")).toContainText("Started 1 downloads"),
+      sceneExpect(role("status")).toContainText("Started 1 download"),
       drainToast("toasts-entry-0"),
     )
   })
