@@ -10,7 +10,12 @@ import { LogService } from "../core/Log"
 export class KccService extends Context.Service<
   KccService,
   {
-    readonly convert: (inputPath: string, outputDir: string, overrides?: Partial<KccConfig>, onLog?: (line: string) => void) => Effect.Effect<string, KccError>
+    readonly convert: (
+      inputPath: string,
+      outputDir: string,
+      overrides?: Partial<KccConfig>,
+      onLog?: (line: string) => void,
+    ) => Effect.Effect<string, KccError>
   }
 >()("KccService") {}
 
@@ -20,10 +25,14 @@ const KCC_DATA_DIR = "/data"
 export function buildKccArgs(inputFilename: string, config: AppConfig): string[] {
   const kcc = config.kcc
   const args: string[] = [
-    "--profile", kcc.profile,
-    "--cropping", kcc.cropping,
-    "--title", parse(inputFilename).name,
-    "--author", "",
+    "--profile",
+    kcc.profile,
+    "--cropping",
+    kcc.cropping,
+    "--title",
+    parse(inputFilename).name,
+    "--author",
+    "",
   ]
 
   const booleanFlags: [boolean, string][] = [
@@ -77,7 +86,12 @@ export const KccServiceLive = Layer.effect(
     const fileManager = yield* FileManagerService
     const log = yield* LogService
 
-    const convert = (inputPath: string, outputDir: string, overrides?: Partial<KccConfig>, onLog?: (line: string) => void) =>
+    const convert = (
+      inputPath: string,
+      outputDir: string,
+      overrides?: Partial<KccConfig>,
+      onLog?: (line: string) => void,
+    ) =>
       Effect.gen(function* () {
         const config = yield* configService.loadConfig.pipe(
           Effect.mapError((e) => new KccError({ message: e.message })),
@@ -92,71 +106,87 @@ export const KccServiceLive = Layer.effect(
 
         return yield* Effect.tryPromise({
           try: () =>
-            enqueueKcc(() =>
-              new Promise<string>((resolve, reject) => {
-                let args: string[]
-                if (isDocker) {
-                  const tempBase = "/tmp/inkpipe"
-                  const relPath = relative(tempBase, outputDir)
-                  const containerInput = `${KCC_DATA_DIR}/${relPath}/${inputFilename}`
-                  const containerOutput = `${KCC_DATA_DIR}/${relPath}`
-                  args = [
-                    "exec", KCC_CONTAINER_NAME,
-                    "c2e",
-                    ...kccArgs,
-                    containerInput,
-                    "-o", containerOutput,
-                  ]
-                } else {
-                  args = [
-                    "run", "--rm",
-                    "-v", `${outputDir}:/data`,
-                    config.kcc.dockerImage,
-                    ...kccArgs,
-                    `/data/${inputFilename}`,
-                    "-o", "/data",
-                  ]
-                }
-
-                Effect.runSyncWith(context)(log.info("kcc", `Starting conversion: ${inputFilename}`))
-                Effect.runSyncWith(context)(log.info("kcc", `Docker args: docker ${args.join(" ")}`))
-
-                const proc = spawn("docker", args)
-
-                let stdout = ""
-                let stderr = ""
-
-                proc.stdout.on("data", (data: Buffer) => {
-                  stdout += data.toString()
-                  const line = data.toString().trim()
-                  Effect.runSyncWith(context)(log.info("kcc", `stdout: ${line}`))
-                  onLog?.(line)
-                })
-
-                proc.stderr.on("data", (data: Buffer) => {
-                  stderr += data.toString()
-                  const line = data.toString().trim()
-                  Effect.runSyncWith(context)(log.info("kcc", `stderr: ${line}`))
-                  onLog?.(line)
-                })
-
-                proc.on("close", (code: number) => {
-                  Effect.runSyncWith(context)(log.info("kcc", `Process exited with code ${code}`))
-                  if (code === 0) {
-                    Effect.runSyncWith(context)(log.info("kcc", `Conversion succeeded for: ${inputFilename}`))
-                    resolve(stdout)
+            enqueueKcc(
+              () =>
+                new Promise<string>((resolve, reject) => {
+                  let args: string[]
+                  if (isDocker) {
+                    const tempBase = "/tmp/inkpipe"
+                    const relPath = relative(tempBase, outputDir)
+                    const containerInput = `${KCC_DATA_DIR}/${relPath}/${inputFilename}`
+                    const containerOutput = `${KCC_DATA_DIR}/${relPath}`
+                    args = [
+                      "exec",
+                      KCC_CONTAINER_NAME,
+                      "c2e",
+                      ...kccArgs,
+                      containerInput,
+                      "-o",
+                      containerOutput,
+                    ]
                   } else {
-                    Effect.runSyncWith(context)(log.error("kcc", `Conversion failed for: ${inputFilename}`))
-                    Effect.runSyncWith(context)(log.error("kcc", `stderr: ${stderr}`))
-                    reject(new Error(`KCC exited with code ${code}: ${stderr}`))
+                    args = [
+                      "run",
+                      "--rm",
+                      "-v",
+                      `${outputDir}:/data`,
+                      config.kcc.dockerImage,
+                      ...kccArgs,
+                      `/data/${inputFilename}`,
+                      "-o",
+                      "/data",
+                    ]
                   }
-                })
 
-                proc.on("error", (err: Error) => {
-                  Effect.runSyncWith(context)(log.error("kcc", `Failed to start KCC: ${err.message}`))
-                  reject(new Error(`Failed to start KCC: ${err.message}`))
-                })
-              }),
+                  Effect.runSyncWith(context)(
+                    log.info("kcc", `Starting conversion: ${inputFilename}`),
+                  )
+                  Effect.runSyncWith(context)(
+                    log.info("kcc", `Docker args: docker ${args.join(" ")}`),
+                  )
+
+                  const proc = spawn("docker", args)
+
+                  let stdout = ""
+                  let stderr = ""
+
+                  proc.stdout.on("data", (data: Buffer) => {
+                    stdout += data.toString()
+                    const line = data.toString().trim()
+                    Effect.runSyncWith(context)(log.info("kcc", `stdout: ${line}`))
+                    onLog?.(line)
+                  })
+
+                  proc.stderr.on("data", (data: Buffer) => {
+                    stderr += data.toString()
+                    const line = data.toString().trim()
+                    Effect.runSyncWith(context)(log.info("kcc", `stderr: ${line}`))
+                    onLog?.(line)
+                  })
+
+                  proc.on("close", (code: number) => {
+                    Effect.runSyncWith(context)(log.info("kcc", `Process exited with code ${code}`))
+                    if (code === 0) {
+                      Effect.runSyncWith(context)(
+                        log.info("kcc", `Conversion succeeded for: ${inputFilename}`),
+                      )
+                      resolve(stdout)
+                    } else {
+                      Effect.runSyncWith(context)(
+                        log.error("kcc", `Conversion failed for: ${inputFilename}`),
+                      )
+                      Effect.runSyncWith(context)(log.error("kcc", `stderr: ${stderr}`))
+                      reject(new Error(`KCC exited with code ${code}: ${stderr}`))
+                    }
+                  })
+
+                  proc.on("error", (err: Error) => {
+                    Effect.runSyncWith(context)(
+                      log.error("kcc", `Failed to start KCC: ${err.message}`),
+                    )
+                    reject(new Error(`Failed to start KCC: ${err.message}`))
+                  })
+                }),
             ),
           catch: (e) => {
             const message = e instanceof Error ? e.message : String(e)

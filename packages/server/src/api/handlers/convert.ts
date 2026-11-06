@@ -1,6 +1,6 @@
 import { Effect, Schema, Stream } from "effect"
-import { HttpApiBuilder } from "effect/unstable/httpapi"
-import { HttpServerResponse } from "effect/unstable/http"
+import { HttpApiBuilder } from "effect/http-api"
+import { HttpServerResponse } from "effect/http"
 import { copyFile, mkdir, readdir, readFile, rm } from "node:fs/promises"
 import { basename, join } from "node:path"
 import { randomUUID } from "node:crypto"
@@ -24,9 +24,12 @@ type ConvertJob = {
 const jobs = new Map<string, ConvertJob>()
 
 function scheduleCleanup(id: string, job: ConvertJob) {
-  job.cleanupTimer = setTimeout(() => {
-    jobs.delete(id)
-  }, 10 * 60 * 1000)
+  job.cleanupTimer = setTimeout(
+    () => {
+      jobs.delete(id)
+    },
+    10 * 60 * 1000,
+  )
 }
 
 const encoder = new TextEncoder()
@@ -52,11 +55,15 @@ export const ConvertGroupLive = HttpApiBuilder.group(InkpipeApi, "convert", (han
             ? yield* Effect.try({
                 try: (): unknown => JSON.parse(options),
                 catch: (e) =>
-                  new ConvertError({ message: `Invalid KCC options: ${e instanceof Error ? e.message : String(e)}` }),
+                  new ConvertError({
+                    message: `Invalid KCC options: ${e instanceof Error ? e.message : String(e)}`,
+                  }),
               }).pipe(
                 Effect.flatMap((parsed) =>
                   Schema.decodeUnknownEffect(KccConfigSchema)(parsed).pipe(
-                    Effect.mapError((e) => new ConvertError({ message: `Invalid KCC options: ${e.message}` })),
+                    Effect.mapError(
+                      (e) => new ConvertError({ message: `Invalid KCC options: ${e.message}` }),
+                    ),
                   ),
                 ),
               )
@@ -118,7 +125,8 @@ export const ConvertGroupLive = HttpApiBuilder.group(InkpipeApi, "convert", (han
         )
 
         return { id }
-      }))
+      }),
+    )
     .handleRaw("progress", ({ query }) =>
       Effect.sync(() => {
         const job = jobs.get(query.id)
@@ -156,7 +164,10 @@ export const ConvertGroupLive = HttpApiBuilder.group(InkpipeApi, "convert", (han
               if (type === "log") {
                 controller.enqueue(sseFrame("progress", line))
               } else {
-                if (keepaliveTimer) { clearInterval(keepaliveTimer); keepaliveTimer = null }
+                if (keepaliveTimer) {
+                  clearInterval(keepaliveTimer)
+                  keepaliveTimer = null
+                }
                 controller.enqueue(sseFrame(type, line))
                 job.subscribers.delete(activeSubscriber!)
                 activeSubscriber = null
@@ -166,7 +177,10 @@ export const ConvertGroupLive = HttpApiBuilder.group(InkpipeApi, "convert", (han
             job.subscribers.add(activeSubscriber)
           },
           cancel() {
-            if (keepaliveTimer) { clearInterval(keepaliveTimer); keepaliveTimer = null }
+            if (keepaliveTimer) {
+              clearInterval(keepaliveTimer)
+              keepaliveTimer = null
+            }
             if (activeSubscriber) {
               job.subscribers.delete(activeSubscriber)
               activeSubscriber = null
@@ -183,10 +197,11 @@ export const ConvertGroupLive = HttpApiBuilder.group(InkpipeApi, "convert", (han
           contentType: "text/event-stream",
           headers: {
             "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
+            Connection: "keep-alive",
           },
         })
-      }))
+      }),
+    )
     .handle("download", ({ query }) =>
       Effect.gen(function* () {
         const id = query.id
@@ -199,7 +214,9 @@ export const ConvertGroupLive = HttpApiBuilder.group(InkpipeApi, "convert", (han
         const tempBase = yield* fileManager.getTempBase
         const workDir = join(tempBase, `convert-${id}`)
 
-        const cleanup = Effect.promise(() => rm(workDir, { recursive: true, force: true }).catch(() => {}))
+        const cleanup = Effect.promise(() =>
+          rm(workDir, { recursive: true, force: true }).catch(() => {}),
+        )
 
         return yield* Effect.gen(function* () {
           const files = yield* Effect.tryPromise({
@@ -225,5 +242,6 @@ export const ConvertGroupLive = HttpApiBuilder.group(InkpipeApi, "convert", (han
             },
           })
         }).pipe(Effect.ensuring(cleanup))
-      })),
+      }),
+    ),
 )

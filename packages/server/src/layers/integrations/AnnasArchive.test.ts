@@ -1,4 +1,5 @@
-import { Context, Effect, Layer } from "effect"
+import type { Context } from "effect"
+import { Effect, Layer } from "effect"
 import { describe, it, expect, vi, beforeEach, afterEach } from "@effect/vitest"
 import type { AppConfig } from "@inkpipe/shared"
 import { AnnasArchiveService, AnnasArchiveServiceLive } from "./AnnasArchive"
@@ -9,14 +10,32 @@ const testConfig: AppConfig = {
   prowlarr: { url: "", apiKey: "" },
   alldebrid: { apiKey: "" },
   kcc: {
-    dockerImage: "ghcr.io/ciromattia/kcc:latest", profile: "KoBO", format: "Auto",
-    mangaStyle: false, webtoon: false, twoPanel: false,
-    upscale: true, stretch: false, hq: false, gamma: 1.0,
-    cropping: "1", croppingPower: 1.0, forceColor: true,
-    forcePng: false, noAutoContrast: false, blackBorders: false,
-    whiteBorders: false, splitter: "0", noProcessing: false,
-    eraseRainbow: true, coverFill: false, batchSplit: "0",
-    targetSize: 0, customWidth: 0, customHeight: 0, noKepub: false,
+    dockerImage: "ghcr.io/ciromattia/kcc:latest",
+    profile: "KoBO",
+    format: "Auto",
+    mangaStyle: false,
+    webtoon: false,
+    twoPanel: false,
+    upscale: true,
+    stretch: false,
+    hq: false,
+    gamma: 1.0,
+    cropping: "1",
+    croppingPower: 1.0,
+    forceColor: true,
+    forcePng: false,
+    noAutoContrast: false,
+    blackBorders: false,
+    whiteBorders: false,
+    splitter: "0",
+    noProcessing: false,
+    eraseRainbow: true,
+    coverFill: false,
+    batchSplit: "0",
+    targetSize: 0,
+    customWidth: 0,
+    customHeight: 0,
+    noKepub: false,
   },
   copyparty: { url: "", uploadPath: "/", password: "" },
   komga: { url: "", apiKey: "", defaultLibraryId: "" },
@@ -32,11 +51,18 @@ function makeLayer(config?: Partial<AppConfig>) {
   })
 }
 
-function makeProgram<T, E>(prog: (svc: Context.Service.Shape<typeof AnnasArchiveService>) => Effect.Effect<T, E>, config?: Partial<AppConfig>) {
+function makeProgram<T, E>(
+  prog: (svc: Context.Service.Shape<typeof AnnasArchiveService>) => Effect.Effect<T, E>,
+  config?: Partial<AppConfig>,
+) {
   return Effect.gen(function* () {
     const svc = yield* AnnasArchiveService
     return yield* prog(svc)
-  }).pipe(Effect.provide(Layer.provide(AnnasArchiveServiceLive, Layer.merge(LogServiceLive, makeLayer(config)))))
+  }).pipe(
+    Effect.provide(
+      Layer.provide(AnnasArchiveServiceLive, Layer.merge(LogServiceLive, makeLayer(config))),
+    ),
+  )
 }
 
 const searchResultsHtml = `
@@ -89,7 +115,8 @@ describe("AnnasArchiveService", () => {
         const results = yield* makeProgram((svc) => svc.search("naruto"))
 
         expect(globalThis.fetch).toHaveBeenCalledTimes(1)
-        const callUrl = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+        const callUrl = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock
+          .calls[0][0] as string
         expect(callUrl).toContain("/search")
         expect(callUrl).toContain("q=naruto")
 
@@ -112,7 +139,8 @@ describe("AnnasArchiveService", () => {
           language: "Japanese [ja]",
           coverUrl: null,
         })
-      }))
+      }),
+    )
 
     it.effect("skips rows missing an md5 link or title", () =>
       Effect.gen(function* () {
@@ -128,7 +156,8 @@ describe("AnnasArchiveService", () => {
         const results = yield* makeProgram((svc) => svc.search("nothing"))
 
         expect(results).toEqual([])
-      }))
+      }),
+    )
 
     it.effect("sorts French results to the front regardless of HTML order", () =>
       Effect.gen(function* () {
@@ -152,7 +181,8 @@ describe("AnnasArchiveService", () => {
         const results = yield* makeProgram((svc) => svc.search("test"))
 
         expect(results.map((r) => r.md5)).toEqual(["fr1", "en1"])
-      }))
+      }),
+    )
 
     it.effect("does not require an API key", () =>
       Effect.gen(function* () {
@@ -161,63 +191,77 @@ describe("AnnasArchiveService", () => {
           text: async () => searchResultsHtml,
         })
 
-        const results = yield* makeProgram(
-          (svc) => svc.search("naruto"),
-          { annasArchive: { apiKey: "", baseUrl: "https://annas-archive.gl" } },
-        )
-
-        expect(results).toHaveLength(2)
-      }))
-
-    it.effect("fails with AnnasArchiveHttpError on non-OK response after exhausting all mirrors", () =>
-      Effect.gen(function* () {
-        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-          ok: false,
-          status: 503,
-          statusText: "Service Unavailable",
+        const results = yield* makeProgram((svc) => svc.search("naruto"), {
+          annasArchive: { apiKey: "", baseUrl: "https://annas-archive.gl" },
         })
 
-        const error = yield* Effect.flip(makeProgram((svc) => svc.search("test")))
+        expect(results).toHaveLength(2)
+      }),
+    )
 
-        expect(error.message).toContain("503")
-        // 3 known mirrors, never more
-        expect(globalThis.fetch).toHaveBeenCalledTimes(3)
-      }))
+    it.effect(
+      "fails with AnnasArchiveHttpError on non-OK response after exhausting all mirrors",
+      () =>
+        Effect.gen(function* () {
+          ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+            ok: false,
+            status: 503,
+            statusText: "Service Unavailable",
+          })
+
+          const error = yield* Effect.flip(makeProgram((svc) => svc.search("test")))
+
+          expect(error.message).toContain("503")
+          // 3 known mirrors, never more
+          expect(globalThis.fetch).toHaveBeenCalledTimes(3)
+        }),
+    )
 
     it.effect("fails with AnnasArchiveHttpError on network failure", () =>
       Effect.gen(function* () {
-        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Connection refused"))
+        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
+          new Error("Connection refused"),
+        )
 
         const error = yield* Effect.flip(makeProgram((svc) => svc.search("test")))
 
         expect(error.message).toContain("Connection refused")
         expect(globalThis.fetch).toHaveBeenCalledTimes(3)
-      }))
+      }),
+    )
 
-    it.effect("falls back to the next known mirror when the configured base URL is unreachable", () =>
-      Effect.gen(function* () {
-        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>)
-          .mockRejectedValueOnce(new TypeError("Was there a typo in the url or port?"))
-          .mockResolvedValueOnce({ ok: true, text: async () => searchResultsHtml })
+    it.effect(
+      "falls back to the next known mirror when the configured base URL is unreachable",
+      () =>
+        Effect.gen(function* () {
+          ;((globalThis as any).fetch as ReturnType<typeof vi.fn>)
+            .mockRejectedValueOnce(new TypeError("Was there a typo in the url or port?"))
+            .mockResolvedValueOnce({ ok: true, text: async () => searchResultsHtml })
 
-        const results = yield* makeProgram((svc) => svc.search("naruto"))
+          const results = yield* makeProgram((svc) => svc.search("naruto"))
 
-        expect(results).toHaveLength(2)
-        expect(globalThis.fetch).toHaveBeenCalledTimes(2)
-        const firstUrl = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
-        const secondUrl = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock.calls[1][0] as string
-        expect(firstUrl).toContain("annas-archive.gl")
-        expect(secondUrl).toContain("annas-archive.pk")
-      }))
+          expect(results).toHaveLength(2)
+          expect(globalThis.fetch).toHaveBeenCalledTimes(2)
+          const firstUrl = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock
+            .calls[0][0] as string
+          const secondUrl = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock
+            .calls[1][0] as string
+          expect(firstUrl).toContain("annas-archive.gl")
+          expect(secondUrl).toContain("annas-archive.pk")
+        }),
+    )
 
     it.effect("never makes more than 3 mirror attempts", () =>
       Effect.gen(function* () {
-        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("down"))
+        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
+          new Error("down"),
+        )
 
         yield* Effect.flip(makeProgram((svc) => svc.search("test")))
 
         expect(globalThis.fetch).toHaveBeenCalledTimes(3)
-      }))
+      }),
+    )
   })
 
   describe("getDownloadUrl", () => {
@@ -231,11 +275,13 @@ describe("AnnasArchiveService", () => {
         const url = yield* makeProgram((svc) => svc.getDownloadUrl("aaaa1111"))
 
         expect(url).toBe("https://cdn.example.com/book.epub")
-        const callUrl = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+        const callUrl = ((globalThis as any).fetch as ReturnType<typeof vi.fn>).mock
+          .calls[0][0] as string
         expect(callUrl).toContain("fast_download.json")
         expect(callUrl).toContain("md5=aaaa1111")
         expect(callUrl).toContain("key=test-aa-key")
-      }))
+      }),
+    )
 
     it.effect("fails with AnnasArchiveNotConfigured when API key is empty", () =>
       Effect.gen(function* () {
@@ -246,7 +292,8 @@ describe("AnnasArchiveService", () => {
         )
 
         expect(error.message).toContain("not configured")
-      }))
+      }),
+    )
 
     it.effect("fails when the response body contains an error field", () =>
       Effect.gen(function* () {
@@ -258,23 +305,27 @@ describe("AnnasArchiveService", () => {
         const error = yield* Effect.flip(makeProgram((svc) => svc.getDownloadUrl("unknown")))
 
         expect(error.message).toContain("md5 not found")
-      }))
+      }),
+    )
 
-    it.effect("surfaces a membership error on no_membership response without retrying other mirrors", () =>
-      Effect.gen(function* () {
-        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-          ok: false,
-          status: 403,
-          statusText: "Forbidden",
-          text: async () => "no_membership",
-        })
+    it.effect(
+      "surfaces a membership error on no_membership response without retrying other mirrors",
+      () =>
+        Effect.gen(function* () {
+          ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+            ok: false,
+            status: 403,
+            statusText: "Forbidden",
+            text: async () => "no_membership",
+          })
 
-        const error = yield* Effect.flip(makeProgram((svc) => svc.getDownloadUrl("aaaa1111")))
+          const error = yield* Effect.flip(makeProgram((svc) => svc.getDownloadUrl("aaaa1111")))
 
-        expect(error.message).toContain("no active membership")
-        // Same key, so every mirror would fail identically — must not waste attempts retrying.
-        expect(globalThis.fetch).toHaveBeenCalledTimes(1)
-      }))
+          expect(error.message).toContain("no active membership")
+          // Same key, so every mirror would fail identically — must not waste attempts retrying.
+          expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+        }),
+    )
 
     it.effect("surfaces an invalid-key error without retrying other mirrors", () =>
       Effect.gen(function* () {
@@ -289,7 +340,8 @@ describe("AnnasArchiveService", () => {
 
         expect(error.message).toContain("Invalid Anna's Archive API key")
         expect(globalThis.fetch).toHaveBeenCalledTimes(1)
-      }))
+      }),
+    )
 
     it.effect("falls back to the next known mirror on a connectivity failure", () =>
       Effect.gen(function* () {
@@ -304,16 +356,20 @@ describe("AnnasArchiveService", () => {
 
         expect(url).toBe("https://cdn.example.com/book.epub")
         expect(globalThis.fetch).toHaveBeenCalledTimes(2)
-      }))
+      }),
+    )
 
     it.effect("never makes more than 3 mirror attempts", () =>
       Effect.gen(function* () {
-        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("down"))
+        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
+          new Error("down"),
+        )
 
         yield* Effect.flip(makeProgram((svc) => svc.getDownloadUrl("aaaa1111")))
 
         expect(globalThis.fetch).toHaveBeenCalledTimes(3)
-      }))
+      }),
+    )
   })
 
   describe("downloadFile", () => {
@@ -321,7 +377,8 @@ describe("AnnasArchiveService", () => {
       Effect.gen(function* () {
         const content = new Uint8Array([1, 2, 3, 4])
         const mockReader = {
-          read: vi.fn()
+          read: vi
+            .fn()
             .mockResolvedValueOnce({ done: false, value: content })
             .mockResolvedValueOnce({ done: true, value: undefined }),
         }
@@ -344,7 +401,8 @@ describe("AnnasArchiveService", () => {
         expect(Bun.write).toHaveBeenCalled()
         expect(received).toBe(4)
         expect(total).toBe(4)
-      }))
+      }),
+    )
 
     it.effect("fails with AnnasArchiveDownloadError on non-OK response", () =>
       Effect.gen(function* () {
@@ -354,10 +412,13 @@ describe("AnnasArchiveService", () => {
         })
 
         const error = yield* Effect.flip(
-          makeProgram((svc) => svc.downloadFile("https://cdn.example.com/missing.epub", "/tmp/missing.epub")),
+          makeProgram((svc) =>
+            svc.downloadFile("https://cdn.example.com/missing.epub", "/tmp/missing.epub"),
+          ),
         )
 
         expect(error.message).toContain("Download failed")
-      }))
+      }),
+    )
   })
 })

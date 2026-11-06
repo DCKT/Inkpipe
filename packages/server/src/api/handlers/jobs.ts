@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { HttpApiBuilder } from "effect/http-api"
 import { JobStoreService } from "../../layers/storage/JobStore"
 import { broadcastJobs } from "../../lib/jobEvents"
 import { InkpipeApi } from "@inkpipe/shared"
@@ -11,7 +11,8 @@ export const JobsGroupLive = HttpApiBuilder.group(InkpipeApi, "jobs", (handlers)
         const jobStore = yield* JobStoreService
         const jobs = yield* jobStore.getAllJobs
         return { jobs }
-      }))
+      }),
+    )
     .handle("clear", () =>
       Effect.gen(function* () {
         const jobStore = yield* JobStoreService
@@ -19,5 +20,6 @@ export const JobsGroupLive = HttpApiBuilder.group(InkpipeApi, "jobs", (handlers)
         const jobs = yield* jobStore.getAllJobs
         broadcastJobs(jobs)
         return { deleted }
-      })),
+      }),
+    ),
 )

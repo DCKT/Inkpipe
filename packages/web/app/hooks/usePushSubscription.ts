@@ -35,9 +35,12 @@ export function usePushSubscription() {
   useEffect(() => {
     const checkPermission = () => setStatus(getPermissionStatus())
     if ("permissions" in navigator) {
-      navigator.permissions.query({ name: "notifications" } as PermissionDescriptor).then((perm) => {
-        perm.addEventListener("change", checkPermission)
-      }).catch(() => {})
+      navigator.permissions
+        .query({ name: "notifications" } as PermissionDescriptor)
+        .then((perm) => {
+          perm.addEventListener("change", checkPermission)
+        })
+        .catch(() => {})
     }
   }, [])
 
@@ -61,7 +64,10 @@ export function usePushSubscription() {
       })
     }
 
-    const subJson = subscription.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }
+    const subJson = subscription.toJSON() as {
+      endpoint: string
+      keys: { p256dh: string; auth: string }
+    }
     await runApi((client) => client.push.subscribe({ payload: subJson }))
     localStorage.setItem(STORAGE_KEY, "true")
     setStatus("subscribed")
@@ -73,7 +79,9 @@ export function usePushSubscription() {
     const subscription = await reg.pushManager.getSubscription()
     if (subscription) {
       const subscriptionJson = subscription.toJSON() as { endpoint: string }
-      await runApi((client) => client.push.unsubscribe({ payload: { endpoint: subscriptionJson.endpoint } }))
+      await runApi((client) =>
+        client.push.unsubscribe({ payload: { endpoint: subscriptionJson.endpoint } }),
+      )
       await subscription.unsubscribe()
     }
     localStorage.removeItem(STORAGE_KEY)

@@ -1,113 +1,120 @@
-import { useState, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowDown, RefreshCw } from "lucide-react";
-import { runApi } from "../lib/apiClient";
-import FileDrop from "../components/FileDrop";
-import KccOptionsFields from "../components/KccOptionsFields";
-import { PageHeader } from "../components/PageHeader";
-import type { KccConfig } from "../lib/types";
-import { Button } from "../ui/button";
-import { ToastGroup } from "../ui/toast";
+import { useState, useCallback, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
+import { ArrowDown, RefreshCw } from "lucide-react"
+import { runApi } from "../lib/apiClient"
+import FileDrop from "../components/FileDrop"
+import KccOptionsFields from "../components/KccOptionsFields"
+import { PageHeader } from "../components/PageHeader"
+import type { KccConfig } from "../lib/types"
+import { Button } from "../ui/button"
+import { ToastGroup } from "../ui/toast"
 
-type Stage = "idle" | "processing" | "done" | "error";
-type SubStage = "uploading" | "converting";
+type Stage = "idle" | "processing" | "done" | "error"
+type SubStage = "uploading" | "converting"
 
 function isDefaultKcc(a: KccConfig, b: KccConfig): boolean {
-  return (Object.keys(b) as (keyof KccConfig)[]).every((key) => a[key] === b[key]);
+  return (Object.keys(b) as (keyof KccConfig)[]).every((key) => a[key] === b[key])
 }
 
 export default function ConvertPage() {
-  const navigate = useNavigate();
-  const [stage, setStage] = useState<Stage>("idle");
-  const [subStage, setSubStage] = useState<SubStage>("uploading");
-  const [error, setError] = useState<string | null>(null);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-  const [downloadFilename, setDownloadFilename] = useState<string | null>(null);
-  const [defaultKcc, setDefaultKcc] = useState<KccConfig | null>(null);
-  const [overrides, setOverrides] = useState<KccConfig | null>(null);
+  const navigate = useNavigate()
+  const [stage, setStage] = useState<Stage>("idle")
+  const [subStage, setSubStage] = useState<SubStage>("uploading")
+  const [error, setError] = useState<string | null>(null)
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
+  const [downloadFilename, setDownloadFilename] = useState<string | null>(null)
+  const [defaultKcc, setDefaultKcc] = useState<KccConfig | null>(null)
+  const [overrides, setOverrides] = useState<KccConfig | null>(null)
 
   useEffect(() => {
-    runApi((client) => client.settings.get({})).then((config) => {
-      if (!config.kcc.dockerImage) {
-        navigate("/settings");
-        return;
+    runApi((client) => client.settings.get({}))
+      .then((config) => {
+        if (!config.kcc.dockerImage) {
+          navigate("/settings")
+          return
+        }
+        setDefaultKcc(config.kcc)
+        setOverrides(config.kcc)
+      })
+      .catch(() => {})
+  }, [navigate])
+
+  const handleFile = useCallback(
+    async (file: File) => {
+      setStage("processing")
+      setSubStage("uploading")
+      setError(null)
+      setDownloadUrl(null)
+      setDownloadFilename(null)
+
+      try {
+        const formData = new FormData()
+        formData.append("file", file)
+        if (overrides) {
+          formData.append("options", JSON.stringify(overrides))
+        }
+
+        const { id } = await runApi((client) => client.convert.start({ payload: formData }))
+
+        setSubStage("converting")
+
+        const filename = await new Promise<string>((resolve, reject) => {
+          const API_BASE = import.meta.env.DEV ? "http://localhost:3000" : ""
+          const es = new EventSource(
+            `${API_BASE}/api/convert/progress?id=${encodeURIComponent(id)}`,
+          )
+
+          es.onerror = () => {
+            es.close()
+            reject(new Error("Connection lost during conversion"))
+          }
+
+          es.addEventListener("done", (e) => {
+            es.close()
+            resolve((JSON.parse(e.data) as { message: string }).message)
+          })
+
+          es.addEventListener("error", (e) => {
+            es.close()
+            reject(new Error((JSON.parse((e as MessageEvent).data) as { message: string }).message))
+          })
+        })
+
+        const dlUrl = `/api/convert/download?id=${encodeURIComponent(id)}`
+        setDownloadUrl(dlUrl)
+        setDownloadFilename(filename)
+
+        const API_BASE_URL = import.meta.env.DEV ? "http://localhost:3000" : ""
+        const blobResponse = await fetch(
+          `${API_BASE_URL}/api/convert/download?id=${encodeURIComponent(id)}`,
+        )
+        const blob = await blobResponse.blob()
+        const blobUrl = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = blobUrl
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(blobUrl)
+
+        setStage("done")
+        ToastGroup.create.success("Conversion complete", filename)
+
+        setTimeout(() => {
+          setStage("idle")
+          setDownloadUrl(null)
+          setDownloadFilename(null)
+        }, 3000)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        setError(message)
+        setStage("error")
+        ToastGroup.create.error("Conversion failed", message)
       }
-      setDefaultKcc(config.kcc);
-      setOverrides(config.kcc);
-    }).catch(() => {});
-  }, [navigate]);
-
-  const handleFile = useCallback(async (file: File) => {
-    setStage("processing");
-    setSubStage("uploading");
-    setError(null);
-    setDownloadUrl(null);
-    setDownloadFilename(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      if (overrides) {
-        formData.append("options", JSON.stringify(overrides));
-      }
-
-      const { id } = await runApi((client) => client.convert.start({ payload: formData }));
-
-      setSubStage("converting");
-
-      const filename = await new Promise<string>((resolve, reject) => {
-        const API_BASE = import.meta.env.DEV ? "http://localhost:3000" : "";
-        const es = new EventSource(`${API_BASE}/api/convert/progress?id=${encodeURIComponent(id)}`);
-
-        es.onerror = () => {
-          es.close();
-          reject(new Error("Connection lost during conversion"));
-        };
-
-        es.addEventListener("done", (e) => {
-          es.close();
-          resolve((JSON.parse(e.data) as { message: string }).message);
-        });
-
-        es.addEventListener("error", (e) => {
-          es.close();
-          reject(new Error((JSON.parse((e as MessageEvent).data) as { message: string }).message));
-        });
-      });
-
-      const dlUrl = `/api/convert/download?id=${encodeURIComponent(id)}`;
-      setDownloadUrl(dlUrl);
-      setDownloadFilename(filename);
-
-      const API_BASE_URL = import.meta.env.DEV ? "http://localhost:3000" : "";
-      const blobResponse = await fetch(
-        `${API_BASE_URL}/api/convert/download?id=${encodeURIComponent(id)}`,
-      );
-      const blob = await blobResponse.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-
-      setStage("done");
-      ToastGroup.create.success("Conversion complete", filename);
-
-      setTimeout(() => {
-        setStage("idle");
-        setDownloadUrl(null);
-        setDownloadFilename(null);
-      }, 3000);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-      setStage("error");
-      ToastGroup.create.error("Conversion failed", message);
-    }
-  }, [overrides]);
+    },
+    [overrides],
+  )
 
   return (
     <main className="page-wrap sm:px-4 pb-8 pt-8">
@@ -137,9 +144,7 @@ export default function ConvertPage() {
         </fieldset>
 
         <div>
-          {stage === "idle" && (
-            <FileDrop onFile={handleFile} disabled={stage !== "idle"} />
-          )}
+          {stage === "idle" && <FileDrop onFile={handleFile} disabled={stage !== "idle"} />}
 
           {stage === "processing" && (
             <div className="island-shell rounded-2xl p-8 text-center">
@@ -148,9 +153,7 @@ export default function ConvertPage() {
                 {subStage === "uploading" ? "Uploading..." : "Converting with KCC..."}
               </p>
               <p className="mt-1 text-xs text-secondary">
-                {subStage === "uploading"
-                  ? "Sending file to the server"
-                  : "This may take a minute"}
+                {subStage === "uploading" ? "Sending file to the server" : "This may take a minute"}
               </p>
             </div>
           )}
@@ -177,9 +180,7 @@ export default function ConvertPage() {
           {stage === "error" && (
             <div className="island-shell rounded-2xl border-red-200 p-8 text-center">
               <p className="text-sm font-medium text-red-600">Conversion failed</p>
-              {error && (
-                <p className="mt-1 text-xs text-red-500">{error}</p>
-              )}
+              {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
               <Button
                 variant="refresh"
                 onClick={() => setStage("idle")}
@@ -193,5 +194,5 @@ export default function ConvertPage() {
         </div>
       </div>
     </main>
-  );
+  )
 }

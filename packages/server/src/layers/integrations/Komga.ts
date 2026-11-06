@@ -13,9 +13,15 @@ export class KomgaService extends Context.Service<
   KomgaService,
   {
     readonly listLibraries: Effect.Effect<KomgaLibrary[], KomgaNotConfigured | KomgaHttpError>
-    readonly listAllSeries: (libraryId?: string) => Effect.Effect<KomgaSeries[], KomgaNotConfigured | KomgaHttpError>
-    readonly getSeriesThumbnail: (seriesId: string) => Effect.Effect<string, KomgaNotConfigured | KomgaHttpError>
-    readonly getBooksForSeries: (seriesId: string) => Effect.Effect<KomgaBook[], KomgaNotConfigured | KomgaHttpError>
+    readonly listAllSeries: (
+      libraryId?: string,
+    ) => Effect.Effect<KomgaSeries[], KomgaNotConfigured | KomgaHttpError>
+    readonly getSeriesThumbnail: (
+      seriesId: string,
+    ) => Effect.Effect<string, KomgaNotConfigured | KomgaHttpError>
+    readonly getBooksForSeries: (
+      seriesId: string,
+    ) => Effect.Effect<KomgaBook[], KomgaNotConfigured | KomgaHttpError>
   }
 >()("KomgaService") {}
 
@@ -41,21 +47,25 @@ export const KomgaServiceLive = Layer.effect(
         (message) => new KomgaNotConfigured({ message }),
       )
 
-    const komgaFetch = (
-      info: { url: string; apiKey: string },
-      path: string,
-      init?: RequestInit,
-    ) =>
+    const komgaFetch = (info: { url: string; apiKey: string }, path: string, init?: RequestInit) =>
       Effect.tryPromise({
         try: async () => {
           const fullUrl = `${info.url.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`
           const response = await fetch(fullUrl, {
             ...init,
-            headers: { "X-API-Key": info.apiKey, "Content-Type": "application/json", ...init?.headers },
+            headers: {
+              "X-API-Key": info.apiKey,
+              "Content-Type": "application/json",
+              ...init?.headers,
+            },
           })
           if (!response.ok) {
             let body = ""
-            try { body = await response.text() } catch { /* */ }
+            try {
+              body = await response.text()
+            } catch {
+              /* */
+            }
             throw new Error(`Komga HTTP ${response.status}: ${body || response.statusText}`)
           }
           return response
@@ -136,11 +146,10 @@ export const KomgaServiceLive = Layer.effect(
           size: "500",
           sort: "metadata.numberSort,desc",
         })
-        const response = yield* komgaFetch(
-          info,
-          `api/v1/books/list?${searchParams.toString()}`,
-          { method: "POST", body: JSON.stringify(body) },
-        )
+        const response = yield* komgaFetch(info, `api/v1/books/list?${searchParams.toString()}`, {
+          method: "POST",
+          body: JSON.stringify(body),
+        })
         const data = (yield* Effect.tryPromise({
           try: () => response.json(),
           catch: (e) => new KomgaHttpError({ message: `Failed to parse books: ${e}` }),

@@ -61,11 +61,15 @@ export function notifyWatchMatches(watch: Watch, matchedAlerts: readonly Matched
         .sendMessage({
           text: `${separator}<b>Watch: ${escapeHtml(watch.name)}</b>\n${escapeHtml(alert.title)}\n\n${escapeHtml(alert.indexer)} · ${alert.seeders} seeders`,
           replyMarkup: {
-            inline_keyboard: [[{ text: buttonText, callback_data: `${callbackPrefix}:${watch.id}:${alert.id}` }]],
+            inline_keyboard: [
+              [{ text: buttonText, callback_data: `${callbackPrefix}:${watch.id}:${alert.id}` }],
+            ],
           },
         })
         .pipe(
-          Effect.catch((e) => log.error("watch-notify", `"${watch.name}": telegram send failed`, e)),
+          Effect.catch((e) =>
+            log.error("watch-notify", `"${watch.name}": telegram send failed`, e),
+          ),
         )
     }
 
@@ -90,7 +94,9 @@ export function notifyWatchMatches(watch: Watch, matchedAlerts: readonly Matched
           text: `+${remaining} more match${remaining !== 1 ? "es" : ""} for <b>${escapeHtml(watch.name)}</b> — ${seeInWebUi}`,
         })
         .pipe(
-          Effect.catch((e) => log.error("watch-notify", `"${watch.name}": telegram summary send failed`, e)),
+          Effect.catch((e) =>
+            log.error("watch-notify", `"${watch.name}": telegram summary send failed`, e),
+          ),
         )
     }
   })

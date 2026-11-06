@@ -1,48 +1,47 @@
-import type { KccConfig } from "../lib/types";
-import { Checkbox } from "../ui/checkbox";
-import { Select, createListCollection } from "../ui/select";
-import { Field } from "../ui/field";
-import { Input } from "../ui/input";
+import type { KccConfig } from "../lib/types"
+import { Checkbox } from "../ui/checkbox"
+import { Select, createListCollection } from "../ui/select"
+import { Field } from "../ui/field"
+import { Input } from "../ui/input"
 
 interface KccOptionsFieldsProps {
-  value: KccConfig;
-  onChange: (patch: Partial<KccConfig>) => void;
-  excludeDockerImage?: boolean;
+  value: KccConfig
+  onChange: (patch: Partial<KccConfig>) => void
+  excludeDockerImage?: boolean
 }
 
-export const kccFormatItems = ["Auto", "MOBI", "EPUB", "CBZ", "KFX", "PDF"];
+export const kccFormatItems = ["Auto", "MOBI", "EPUB", "CBZ", "KFX", "PDF"]
 export const croppingItems = [
   { value: "0", label: "Disabled" },
   { value: "1", label: "Standard" },
   { value: "2", label: "Aggressive" },
-];
+]
 export const splitterItems = [
   { value: "0", label: "Disabled" },
   { value: "1", label: "Rotate" },
   { value: "2", label: "Split" },
-];
+]
 export const batchSplitItems = [
   { value: "0", label: "Disabled" },
   { value: "1", label: "Into chapters" },
   { value: "2", label: "Into volumes" },
-];
+]
 
-const formatCollection = createListCollection({ items: kccFormatItems });
+const formatCollection = createListCollection({ items: kccFormatItems })
 const croppingCollection = createListCollection({
   items: croppingItems,
   itemToString: (item) => (item as { value: string; label: string }).label,
-});
+})
 const splitterCollection = createListCollection({
   items: splitterItems,
   itemToString: (item) => (item as { value: string; label: string }).label,
-});
+})
 const batchSplitCollection = createListCollection({
   items: batchSplitItems,
   itemToString: (item) => (item as { value: string; label: string }).label,
-});
+})
 
-const subheadingClass =
-  "text-xs font-semibold uppercase tracking-wider text-secondary mt-4 mb-2";
+const subheadingClass = "text-xs font-semibold uppercase tracking-wider text-secondary mt-4 mb-2"
 
 const selectIndicator = (
   <Select.Indicator>
@@ -56,7 +55,7 @@ const selectIndicator = (
       />
     </svg>
   </Select.Indicator>
-);
+)
 
 export default function KccOptionsFields({
   value,
@@ -347,5 +346,5 @@ export default function KccOptionsFields({
         <Checkbox.Label>Disable Kepub</Checkbox.Label>
       </Checkbox.Root>
     </div>
-  );
+  )
 }

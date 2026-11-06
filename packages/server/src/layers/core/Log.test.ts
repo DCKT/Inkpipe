@@ -20,7 +20,8 @@ layer(LogServiceLive)("LogService", (it) => {
       // INFO level uses dimmed timestamp as level indicator (no "INFO" label)
       expect(call).toContain("pipeline")
       expect(call).toContain("Hello World")
-    }))
+    }),
+  )
 
   it.effect("warn writes formatted line with WARN label to stderr", () =>
     Effect.gen(function* () {
@@ -30,7 +31,8 @@ layer(LogServiceLive)("LogService", (it) => {
       expect(call).toContain("WARN")
       expect(call).toContain("config")
       expect(call).toContain("Something fishy")
-    }))
+    }),
+  )
 
   it.effect("error writes formatted line with ERROR label to stderr", () =>
     Effect.gen(function* () {
@@ -40,7 +42,8 @@ layer(LogServiceLive)("LogService", (it) => {
       expect(call).toContain("ERROR")
       expect(call).toContain("server")
       expect(call).toContain("Fatal crash")
-    }))
+    }),
+  )
 
   it.effect("withJob prefixes messages with [job <id>]", () =>
     Effect.gen(function* () {
@@ -49,7 +52,8 @@ layer(LogServiceLive)("LogService", (it) => {
       yield* jl.info("jobs", "Started")
       const call = (process.stderr.write as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
       expect(call).toContain("[job 42]")
-    }))
+    }),
+  )
 
   it.effect("withJob warn and error also carry prefix", () =>
     Effect.gen(function* () {
@@ -65,7 +69,8 @@ layer(LogServiceLive)("LogService", (it) => {
       expect(calls[0]).toContain("WARN")
       expect(calls[1]).toContain("[job 99]")
       expect(calls[1]).toContain("ERROR")
-    }))
+    }),
+  )
 
   it.effect("namespace gets ANSI color codes", () =>
     Effect.gen(function* () {
@@ -74,5 +79,6 @@ layer(LogServiceLive)("LogService", (it) => {
       const call = (process.stderr.write as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
       expect(call).toContain("\x1b[")
       expect(call).toContain("\x1b[0m")
-    }))
+    }),
+  )
 })

@@ -10,18 +10,18 @@ Use **Ark UI** (`@ark-ui/react` v5) as the headless component library for all in
 
 ### Wrappers created
 
-| File | Ark primitives | Replaces |
-|---|---|---|
-| `ui/button.tsx` | Custom styled `<button>` | All 12 `<button>` sites |
-| `ui/input.tsx` | Custom styled `<input>` | All ~17 `<input>` sites |
-| `ui/checkbox.tsx` | `Checkbox.Root`, `Control`, `Label`, `Indicator` | 12 checkboxes + 1 select-all |
-| `ui/select.tsx` | `Select.Root`, `Trigger`, `Content`, `Item`, `ValueText` | 5 native `<select>` elements |
-| `ui/combobox.tsx` | `Combobox.Root`, `Input`, `Content`, `Item` | DownloadModal autocomplete |
-| `ui/dialog.tsx` | `Dialog.Root`, `Backdrop`, `Content`, `Title`, `CloseTrigger` | DownloadModal + KomgaBooksModal |
-| `ui/field.tsx` | `Field.Root`, `Label`, `Input`, `Select`, `HelperText`, `ErrorText` | All label+input pairs in SettingsForm |
-| `ui/toast.tsx` | `createToaster`, `Toaster` | Inline success/error `<p>` messages |
-| `ui/toggle-group.tsx` | `ToggleGroup.Root`, `Item` | Komga library filter buttons |
-| `ui/progress.tsx` | `Progress.Root`, `Track`, `Range` | JobCard progress bar |
+| File                  | Ark primitives                                                      | Replaces                              |
+| --------------------- | ------------------------------------------------------------------- | ------------------------------------- |
+| `ui/button.tsx`       | Custom styled `<button>`                                            | All 12 `<button>` sites               |
+| `ui/input.tsx`        | Custom styled `<input>`                                             | All ~17 `<input>` sites               |
+| `ui/checkbox.tsx`     | `Checkbox.Root`, `Control`, `Label`, `Indicator`                    | 12 checkboxes + 1 select-all          |
+| `ui/select.tsx`       | `Select.Root`, `Trigger`, `Content`, `Item`, `ValueText`            | 5 native `<select>` elements          |
+| `ui/combobox.tsx`     | `Combobox.Root`, `Input`, `Content`, `Item`                         | DownloadModal autocomplete            |
+| `ui/dialog.tsx`       | `Dialog.Root`, `Backdrop`, `Content`, `Title`, `CloseTrigger`       | DownloadModal + KomgaBooksModal       |
+| `ui/field.tsx`        | `Field.Root`, `Label`, `Input`, `Select`, `HelperText`, `ErrorText` | All label+input pairs in SettingsForm |
+| `ui/toast.tsx`        | `createToaster`, `Toaster`                                          | Inline success/error `<p>` messages   |
+| `ui/toggle-group.tsx` | `ToggleGroup.Root`, `Item`                                          | Komga library filter buttons          |
+| `ui/progress.tsx`     | `Progress.Root`, `Track`, `Range`                                   | JobCard progress bar                  |
 
 ## Alternatives considered
 

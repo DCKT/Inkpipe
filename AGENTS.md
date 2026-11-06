@@ -102,16 +102,16 @@ inkpipe/
 
 ## Key Files
 
-| File                                     | Purpose                                                |
-| ---------------------------------------- | ------------------------------------------------------ |
-| `PLAN.md`                                | High-level project plan and roadmap                    |
-| `vitest.config.ts`                       | Test project configuration (shared, server, web)       |
-| `packages/server/src/main.ts`            | Server entry point — composes layers, starts Bun.serve |
-| `packages/watcher/src/index.ts`          | Watcher entry point — loads watches, runs scheduler    |
-| `packages/web/app/router.tsx`            | TanStack Router route definitions                      |
-| `packages/web/app/hooks/useApiClient.ts` | KY HTTP client factory (all API calls go through this) |
-| https://github.com/9001/copyparty/blob/hovudstraum/docs/devnotes.md#http-api | Copyparty HTTP API reference |
-| https://docs.alldebrid.com/#magnet | AllDebrid API reference (auth: Bearer header, /v4/magnet/* endpoints) |
+| File                                                                         | Purpose                                                               |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `PLAN.md`                                                                    | High-level project plan and roadmap                                   |
+| `vitest.config.ts`                                                           | Test project configuration (shared, server, web)                      |
+| `packages/server/src/main.ts`                                                | Server entry point — composes layers, starts Bun.serve                |
+| `packages/watcher/src/index.ts`                                              | Watcher entry point — loads watches, runs scheduler                   |
+| `packages/web/app/router.tsx`                                                | TanStack Router route definitions                                     |
+| `packages/web/app/hooks/useApiClient.ts`                                     | KY HTTP client factory (all API calls go through this)                |
+| https://github.com/9001/copyparty/blob/hovudstraum/docs/devnotes.md#http-api | Copyparty HTTP API reference                                          |
+| https://docs.alldebrid.com/#magnet                                           | AllDebrid API reference (auth: Bearer header, /v4/magnet/* endpoints) |
 
 ## Quick Start: Critical Rules
 
@@ -149,6 +149,8 @@ bun run build         # Build web for production
 bun run test          # Run tests (vitest)
 bun run test:watch    # Run tests in watch mode
 bun run typecheck     # TypeScript type checking
+bun run lint          # oxlint (lint:fix to autofix)
+bun run format        # oxfmt (format:check to verify)
 ```
 
 ## Implementation Guidelines

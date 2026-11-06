@@ -1,6 +1,12 @@
 import { Context, Effect, Layer } from "effect"
-import { SqlClient } from "effect/unstable/sql"
-import { type Watch, type WatchAlert, type WatchWithUnread, WatchStoreError, WatchNotFoundError } from "@inkpipe/shared"
+import { SqlClient } from "effect/sql"
+import {
+  type Watch,
+  type WatchAlert,
+  type WatchWithUnread,
+  WatchStoreError,
+  WatchNotFoundError,
+} from "@inkpipe/shared"
 import { WatchId, WatchAlertId } from "@inkpipe/shared"
 
 export type { WatchWithUnread }
@@ -11,15 +17,52 @@ export class WatchStoreService extends Context.Service<
     readonly listWatches: Effect.Effect<WatchWithUnread[], WatchStoreError>
     readonly listEnabledWatches: Effect.Effect<Watch[], WatchStoreError>
     readonly getWatch: (id: WatchId) => Effect.Effect<Watch, WatchNotFoundError | WatchStoreError>
-    readonly createWatch: (input: { name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"]; subfolder: string | null }) => Effect.Effect<Watch, WatchStoreError>
-    readonly updateWatch: (id: WatchId, updates: Partial<{ name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"]; subfolder: string | null }>) => Effect.Effect<Watch, WatchNotFoundError | WatchStoreError>
+    readonly createWatch: (input: {
+      name: string
+      enabled: boolean
+      query: string
+      intervalSeconds: number
+      filterGroups: Watch["filterGroups"]
+      subfolder: string | null
+    }) => Effect.Effect<Watch, WatchStoreError>
+    readonly updateWatch: (
+      id: WatchId,
+      updates: Partial<{
+        name: string
+        enabled: boolean
+        query: string
+        intervalSeconds: number
+        filterGroups: Watch["filterGroups"]
+        subfolder: string | null
+      }>,
+    ) => Effect.Effect<Watch, WatchNotFoundError | WatchStoreError>
     readonly deleteWatch: (id: WatchId) => Effect.Effect<void, WatchNotFoundError | WatchStoreError>
     readonly listAlerts: (watchId: WatchId) => Effect.Effect<WatchAlert[], WatchStoreError>
-    readonly getAlert: (watchId: WatchId, alertId: WatchAlertId) => Effect.Effect<WatchAlert, WatchNotFoundError | WatchStoreError>
-    readonly acknowledgeAlert: (watchId: WatchId, alertId: WatchAlertId) => Effect.Effect<void, WatchNotFoundError | WatchStoreError>
+    readonly getAlert: (
+      watchId: WatchId,
+      alertId: WatchAlertId,
+    ) => Effect.Effect<WatchAlert, WatchNotFoundError | WatchStoreError>
+    readonly acknowledgeAlert: (
+      watchId: WatchId,
+      alertId: WatchAlertId,
+    ) => Effect.Effect<void, WatchNotFoundError | WatchStoreError>
     readonly acknowledgeAllAlerts: (watchId: WatchId) => Effect.Effect<void, WatchStoreError>
-    readonly insertAlert: (alert: { watchId: WatchId; guid: string; title: string; magnetUrl: string | null; downloadUrl: string | null; size: number; seeders: number; indexer: string; matchedAt: number; acknowledged: boolean }) => Effect.Effect<WatchAlertId, WatchStoreError>
-    readonly hasAlertForGuid: (watchId: WatchId, guid: string) => Effect.Effect<boolean, WatchStoreError>
+    readonly insertAlert: (alert: {
+      watchId: WatchId
+      guid: string
+      title: string
+      magnetUrl: string | null
+      downloadUrl: string | null
+      size: number
+      seeders: number
+      indexer: string
+      matchedAt: number
+      acknowledged: boolean
+    }) => Effect.Effect<WatchAlertId, WatchStoreError>
+    readonly hasAlertForGuid: (
+      watchId: WatchId,
+      guid: string,
+    ) => Effect.Effect<boolean, WatchStoreError>
     readonly getUnreadCount: Effect.Effect<number, WatchStoreError>
   }
 >()("WatchStoreService") {}
@@ -108,14 +151,18 @@ export const WatchStoreServiceLive = Layer.effect(
       `
       return rows.map(toWatchWithUnread)
     }).pipe(
-      Effect.mapError((e) => new WatchStoreError({ message: `Failed to list watches: ${String(e)}` })),
+      Effect.mapError(
+        (e) => new WatchStoreError({ message: `Failed to list watches: ${String(e)}` }),
+      ),
     )
 
     const listEnabledWatches = Effect.gen(function* () {
       const rows = yield* sql<WatchRow>`SELECT * FROM watches WHERE enabled = 1 ORDER BY name`
       return rows.map(toWatch)
     }).pipe(
-      Effect.mapError((e) => new WatchStoreError({ message: `Failed to list enabled watches: ${String(e)}` })),
+      Effect.mapError(
+        (e) => new WatchStoreError({ message: `Failed to list enabled watches: ${String(e)}` }),
+      ),
     )
 
     const getWatch = (id: WatchId) =>
@@ -132,7 +179,14 @@ export const WatchStoreServiceLive = Layer.effect(
         }),
       )
 
-    const createWatch = (input: { name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"]; subfolder: string | null }) =>
+    const createWatch = (input: {
+      name: string
+      enabled: boolean
+      query: string
+      intervalSeconds: number
+      filterGroups: Watch["filterGroups"]
+      subfolder: string | null
+    }) =>
       Effect.gen(function* () {
         const dbInput = {
           name: input.name,
@@ -145,21 +199,36 @@ export const WatchStoreServiceLive = Layer.effect(
         const rows = yield* sql<WatchRow>`INSERT INTO watches ${sql.insert(dbInput).returning("*")}`
         return toWatch(rows[0])
       }).pipe(
-        Effect.mapError((e) => new WatchStoreError({ message: `Failed to create watch: ${String(e)}` })),
+        Effect.mapError(
+          (e) => new WatchStoreError({ message: `Failed to create watch: ${String(e)}` }),
+        ),
       )
 
-    const updateWatch = (id: WatchId, updates: Partial<{ name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"]; subfolder: string | null }>) =>
+    const updateWatch = (
+      id: WatchId,
+      updates: Partial<{
+        name: string
+        enabled: boolean
+        query: string
+        intervalSeconds: number
+        filterGroups: Watch["filterGroups"]
+        subfolder: string | null
+      }>,
+    ) =>
       Effect.gen(function* () {
         yield* getWatch(id)
         const dbUpdate: Record<string, unknown> = {}
         if (updates.name !== undefined) dbUpdate.name = updates.name
         if (updates.enabled !== undefined) dbUpdate.enabled = updates.enabled ? 1 : 0
         if (updates.query !== undefined) dbUpdate.query = updates.query
-        if (updates.intervalSeconds !== undefined) dbUpdate.intervalSeconds = updates.intervalSeconds
-        if (updates.filterGroups !== undefined) dbUpdate.filterGroups = JSON.stringify(updates.filterGroups)
+        if (updates.intervalSeconds !== undefined)
+          dbUpdate.intervalSeconds = updates.intervalSeconds
+        if (updates.filterGroups !== undefined)
+          dbUpdate.filterGroups = JSON.stringify(updates.filterGroups)
         if (updates.subfolder !== undefined) dbUpdate.subfolder = updates.subfolder
         if (Object.keys(dbUpdate).length > 0) {
-          const rows = yield* sql<WatchRow>`UPDATE watches SET ${sql.update(dbUpdate, ["id"])} WHERE id = ${id} returning *`
+          const rows =
+            yield* sql<WatchRow>`UPDATE watches SET ${sql.update(dbUpdate, ["id"])} WHERE id = ${id} returning *`
           return toWatch(rows[0])
         }
         return yield* getWatch(id)
@@ -188,15 +257,19 @@ export const WatchStoreServiceLive = Layer.effect(
 
     const listAlerts = (watchId: WatchId) =>
       Effect.gen(function* () {
-        const rows = yield* sql<AlertRow>`SELECT * FROM watch_alerts WHERE watch_id = ${watchId} ORDER BY matched_at DESC`
+        const rows =
+          yield* sql<AlertRow>`SELECT * FROM watch_alerts WHERE watch_id = ${watchId} ORDER BY matched_at DESC`
         return rows.map(toAlert)
       }).pipe(
-        Effect.mapError((e) => new WatchStoreError({ message: `Failed to list alerts: ${String(e)}` })),
+        Effect.mapError(
+          (e) => new WatchStoreError({ message: `Failed to list alerts: ${String(e)}` }),
+        ),
       )
 
     const getAlert = (watchId: WatchId, alertId: WatchAlertId) =>
       Effect.gen(function* () {
-        const rows = yield* sql<AlertRow>`SELECT * FROM watch_alerts WHERE watch_id = ${watchId} AND id = ${alertId}`
+        const rows =
+          yield* sql<AlertRow>`SELECT * FROM watch_alerts WHERE watch_id = ${watchId} AND id = ${alertId}`
         if (rows.length === 0) {
           return yield* new WatchNotFoundError({ message: `Alert ${alertId} not found` })
         }
@@ -221,23 +294,38 @@ export const WatchStoreServiceLive = Layer.effect(
 
     const acknowledgeAllAlerts = (watchId: WatchId) =>
       sql`UPDATE watch_alerts SET acknowledged = 1 WHERE watch_id = ${watchId} AND acknowledged = 0`.pipe(
-        Effect.mapError((e) => new WatchStoreError({ message: `Failed to acknowledge alerts: ${String(e)}` })),
+        Effect.mapError(
+          (e) => new WatchStoreError({ message: `Failed to acknowledge alerts: ${String(e)}` }),
+        ),
       )
 
-    const insertAlert = (alert: { watchId: WatchId; guid: string; title: string; magnetUrl: string | null; downloadUrl: string | null; size: number; seeders: number; indexer: string; matchedAt: number; acknowledged: boolean }) =>
+    const insertAlert = (alert: {
+      watchId: WatchId
+      guid: string
+      title: string
+      magnetUrl: string | null
+      downloadUrl: string | null
+      size: number
+      seeders: number
+      indexer: string
+      matchedAt: number
+      acknowledged: boolean
+    }) =>
       Effect.gen(function* () {
-        const rows = yield* sql<{ id: number }>`INSERT OR IGNORE INTO watch_alerts ${sql.insert({
-          watchId: alert.watchId,
-          guid: alert.guid,
-          title: alert.title,
-          magnetUrl: alert.magnetUrl,
-          downloadUrl: alert.downloadUrl,
-          size: alert.size,
-          seeders: alert.seeders,
-          indexer: alert.indexer,
-          matchedAt: alert.matchedAt,
-          acknowledged: alert.acknowledged ? 1 : 0,
-        }).returning("id")}`
+        const rows = yield* sql<{ id: number }>`INSERT OR IGNORE INTO watch_alerts ${sql
+          .insert({
+            watchId: alert.watchId,
+            guid: alert.guid,
+            title: alert.title,
+            magnetUrl: alert.magnetUrl,
+            downloadUrl: alert.downloadUrl,
+            size: alert.size,
+            seeders: alert.seeders,
+            indexer: alert.indexer,
+            matchedAt: alert.matchedAt,
+            acknowledged: alert.acknowledged ? 1 : 0,
+          })
+          .returning("id")}`
         if (rows.length > 0) {
           return WatchAlertId.make(rows[0].id)
         }
@@ -245,9 +333,13 @@ export const WatchStoreServiceLive = Layer.effect(
         // `RETURNING` yielded no row — callers normally check
         // `hasAlertForGuid` first, so this is a race-safety fallback, not
         // the common path.
-        const existing = yield* sql<{ id: number }>`SELECT id FROM watch_alerts WHERE watch_id = ${alert.watchId} AND guid = ${alert.guid}`
+        const existing = yield* sql<{
+          id: number
+        }>`SELECT id FROM watch_alerts WHERE watch_id = ${alert.watchId} AND guid = ${alert.guid}`
         if (existing.length === 0) {
-          return yield* new WatchStoreError({ message: "Failed to insert alert: insert was ignored but no existing row was found" })
+          return yield* new WatchStoreError({
+            message: "Failed to insert alert: insert was ignored but no existing row was found",
+          })
         }
         return WatchAlertId.make(existing[0].id)
       }).pipe(
@@ -259,17 +351,25 @@ export const WatchStoreServiceLive = Layer.effect(
 
     const hasAlertForGuid = (watchId: WatchId, guid: string) =>
       Effect.gen(function* () {
-        const rows = yield* sql<{ x: number }>`SELECT 1 as x FROM watch_alerts WHERE watch_id = ${watchId} AND guid = ${guid}`
+        const rows = yield* sql<{
+          x: number
+        }>`SELECT 1 as x FROM watch_alerts WHERE watch_id = ${watchId} AND guid = ${guid}`
         return rows.length > 0
       }).pipe(
-        Effect.mapError((e) => new WatchStoreError({ message: `Failed to check alert: ${String(e)}` })),
+        Effect.mapError(
+          (e) => new WatchStoreError({ message: `Failed to check alert: ${String(e)}` }),
+        ),
       )
 
     const getUnreadCount = Effect.gen(function* () {
-      const rows = yield* sql<{ count: number }>`SELECT COUNT(*) as count FROM watch_alerts WHERE acknowledged = 0`
+      const rows = yield* sql<{
+        count: number
+      }>`SELECT COUNT(*) as count FROM watch_alerts WHERE acknowledged = 0`
       return rows[0]?.count ?? 0
     }).pipe(
-      Effect.mapError((e) => new WatchStoreError({ message: `Failed to get unread count: ${String(e)}` })),
+      Effect.mapError(
+        (e) => new WatchStoreError({ message: `Failed to get unread count: ${String(e)}` }),
+      ),
     )
 
     return {

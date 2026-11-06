@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { HttpApiBuilder } from "effect/http-api"
 import { AnnasArchiveService } from "../../layers/integrations/AnnasArchive"
 import { AnnasArchivePipelineService } from "../../layers/pipeline/AnnasArchivePipeline"
 import { CopypartyService } from "../../layers/integrations/Copyparty"
@@ -11,7 +11,8 @@ export const AnnasArchiveGroupLive = HttpApiBuilder.group(InkpipeApi, "annasArch
       Effect.gen(function* () {
         const annasArchive = yield* AnnasArchiveService
         return yield* annasArchive.search(query.q ?? "")
-      }))
+      }),
+    )
     .handle("download", ({ payload }) =>
       Effect.gen(function* () {
         const pipeline = yield* AnnasArchivePipelineService
@@ -30,5 +31,6 @@ export const AnnasArchiveGroupLive = HttpApiBuilder.group(InkpipeApi, "annasArch
         }
 
         return { started: payload.items.length }
-      })),
+      }),
+    ),
 )

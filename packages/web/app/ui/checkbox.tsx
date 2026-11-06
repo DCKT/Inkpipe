@@ -1,40 +1,33 @@
-import * as ArkCheckbox from "@ark-ui/react/checkbox";
-import type { CheckboxRootProps, CheckboxControlProps, CheckboxLabelProps, CheckboxIndicatorProps } from "@ark-ui/react/checkbox";
+import * as ArkCheckbox from "@ark-ui/react/checkbox"
+import type {
+  CheckboxRootProps,
+  CheckboxControlProps,
+  CheckboxLabelProps,
+  CheckboxIndicatorProps,
+} from "@ark-ui/react/checkbox"
 
-const rootClass = "flex items-center gap-2.5";
+const rootClass = "flex items-center gap-2.5"
 const controlClass =
-  "flex h-4 w-4 shrink-0 items-center justify-center rounded-[2px] border border-border bg-surface data-[state=checked]:bg-accent data-[state=checked]:border-accent transition-colors";
+  "flex h-4 w-4 shrink-0 items-center justify-center rounded-[2px] border border-border bg-surface data-[state=checked]:bg-accent data-[state=checked]:border-accent transition-colors"
 
-const indicatorClass = "text-on-accent";
+const indicatorClass = "text-on-accent"
 
-const labelClass = "text-sm text-primary select-none";
+const labelClass = "text-sm text-primary select-none"
 
 export const Checkbox = {
   Root: ({ className, children, ...props }: CheckboxRootProps) => (
-    <ArkCheckbox.CheckboxRoot
-      className={`${rootClass} ${className ?? ""}`}
-      {...props}
-    >
+    <ArkCheckbox.CheckboxRoot className={`${rootClass} ${className ?? ""}`} {...props}>
       <ArkCheckbox.CheckboxHiddenInput />
       {children}
     </ArkCheckbox.CheckboxRoot>
   ),
   Control: ({ className, ...props }: CheckboxControlProps) => (
-    <ArkCheckbox.CheckboxControl
-      className={`${controlClass} ${className ?? ""}`}
-      {...props}
-    />
+    <ArkCheckbox.CheckboxControl className={`${controlClass} ${className ?? ""}`} {...props} />
   ),
   Label: ({ className, ...props }: CheckboxLabelProps) => (
-    <ArkCheckbox.CheckboxLabel
-      className={`${labelClass} ${className ?? ""}`}
-      {...props}
-    />
+    <ArkCheckbox.CheckboxLabel className={`${labelClass} ${className ?? ""}`} {...props} />
   ),
   Indicator: ({ className, ...props }: CheckboxIndicatorProps) => (
-    <ArkCheckbox.CheckboxIndicator
-      className={`${indicatorClass} ${className ?? ""}`}
-      {...props}
-    />
+    <ArkCheckbox.CheckboxIndicator className={`${indicatorClass} ${className ?? ""}`} {...props} />
   ),
-};
+}

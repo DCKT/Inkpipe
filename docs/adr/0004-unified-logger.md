@@ -3,7 +3,7 @@
 ## Context
 
 All server-side logging uses raw `console.log` / `console.error` with ad-hoc
-`[prefix]` conventions (e.g. `[pipeline]`, `[server]`, `[alldebrid]`).  This
+`[prefix]` conventions (e.g. `[pipeline]`, `[server]`, `[alldebrid]`). This
 makes log output hard to scan and impossible to filter by subsystem.
 
 Two specific readability needs emerged:
@@ -31,19 +31,19 @@ class LogService extends Effect.Tag("LogService")<
 
 ### Namespace color map
 
-| Namespace    | Color   | Used by |
-|-------------|---------|---------|
-| `server`    | cyan    | main.ts lifecycle |
-| `config`    | yellow  | Config |
-| `pipeline`  | magenta | Pipeline |
+| Namespace   | Color   | Used by               |
+| ----------- | ------- | --------------------- |
+| `server`    | cyan    | main.ts lifecycle     |
+| `config`    | yellow  | Config                |
+| `pipeline`  | magenta | Pipeline              |
 | `jobs`      | green   | Pipeline per-job logs |
-| `alldebrid` | blue    | AllDebrid |
-| `prowlarr`  | blue    | Prowlarr |
-| `komga`     | blue    | Komga |
-| `copyparty` | blue    | Copyparty |
-| `kcc`       | blue    | Kcc |
-| `files`     | blue    | FileManager |
-| `http`      | dim     | Request/response |
+| `alldebrid` | blue    | AllDebrid             |
+| `prowlarr`  | blue    | Prowlarr              |
+| `komga`     | blue    | Komga                 |
+| `copyparty` | blue    | Copyparty             |
+| `kcc`       | blue    | Kcc                   |
+| `files`     | blue    | FileManager           |
+| `http`      | dim     | Request/response      |
 
 `withJob` prepends `[job ${jobId}]` automatically so callers don't
 concatenate it by hand.

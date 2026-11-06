@@ -13,7 +13,11 @@ import { LogService } from "../core/Log"
 export class PipelineService extends Context.Service<
   PipelineService,
   {
-    readonly runPipeline: (result: ProwlarrResult, subfolder?: string, createdFolder?: boolean) => Effect.Effect<void, PipelineError>
+    readonly runPipeline: (
+      result: ProwlarrResult,
+      subfolder?: string,
+      createdFolder?: boolean,
+    ) => Effect.Effect<void, PipelineError>
   }
 >()("PipelineService") {}
 
@@ -42,7 +46,9 @@ export const PipelineServiceLive = Layer.effect(
         const magnetOrUrl = result.magnetUrl ?? result.downloadUrl
         if (!magnetOrUrl) {
           yield* log.error("pipeline", "No magnet or download URL for:", result.title)
-          return yield* new PipelineError({ message: `No magnet or download URL for "${result.title}"` })
+          return yield* new PipelineError({
+            message: `No magnet or download URL for "${result.title}"`,
+          })
         }
 
         const job = yield* jobStore.createJob(result.title)
@@ -77,7 +83,14 @@ export const PipelineServiceLive = Layer.effect(
                   message: `AllDebrid magnet error: ${status.status} (code ${status.statusCode})`,
                 })
               }
-              yield* jl.info("pipeline", "Debrid not ready (poll #" + pollCount + ", status: " + status.status + "), waiting...")
+              yield* jl.info(
+                "pipeline",
+                "Debrid not ready (poll #" +
+                  pollCount +
+                  ", status: " +
+                  status.status +
+                  "), waiting...",
+              )
               yield* sleep(POLL_INTERVAL)
             }
           } else {
@@ -99,7 +112,11 @@ export const PipelineServiceLive = Layer.effect(
 
           for (let i = 0; i < debridFiles.length; i++) {
             const file = debridFiles[i]
-            yield* jl.info("pipeline", "Unlocking file " + (i + 1) + "/" + debridFiles.length + ":", file.filename)
+            yield* jl.info(
+              "pipeline",
+              "Unlocking file " + (i + 1) + "/" + debridFiles.length + ":",
+              file.filename,
+            )
             const unlocked = yield* alldebrid.unlockLink(file.link)
             const destPath = join(jobDir, unlocked.filename)
             yield* jl.info("pipeline", "Downloading to:", destPath, "(" + unlocked.size + " bytes)")
@@ -120,7 +137,11 @@ export const PipelineServiceLive = Layer.effect(
             yield* jl.info("pipeline", "Stage: CONVERTING")
             yield* jobStore.updateJob(job.id, { stage: "CONVERTING" })
             const comicFiles = yield* fileManager.findAllFilesByExtension(jobDir, [
-              ".cbz", ".cbr", ".zip", ".rar", ".pdf",
+              ".cbz",
+              ".cbr",
+              ".zip",
+              ".rar",
+              ".pdf",
             ])
             if (comicFiles.length > 0) {
               for (let i = 0; i < comicFiles.length; i++) {
@@ -155,7 +176,11 @@ export const PipelineServiceLive = Layer.effect(
               filesToUpload = yield* fileManager.findAllFilesByExtension(jobDir, [".cbz", ".cbr"])
             }
             if (filesToUpload.length === 0) {
-              filesToUpload = yield* fileManager.findAllFilesByExtension(jobDir, [".zip", ".rar", ".pdf"])
+              filesToUpload = yield* fileManager.findAllFilesByExtension(jobDir, [
+                ".zip",
+                ".rar",
+                ".pdf",
+              ])
             }
 
             if (filesToUpload.length > 0) {
@@ -167,7 +192,10 @@ export const PipelineServiceLive = Layer.effect(
                   progress: Math.round(((i + 1) / filesToUpload.length) * 100),
                 })
               }
-              yield* jl.info("pipeline", "Copyparty upload complete (" + filesToUpload.length + " file(s))")
+              yield* jl.info(
+                "pipeline",
+                "Copyparty upload complete (" + filesToUpload.length + " file(s))",
+              )
             } else {
               yield* jl.info("pipeline", "No file found to upload to Copyparty")
             }

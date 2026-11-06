@@ -1,7 +1,12 @@
 import { describe, it, expect, afterEach } from "@effect/vitest"
 import type { Job } from "@inkpipe/shared"
 import { JobId } from "@inkpipe/shared"
-import { subscribeJobEvents, publishJobEvent, subscribeJobListEvents, broadcastJobs } from "./jobEvents"
+import {
+  subscribeJobEvents,
+  publishJobEvent,
+  subscribeJobListEvents,
+  broadcastJobs,
+} from "./jobEvents"
 
 function makeJob(overrides: Partial<Job> = {}): Job {
   return {
@@ -79,9 +84,11 @@ describe("jobEvents", () => {
 
     it("a listener throwing does not prevent other listeners from being called", () => {
       const received: Job[] = []
-      track(subscribeJobEvents(() => {
-        throw new Error("boom")
-      }))
+      track(
+        subscribeJobEvents(() => {
+          throw new Error("boom")
+        }),
+      )
       track(subscribeJobEvents((job) => received.push(job)))
 
       const job = makeJob()

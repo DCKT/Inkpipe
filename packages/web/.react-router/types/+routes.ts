@@ -12,62 +12,62 @@ declare module "react-router" {
 
 type Pages = {
   "/": {
-    params: {};
-  };
+    params: {}
+  }
   "/latest": {
-    params: {};
-  };
+    params: {}
+  }
   "/convert": {
-    params: {};
-  };
+    params: {}
+  }
   "/komga": {
-    params: {};
-  };
+    params: {}
+  }
   "/jobs": {
-    params: {};
-  };
+    params: {}
+  }
   "/settings": {
-    params: {};
-  };
-};
+    params: {}
+  }
+}
 
 type RouteFiles = {
   "root.tsx": {
-    id: "root";
-    page: "/" | "/latest" | "/convert" | "/komga" | "/jobs" | "/settings";
-  };
+    id: "root"
+    page: "/" | "/latest" | "/convert" | "/komga" | "/jobs" | "/settings"
+  }
   "routes/home.tsx": {
-    id: "routes/home";
-    page: "/";
-  };
+    id: "routes/home"
+    page: "/"
+  }
   "routes/latest.tsx": {
-    id: "routes/latest";
-    page: "/latest";
-  };
+    id: "routes/latest"
+    page: "/latest"
+  }
   "routes/convert.tsx": {
-    id: "routes/convert";
-    page: "/convert";
-  };
+    id: "routes/convert"
+    page: "/convert"
+  }
   "routes/komga.tsx": {
-    id: "routes/komga";
-    page: "/komga";
-  };
+    id: "routes/komga"
+    page: "/komga"
+  }
   "routes/jobs.tsx": {
-    id: "routes/jobs";
-    page: "/jobs";
-  };
+    id: "routes/jobs"
+    page: "/jobs"
+  }
   "routes/settings.tsx": {
-    id: "routes/settings";
-    page: "/settings";
-  };
-};
+    id: "routes/settings"
+    page: "/settings"
+  }
+}
 
 type RouteModules = {
-  "root": typeof import("./app/root.tsx");
-  "routes/home": typeof import("./app/routes/home.tsx");
-  "routes/latest": typeof import("./app/routes/latest.tsx");
-  "routes/convert": typeof import("./app/routes/convert.tsx");
-  "routes/komga": typeof import("./app/routes/komga.tsx");
-  "routes/jobs": typeof import("./app/routes/jobs.tsx");
-  "routes/settings": typeof import("./app/routes/settings.tsx");
-};
+  root: typeof import("./app/root.tsx")
+  "routes/home": typeof import("./app/routes/home.tsx")
+  "routes/latest": typeof import("./app/routes/latest.tsx")
+  "routes/convert": typeof import("./app/routes/convert.tsx")
+  "routes/komga": typeof import("./app/routes/komga.tsx")
+  "routes/jobs": typeof import("./app/routes/jobs.tsx")
+  "routes/settings": typeof import("./app/routes/settings.tsx")
+}

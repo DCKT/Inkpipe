@@ -12,7 +12,11 @@ export class PushService extends Context.Service<
     readonly getVapidPublicKey: Effect.Effect<string>
     readonly addSubscription: (sub: PushSubscriptionRequest) => Effect.Effect<void>
     readonly removeSubscription: (endpoint: string) => Effect.Effect<void>
-    readonly sendNotification: (payload: { title: string; body: string; tag?: string }) => Effect.Effect<void>
+    readonly sendNotification: (payload: {
+      title: string
+      body: string
+      tag?: string
+    }) => Effect.Effect<void>
   }
 >()("PushService") {}
 
@@ -82,7 +86,9 @@ export const PushServiceLive = Layer.effect(
             subs.map((sub) =>
               webpush.sendNotification(sub, JSON.stringify(payload)).catch((err) => {
                 if (err.statusCode === 410 || err.statusCode === 404) {
-                  Effect.runSyncWith(context)(log.info("push", "Removing expired subscription:", sub.endpoint))
+                  Effect.runSyncWith(context)(
+                    log.info("push", "Removing expired subscription:", sub.endpoint),
+                  )
                   expiredEndpoints.add(sub.endpoint)
                   return
                 }
@@ -95,7 +101,8 @@ export const PushServiceLive = Layer.effect(
           }
         },
         catch: (e) => {
-          if (e instanceof Error) Effect.runSyncWith(context)(log.error("push", "Failed to send:", e.message))
+          if (e instanceof Error)
+            Effect.runSyncWith(context)(log.error("push", "Failed to send:", e.message))
           return undefined as void
         },
       }) as Effect.Effect<void>

@@ -1,25 +1,25 @@
 export interface NavLink {
-  type: "link";
-  numeral: string;
-  label: string;
-  path: string;
-  end?: boolean;
+  type: "link"
+  numeral: string
+  label: string
+  path: string
+  end?: boolean
 }
 
 export interface NavSubLink {
-  label: string;
-  path: string;
-  end?: boolean;
+  label: string
+  path: string
+  end?: boolean
 }
 
 export interface NavSection {
-  type: "section";
-  numeral: string;
-  label: string;
-  children: NavSubLink[];
+  type: "section"
+  numeral: string
+  label: string
+  children: NavSubLink[]
 }
 
-export type NavEntry = NavLink | NavSection;
+export type NavEntry = NavLink | NavSection
 
 /** Primary spine nav entries (numerals I-VI). Order matters — mirrors the sidebar. */
 export const NAV_ITEMS: NavEntry[] = [
@@ -40,7 +40,7 @@ export const NAV_ITEMS: NavEntry[] = [
     label: "Utils",
     children: [{ label: "CBZ to EPUB", path: "/convert" }],
   },
-];
+]
 
 /** Settings sits below the divider as numeral VI, visually quieter. */
 export const SETTINGS_NAV_ITEM: NavLink = {
@@ -48,4 +48,4 @@ export const SETTINGS_NAV_ITEM: NavLink = {
   numeral: "VI",
   label: "Settings",
   path: "/settings",
-};
+}

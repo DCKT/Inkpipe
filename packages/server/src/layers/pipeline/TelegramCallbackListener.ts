@@ -24,7 +24,12 @@ const CALLBACK_PREFIX: Record<WatchCallbackAction, string> = {
 function failureMessage(cause: Cause.Cause<unknown>): string {
   const squashed = Cause.squash(cause)
   if (squashed instanceof Error) return squashed.message
-  if (squashed && typeof squashed === "object" && "message" in squashed && typeof squashed.message === "string") {
+  if (
+    squashed &&
+    typeof squashed === "object" &&
+    "message" in squashed &&
+    typeof squashed.message === "string"
+  ) {
     return squashed.message
   }
   return String(squashed)
@@ -37,8 +42,13 @@ export function parseWatchCallback(
     const prefix = CALLBACK_PREFIX[action]
     if (!data.startsWith(prefix)) continue
     const [watchIdRaw, alertIdRaw] = data.slice(prefix.length).split(":")
-    if (!watchIdRaw || !alertIdRaw || !/^\d+$/.test(watchIdRaw) || !/^\d+$/.test(alertIdRaw)) return undefined
-    return { action, watchId: WatchId.make(Number(watchIdRaw)), alertId: WatchAlertId.make(Number(alertIdRaw)) }
+    if (!watchIdRaw || !alertIdRaw || !/^\d+$/.test(watchIdRaw) || !/^\d+$/.test(alertIdRaw))
+      return undefined
+    return {
+      action,
+      watchId: WatchId.make(Number(watchIdRaw)),
+      alertId: WatchAlertId.make(Number(alertIdRaw)),
+    }
   }
   return undefined
 }
@@ -55,7 +65,10 @@ export const TelegramCallbackListenerServiceLive = Layer.effect(
 
     const offsetRef = yield* Ref.make(0)
 
-    const handleCallbackQuery = (cb: NonNullable<TelegramUpdate["callback_query"]>, configuredChatId: string) =>
+    const handleCallbackQuery = (
+      cb: NonNullable<TelegramUpdate["callback_query"]>,
+      configuredChatId: string,
+    ) =>
       Effect.gen(function* () {
         if (!cb.message || String(cb.message.chat.id) !== configuredChatId) {
           yield* log.info("telegram-listener", "Ignoring callback from unexpected chat", cb.from.id)
@@ -95,19 +108,25 @@ export const TelegramCallbackListenerServiceLive = Layer.effect(
           // "request sent" update) so the user learns the real outcome
           // without having to check the Jobs page.
           yield* Effect.forkDetach(
-            pipeline.runPipeline(alertToProwlarrResult(alert), watch.subfolder ?? undefined, false).pipe(
-              Effect.exit,
-              Effect.flatMap((exit) =>
-                telegram.sendMessage({
-                  text: Exit.isSuccess(exit)
-                    ? `✅ Download complete: ${escapeHtml(alert.title)}`
-                    : `❌ Download failed: ${escapeHtml(alert.title)}\n${escapeHtml(failureMessage(exit.cause))}`,
-                }),
+            pipeline
+              .runPipeline(alertToProwlarrResult(alert), watch.subfolder ?? undefined, false)
+              .pipe(
+                Effect.exit,
+                Effect.flatMap((exit) =>
+                  telegram.sendMessage({
+                    text: Exit.isSuccess(exit)
+                      ? `✅ Download complete: ${escapeHtml(alert.title)}`
+                      : `❌ Download failed: ${escapeHtml(alert.title)}\n${escapeHtml(failureMessage(exit.cause))}`,
+                  }),
+                ),
+                Effect.catch((e) =>
+                  log.error(
+                    "telegram-listener",
+                    `"${alert.title}": failed to send download outcome message`,
+                    e,
+                  ),
+                ),
               ),
-              Effect.catch((e) =>
-                log.error("telegram-listener", `"${alert.title}": failed to send download outcome message`, e),
-              ),
-            ),
           )
           yield* watchStore.acknowledgeAlert(watchId, alertId)
           yield* watchStore.updateWatch(watchId, { enabled: false })
@@ -141,7 +160,9 @@ export const TelegramCallbackListenerServiceLive = Layer.effect(
         // rest of the batch — `offsetRef` has already advanced past this
         // update by the time we get here, so the batch loop can safely
         // continue to the next one instead of the whole `pollOnce` failing.
-        Effect.catchDefect((defect) => log.error("telegram-listener", "Defect handling callback query", defect)),
+        Effect.catchDefect((defect) =>
+          log.error("telegram-listener", "Defect handling callback query", defect),
+        ),
       )
 
     const pollOnce = Effect.gen(function* () {
@@ -164,9 +185,9 @@ export const TelegramCallbackListenerServiceLive = Layer.effect(
       }
     }).pipe(
       Effect.catch((e) =>
-        log.error("telegram-listener", "Poll failed", e).pipe(
-          Effect.andThen(Effect.sleep("5 seconds")),
-        ),
+        log
+          .error("telegram-listener", "Poll failed", e)
+          .pipe(Effect.andThen(Effect.sleep("5 seconds"))),
       ),
     )
 

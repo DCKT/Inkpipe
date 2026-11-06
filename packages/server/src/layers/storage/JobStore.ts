@@ -1,5 +1,5 @@
 import { Context, Effect, Layer, Option } from "effect"
-import { SqlClient } from "effect/unstable/sql"
+import { SqlClient } from "effect/sql"
 import type { Job, JobStage } from "@inkpipe/shared"
 import { JobId } from "@inkpipe/shared"
 import { publishJobEvent } from "../../lib/jobEvents"
@@ -46,12 +46,14 @@ export const JobStoreServiceLive = Layer.effect(
 
     const createJob = (title: string): Effect.Effect<Job> =>
       Effect.gen(function* () {
-        const rows = yield* sql<JobRow>`INSERT INTO jobs ${sql.insert({
-          title,
-          stage: "UPLOADING",
-          progress: 0,
-          startedAt: Date.now(),
-        }).returning("*")}`
+        const rows = yield* sql<JobRow>`INSERT INTO jobs ${sql
+          .insert({
+            title,
+            stage: "UPLOADING",
+            progress: 0,
+            startedAt: Date.now(),
+          })
+          .returning("*")}`
         const job = toJob(rows[0])
         publishJobEvent(job)
         return job
@@ -65,7 +67,8 @@ export const JobStoreServiceLive = Layer.effect(
         if (update.error !== undefined) dbUpdate.error = update.error
         if (update.startedAt !== undefined) dbUpdate.startedAt = update.startedAt
         if (Object.keys(dbUpdate).length > 0) {
-          const rows = yield* sql<JobRow>`UPDATE jobs SET ${sql.update(dbUpdate, ["id"])} WHERE id = ${id} RETURNING *`
+          const rows =
+            yield* sql<JobRow>`UPDATE jobs SET ${sql.update(dbUpdate, ["id"])} WHERE id = ${id} RETURNING *`
           if (rows.length > 0) publishJobEvent(toJob(rows[0]))
         }
       }).pipe(Effect.orDie)
@@ -83,7 +86,9 @@ export const JobStoreServiceLive = Layer.effect(
     }).pipe(Effect.orDie)
 
     const deleteCompletedJobs: Effect.Effect<number> = Effect.gen(function* () {
-      const [countRow] = yield* sql<{ count: number }>`SELECT COUNT(*) as count FROM jobs WHERE stage = 'DONE' OR stage = 'FAILED'`
+      const [countRow] = yield* sql<{
+        count: number
+      }>`SELECT COUNT(*) as count FROM jobs WHERE stage = 'DONE' OR stage = 'FAILED'`
       const count = countRow?.count ?? 0
       if (count > 0) {
         yield* sql`DELETE FROM jobs WHERE stage = 'DONE' OR stage = 'FAILED'`

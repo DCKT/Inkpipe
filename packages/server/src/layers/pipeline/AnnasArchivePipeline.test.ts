@@ -1,8 +1,12 @@
-import { Context, Effect, Layer } from "effect"
+import type { Context } from "effect"
+import { Effect, Layer } from "effect"
 import { describe, it, expect, vi, beforeEach, afterEach } from "@effect/vitest"
 import type { AnnasArchiveResult, AppConfig, Job } from "@inkpipe/shared"
 import { JobId } from "@inkpipe/shared"
-import { AnnasArchivePipelineService, AnnasArchivePipelineServiceLive } from "./AnnasArchivePipeline"
+import {
+  AnnasArchivePipelineService,
+  AnnasArchivePipelineServiceLive,
+} from "./AnnasArchivePipeline"
 import { AnnasArchiveService } from "../integrations/AnnasArchive"
 import { CopypartyService } from "../integrations/Copyparty"
 import { FileManagerService } from "./FileManager"
@@ -24,14 +28,32 @@ const testConfig: AppConfig = {
   prowlarr: { url: "", apiKey: "" },
   alldebrid: { apiKey: "" },
   kcc: {
-    dockerImage: "ghcr.io/ciromattia/kcc:latest", profile: "KoBO", format: "Auto",
-    mangaStyle: false, webtoon: false, twoPanel: false,
-    upscale: true, stretch: false, hq: false, gamma: 1.0,
-    cropping: "1", croppingPower: 1.0, forceColor: true,
-    forcePng: false, noAutoContrast: false, blackBorders: false,
-    whiteBorders: false, splitter: "0", noProcessing: false,
-    eraseRainbow: true, coverFill: false, batchSplit: "0",
-    targetSize: 0, customWidth: 0, customHeight: 0, noKepub: false,
+    dockerImage: "ghcr.io/ciromattia/kcc:latest",
+    profile: "KoBO",
+    format: "Auto",
+    mangaStyle: false,
+    webtoon: false,
+    twoPanel: false,
+    upscale: true,
+    stretch: false,
+    hq: false,
+    gamma: 1.0,
+    cropping: "1",
+    croppingPower: 1.0,
+    forceColor: true,
+    forcePng: false,
+    noAutoContrast: false,
+    blackBorders: false,
+    whiteBorders: false,
+    splitter: "0",
+    noProcessing: false,
+    eraseRainbow: true,
+    coverFill: false,
+    batchSplit: "0",
+    targetSize: 0,
+    customWidth: 0,
+    customHeight: 0,
+    noKepub: false,
   },
   copyparty: { url: "http://cp:3923", uploadPath: "/", password: "" },
   komga: { url: "", apiKey: "", defaultLibraryId: "" },
@@ -55,7 +77,11 @@ function makeJob(overrides: Partial<Job> = {}): Job {
 
 interface Deps {
   getDownloadUrl?: (md5: string) => Effect.Effect<string, any>
-  downloadFile?: (url: string, destPath: string, onProgress?: (r: number, t: number) => void) => Effect.Effect<void, any>
+  downloadFile?: (
+    url: string,
+    destPath: string,
+    onProgress?: (r: number, t: number) => void,
+  ) => Effect.Effect<void, any>
   uploadFile?: (filePath: string, subfolder?: string) => Effect.Effect<void, any>
   deleteFolder?: (name: string) => Effect.Effect<void, any>
   copypartyUrl?: string
@@ -69,7 +95,8 @@ function makeLayer(deps: Deps = {}) {
     LogServiceLive,
     Layer.succeed(AnnasArchiveService, {
       search: () => Effect.succeed([]),
-      getDownloadUrl: deps.getDownloadUrl ?? (() => Effect.succeed("https://cdn.example.com/book.epub")),
+      getDownloadUrl:
+        deps.getDownloadUrl ?? (() => Effect.succeed("https://cdn.example.com/book.epub")),
       downloadFile: deps.downloadFile ?? (() => Effect.void),
     } as any),
     Layer.succeed(CopypartyService, {
@@ -134,15 +161,20 @@ describe("AnnasArchivePipelineService", () => {
         .filter((s): s is string => Boolean(s))
 
       expect(stages).toEqual(["DOWNLOADING", "UPLOADING_COPYPARTY", "DONE"])
-    }))
+    }),
+  )
 
   it.effect("skips Copyparty upload when not configured", () =>
     Effect.gen(function* () {
       const uploadFileSpy = vi.fn((_filePath: string, _subfolder?: string) => Effect.void)
-      yield* makeProgram((svc) => svc.run(testResult), { uploadFile: uploadFileSpy, copypartyUrl: "" })
+      yield* makeProgram((svc) => svc.run(testResult), {
+        uploadFile: uploadFileSpy,
+        copypartyUrl: "",
+      })
 
       expect(uploadFileSpy).not.toHaveBeenCalled()
-    }))
+    }),
+  )
 
   it.effect("uses result.extension for the destination filename when present", () =>
     Effect.gen(function* () {
@@ -151,7 +183,8 @@ describe("AnnasArchivePipelineService", () => {
 
       const uploadedPath = uploadFileSpy.mock.calls[0]?.[0] as string
       expect(uploadedPath).toContain("Naruto Vol. 1.epub")
-    }))
+    }),
+  )
 
   it.effect("falls back to .bin when no extension can be determined", () =>
     Effect.gen(function* () {
@@ -164,7 +197,8 @@ describe("AnnasArchivePipelineService", () => {
 
       const uploadedPath = uploadFileSpy.mock.calls[0]?.[0] as string
       expect(uploadedPath).toContain(".bin")
-    }))
+    }),
+  )
 
   it.effect("recovers a missing extension from the download URL", () =>
     Effect.gen(function* () {
@@ -177,14 +211,18 @@ describe("AnnasArchivePipelineService", () => {
 
       const uploadedPath = uploadFileSpy.mock.calls[0]?.[0] as string
       expect(uploadedPath).toContain(".pdf")
-    }))
+    }),
+  )
 
   it.effect("marks the job FAILED when resolving the download URL fails", () =>
     Effect.gen(function* () {
       const updateJobSpy = vi.fn((_id: number, _update: any) => Effect.void)
       const getDownloadUrlSpy = vi.fn(() => Effect.fail({ message: "all mirrors down" }))
 
-      yield* makeProgram((svc) => svc.run(testResult), { getDownloadUrl: getDownloadUrlSpy, updateJobSpy })
+      yield* makeProgram((svc) => svc.run(testResult), {
+        getDownloadUrl: getDownloadUrlSpy,
+        updateJobSpy,
+      })
 
       expect(getDownloadUrlSpy).toHaveBeenCalledTimes(1)
       const failedCall = updateJobSpy.mock.calls.find(
@@ -192,19 +230,18 @@ describe("AnnasArchivePipelineService", () => {
       )
       expect(failedCall).toBeDefined()
       expect((failedCall![1] as { error?: string }).error).toContain("all mirrors down")
-    }))
+    }),
+  )
 
   it.effect("cleans up the deleted folder on failure when it created one", () =>
     Effect.gen(function* () {
       const deleteFolderSpy = vi.fn((_name: string) => Effect.void)
-      yield* makeProgram(
-        (svc) => svc.run(testResult, "NewFolder", true),
-        {
-          getDownloadUrl: () => Effect.fail({ message: "boom" }),
-          deleteFolder: deleteFolderSpy,
-        },
-      )
+      yield* makeProgram((svc) => svc.run(testResult, "NewFolder", true), {
+        getDownloadUrl: () => Effect.fail({ message: "boom" }),
+        deleteFolder: deleteFolderSpy,
+      })
 
       expect(deleteFolderSpy).toHaveBeenCalledWith("NewFolder")
-    }))
+    }),
+  )
 })

@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import { HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi"
+import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api"
 import { KomgaLibrarySchema, KomgaSeriesSchema, KomgaBookSchema } from "../../schemas"
 import { KomgaNotConfiguredS, KomgaHttpErrorS } from "../errors"
 
@@ -15,27 +15,31 @@ export const KomgaBooksRequestSchema = Schema.Struct({
 
 export const KomgaThumbnailResponseSchema = Schema.Struct({ thumbnail: Schema.String })
 
-export const KomgaGroup = HttpApiGroup.make("komga").add(
-  HttpApiEndpoint.get("libraries", "/api/komga/libraries", {
-    success: Schema.Array(KomgaLibrarySchema),
-    error: KomgaErrors,
-  }),
-).add(
-  HttpApiEndpoint.post("series", "/api/komga/series", {
-    payload: KomgaSeriesRequestSchema,
-    success: Schema.Array(KomgaSeriesSchema),
-    error: KomgaErrors,
-  }),
-).add(
-  HttpApiEndpoint.get("thumbnail", "/api/komga/thumbnail", {
-    query: { seriesId: Schema.String },
-    success: KomgaThumbnailResponseSchema,
-    error: KomgaErrors,
-  }),
-).add(
-  HttpApiEndpoint.post("books", "/api/komga/books", {
-    payload: KomgaBooksRequestSchema,
-    success: Schema.Array(KomgaBookSchema),
-    error: KomgaErrors,
-  }),
-)
+export const KomgaGroup = HttpApiGroup.make("komga")
+  .add(
+    HttpApiEndpoint.get("libraries", "/api/komga/libraries", {
+      success: Schema.Array(KomgaLibrarySchema),
+      error: KomgaErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("series", "/api/komga/series", {
+      payload: KomgaSeriesRequestSchema,
+      success: Schema.Array(KomgaSeriesSchema),
+      error: KomgaErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("thumbnail", "/api/komga/thumbnail", {
+      query: { seriesId: Schema.String },
+      success: KomgaThumbnailResponseSchema,
+      error: KomgaErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("books", "/api/komga/books", {
+      payload: KomgaBooksRequestSchema,
+      success: Schema.Array(KomgaBookSchema),
+      error: KomgaErrors,
+    }),
+  )

@@ -1,32 +1,28 @@
-import { useState } from "react";
-import { Dialog } from "../ui/dialog";
-import { Button } from "../ui/button";
-import FolderSelect from "./FolderSelect";
+import { useState } from "react"
+import { Dialog } from "../ui/dialog"
+import { Button } from "../ui/button"
+import FolderSelect from "./FolderSelect"
 
 interface DownloadModalProps<T> {
-  items: T[];
-  onConfirm: (items: T[], subfolder?: string, newFolder?: boolean) => void;
-  onClose: () => void;
+  items: T[]
+  onConfirm: (items: T[], subfolder?: string, newFolder?: boolean) => void
+  onClose: () => void
 }
 
-export default function DownloadModal<T>({
-  items,
-  onConfirm,
-  onClose,
-}: DownloadModalProps<T>) {
-  const [folder, setFolder] = useState("");
-  const [isNewFolder, setIsNewFolder] = useState(false);
+export default function DownloadModal<T>({ items, onConfirm, onClose }: DownloadModalProps<T>) {
+  const [folder, setFolder] = useState("")
+  const [isNewFolder, setIsNewFolder] = useState(false)
 
   const handleDownload = () => {
-    onConfirm(items, folder || undefined, folder ? isNewFolder : undefined);
-    onClose();
-  };
+    onConfirm(items, folder || undefined, folder ? isNewFolder : undefined)
+    onClose()
+  }
 
   return (
     <Dialog.Root
       open
       onOpenChange={(details: { open: boolean }) => {
-        if (!details.open) onClose();
+        if (!details.open) onClose()
       }}
     >
       <Dialog.Backdrop />
@@ -38,8 +34,8 @@ export default function DownloadModal<T>({
         <FolderSelect
           value={folder}
           onChange={(value, isNew) => {
-            setFolder(value);
-            setIsNewFolder(isNew);
+            setFolder(value)
+            setIsNewFolder(isNew)
           }}
         />
 
@@ -49,15 +45,11 @@ export default function DownloadModal<T>({
               Cancel
             </Button>
           </Dialog.CloseTrigger>
-          <Button
-            variant="primary"
-            className="rounded-full"
-            onClick={handleDownload}
-          >
+          <Button variant="primary" className="rounded-full" onClick={handleDownload}>
             Download
           </Button>
         </div>
       </Dialog.Content>
     </Dialog.Root>
-  );
+  )
 }

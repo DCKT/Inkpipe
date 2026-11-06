@@ -1,21 +1,21 @@
-import { useState } from "react";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+import { useState } from "react"
+import { Button } from "../ui/button"
+import { Input } from "../ui/input"
 
 interface SearchBarProps {
-  onSearch: (query: string) => void;
-  isLoading: boolean;
+  onSearch: (query: string) => void
+  isLoading: boolean
 }
 
 export default function SearchBar({ onSearch, isLoading }: SearchBarProps) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
     if (query.trim()) {
-      onSearch(query.trim());
+      onSearch(query.trim())
     }
-  };
+  }
 
   return (
     <form onSubmit={handleSubmit} className="flex gap-3">
@@ -38,5 +38,5 @@ export default function SearchBar({ onSearch, isLoading }: SearchBarProps) {
         </Button>
       </div>
     </form>
-  );
+  )
 }

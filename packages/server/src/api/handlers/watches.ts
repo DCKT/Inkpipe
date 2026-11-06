@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { HttpApiBuilder } from "effect/http-api"
 import { WatchStoreService } from "../../layers/storage/WatchStore"
 import { ProwlarrService } from "../../layers/integrations/Prowlarr"
 import { notifyWatchMatches, type MatchedAlert } from "../../layers/pipeline/WatchNotifier"
@@ -14,13 +14,15 @@ export const WatchesGroupLive = HttpApiBuilder.group(InkpipeApi, "watches", (han
         const store = yield* WatchStoreService
         const watches = yield* store.listWatches
         return { watches }
-      }))
+      }),
+    )
     .handle("unreadCount", () =>
       Effect.gen(function* () {
         const store = yield* WatchStoreService
         const count = yield* store.getUnreadCount
         return { count }
-      }))
+      }),
+    )
     .handle("create", ({ payload }) =>
       Effect.gen(function* () {
         if (payload.intervalSeconds < 300) {
@@ -35,12 +37,14 @@ export const WatchesGroupLive = HttpApiBuilder.group(InkpipeApi, "watches", (han
           filterGroups: payload.filterGroups ?? [],
           subfolder: payload.subfolder ?? null,
         })
-      }))
+      }),
+    )
     .handle("get", ({ params }) =>
       Effect.gen(function* () {
         const store = yield* WatchStoreService
         return yield* store.getWatch(WatchId.make(params.id))
-      }))
+      }),
+    )
     .handle("update", ({ params, payload }) =>
       Effect.gen(function* () {
         if (payload.intervalSeconds !== undefined && payload.intervalSeconds < 300) {
@@ -49,15 +53,24 @@ export const WatchesGroupLive = HttpApiBuilder.group(InkpipeApi, "watches", (han
         const store = yield* WatchStoreService
         return yield* store.updateWatch(
           WatchId.make(params.id),
-          payload as Partial<{ name: string; enabled: boolean; query: string; intervalSeconds: number; filterGroups: Watch["filterGroups"]; subfolder: string | null }>,
+          payload as Partial<{
+            name: string
+            enabled: boolean
+            query: string
+            intervalSeconds: number
+            filterGroups: Watch["filterGroups"]
+            subfolder: string | null
+          }>,
         )
-      }))
+      }),
+    )
     .handle("delete", ({ params }) =>
       Effect.gen(function* () {
         const store = yield* WatchStoreService
         yield* store.deleteWatch(WatchId.make(params.id))
         return { success: true }
-      }))
+      }),
+    )
     .handle("listAlerts", ({ params }) =>
       Effect.gen(function* () {
         const store = yield* WatchStoreService
@@ -65,19 +78,22 @@ export const WatchesGroupLive = HttpApiBuilder.group(InkpipeApi, "watches", (han
         yield* store.getWatch(wid)
         const alerts = yield* store.listAlerts(wid)
         return { alerts }
-      }))
+      }),
+    )
     .handle("acknowledgeAlert", ({ params }) =>
       Effect.gen(function* () {
         const store = yield* WatchStoreService
         yield* store.acknowledgeAlert(WatchId.make(params.id), WatchAlertId.make(params.alertId))
         return { success: true }
-      }))
+      }),
+    )
     .handle("acknowledgeAllAlerts", ({ params }) =>
       Effect.gen(function* () {
         const store = yield* WatchStoreService
         yield* store.acknowledgeAllAlerts(WatchId.make(params.id))
         return { success: true }
-      }))
+      }),
+    )
     .handle("trigger", ({ params }) =>
       Effect.gen(function* () {
         const store = yield* WatchStoreService
@@ -85,14 +101,13 @@ export const WatchesGroupLive = HttpApiBuilder.group(InkpipeApi, "watches", (han
 
         const watch = yield* store.getWatch(WatchId.make(params.id))
 
-        const results = yield* prowlarr.search(watch.query).pipe(
-          Effect.orElseSucceed(() => []),
-        )
+        const results = yield* prowlarr.search(watch.query).pipe(Effect.orElseSucceed(() => []))
 
         const matchedAlerts: MatchedAlert[] = []
 
         for (const result of results) {
-          if (watch.filterGroups.length > 0 && !matchesFilter(result.title, watch.filterGroups)) continue
+          if (watch.filterGroups.length > 0 && !matchesFilter(result.title, watch.filterGroups))
+            continue
 
           const exists = yield* store.hasAlertForGuid(watch.id, result.guid)
           if (exists) continue
@@ -109,11 +124,17 @@ export const WatchesGroupLive = HttpApiBuilder.group(InkpipeApi, "watches", (han
             matchedAt: Date.now(),
             acknowledged: false,
           })
-          matchedAlerts.push({ id: alertId, title: result.title, indexer: result.indexer, seeders: result.seeders })
+          matchedAlerts.push({
+            id: alertId,
+            title: result.title,
+            indexer: result.indexer,
+            seeders: result.seeders,
+          })
         }
 
         yield* notifyWatchMatches(watch, matchedAlerts)
 
         return { matches: matchedAlerts.length }
-      })),
+      }),
+    ),
 )

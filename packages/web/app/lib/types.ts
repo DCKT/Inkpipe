@@ -14,4 +14,4 @@ export {
   type FilterGroup,
   type FilterGroupMode,
   type WatchAlert,
-} from "@inkpipe/shared";
+} from "@inkpipe/shared"

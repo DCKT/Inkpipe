@@ -46,6 +46,7 @@ flowchart TD
 ```
 
 Notes:
+
 - If an `.epub` file already exists in the job directory, KCC conversion is skipped entirely.
 - Copyparty upload prefers `.epub`, then falls back to `.cbz`/`.cbr`, then `.zip`/`.rar`/`.pdf`, and is skipped if Copyparty isn't configured.
 - On failure at any stage, the job is marked `FAILED` and cleanup (temp files + AllDebrid magnet) always runs.
@@ -54,13 +55,13 @@ Notes:
 
 Monorepo: five packages managed by Bun workspaces.
 
-| Package | Description | Stack |
-|---------|-------------|-------|
-| `packages/shared` | Domain types, API contracts, errors | Effect Schema v4 |
-| `packages/db` | SQLite database layer (WAL mode) | Bun SQLite, Effect v4 |
-| `packages/server` | HTTP API + pipeline orchestration | Bun.serve, Effect v4, @effect/platform-bun |
-| `packages/watcher` | Background watch process | Effect v4, web-push, Telegram Bot API |
-| `packages/web` | React SPA frontend | React 19, React Router v7, Ark UI v5, Tailwind v4, TanStack Query v5 |
+| Package            | Description                         | Stack                                                                |
+| ------------------ | ----------------------------------- | -------------------------------------------------------------------- |
+| `packages/shared`  | Domain types, API contracts, errors | Effect Schema v4                                                     |
+| `packages/db`      | SQLite database layer (WAL mode)    | Bun SQLite, Effect v4                                                |
+| `packages/server`  | HTTP API + pipeline orchestration   | Bun.serve, Effect v4, @effect/platform-bun                           |
+| `packages/watcher` | Background watch process            | Effect v4, web-push, Telegram Bot API                                |
+| `packages/web`     | React SPA frontend                  | React 19, React Router v7, Ark UI v5, Tailwind v4, TanStack Query v5 |
 
 ## Local development
 

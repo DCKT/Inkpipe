@@ -1,4 +1,4 @@
-import type { WatchAlert, ProwlarrResult } from "./schemas";
+import type { WatchAlert, ProwlarrResult } from "./schemas"
 
 export function alertToProwlarrResult(alert: WatchAlert): ProwlarrResult {
   return {
@@ -11,5 +11,5 @@ export function alertToProwlarrResult(alert: WatchAlert): ProwlarrResult {
     indexer: alert.indexer,
     categories: [],
     publishDate: null,
-  };
+  }
 }

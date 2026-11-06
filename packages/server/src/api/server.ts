@@ -2,8 +2,8 @@
 // the raw WebSocket / static-fallback routes, all mounted on one shared
 // HttpRouter and ready to be provided the application's MainLayer.
 import { Layer } from "effect"
-import { HttpApiBuilder, HttpApiSwagger } from "effect/unstable/httpapi"
-import { HttpRouter } from "effect/unstable/http"
+import { HttpApiBuilder, HttpApiSwagger } from "effect/http-api"
+import { HttpRouter } from "effect/http"
 import { InkpipeApi } from "@inkpipe/shared"
 import { SearchGroupLive } from "./handlers/search"
 import { LatestGroupLive } from "./handlers/latest"
@@ -48,7 +48,9 @@ const CorsLive = HttpRouter.cors({
   allowedHeaders: ["Content-Type"],
 })
 
-const ApiLive = HttpApiBuilder.layer(InkpipeApi, { openapiPath: "/openapi.json" }).pipe(Layer.provide(HandlersLive))
+const ApiLive = HttpApiBuilder.layer(InkpipeApi, { openapiPath: "/openapi.json" }).pipe(
+  Layer.provide(HandlersLive),
+)
 
 const SwaggerLive = HttpApiSwagger.layer(InkpipeApi, { path: "/docs" })
 

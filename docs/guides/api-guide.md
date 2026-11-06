@@ -53,10 +53,10 @@ const getAccount = HttpApiEndpoint.get("getAccount", "/:id")
   .handle("getAccount", (_) =>
     Effect.gen(function* () {
       // _.path.id is already AccountId - no manual decoding!
-      const account = yield* accountRepo.findById(_.path.id);
+      const account = yield* accountRepo.findById(_.path.id)
       // ...
     }),
-  );
+  )
 
 // BAD: Raw strings require manual decoding
 const getAccount = HttpApiEndpoint.get("getAccount", "/:id")
@@ -65,10 +65,10 @@ const getAccount = HttpApiEndpoint.get("getAccount", "/:id")
   .handle("getAccount", (_) =>
     Effect.gen(function* () {
       // Manual decoding - this is a red flag!
-      const accountId = yield* Schema.decodeUnknown(AccountId)(_.path.id);
+      const accountId = yield* Schema.decodeUnknown(AccountId)(_.path.id)
       // ...
     }),
-  );
+  )
 ```
 
 ### Creating API Groups
@@ -77,12 +77,12 @@ const getAccount = HttpApiEndpoint.get("getAccount", "/:id")
 // Define endpoints
 const findById = HttpApiEndpoint.get("findById")`/accounts/${accountIdParam}`
   .addSuccess(Account)
-  .addError(NotFoundError);
+  .addError(NotFoundError)
 
 const create = HttpApiEndpoint.post("create", "/accounts")
   .setPayload(CreateAccountInput)
   .addSuccess(Account, { status: 201 })
-  .addError(ValidationError);
+  .addError(ValidationError)
 
 const list = HttpApiEndpoint.get("list", "/accounts")
   .setUrlParams(
@@ -92,7 +92,7 @@ const list = HttpApiEndpoint.get("list", "/accounts")
       limit: Schema.optional(Schema.NumberFromString),
     }),
   )
-  .addSuccess(Schema.Array(Account));
+  .addSuccess(Schema.Array(Account))
 
 // Group related endpoints
 class AccountsApi extends HttpApiGroup.make("accounts")
@@ -122,11 +122,11 @@ Path parameters are always strings. Use branded string schemas:
 export const AccountId = Schema.String.pipe(
   Schema.pattern(/^[0-9a-f-]{36}$/),
   Schema.brand("AccountId"),
-);
+)
 
 const getAccount = HttpApiEndpoint.get("getAccount", "/:id").setPath(
   Schema.Struct({ id: AccountId }),
-);
+)
 ```
 
 ### URL Query Parameters
@@ -145,7 +145,7 @@ export const AccountListParams = Schema.Struct({
       Schema.greaterThan(0),
     ),
   ),
-});
+})
 ```
 
 ### Request Bodies
@@ -167,14 +167,10 @@ export class CreateAccountRequest extends Schema.Class<CreateAccountRequest>(
 Return domain entities directly:
 
 ```typescript
-const getAccount = HttpApiEndpoint.get("getAccount", "/:id").addSuccess(
-  Account,
-); // Domain entity as response
+const getAccount = HttpApiEndpoint.get("getAccount", "/:id").addSuccess(Account) // Domain entity as response
 
 // For lists with metadata
-export class AccountListResponse extends Schema.Class<AccountListResponse>(
-  "AccountListResponse",
-)({
+export class AccountListResponse extends Schema.Class<AccountListResponse>("AccountListResponse")({
   accounts: Schema.Array(Account),
   total: Schema.Number,
   limit: Schema.Number,
@@ -215,8 +211,8 @@ const AccountsLive = HttpApiBuilder.group(AppApi, "accounts", (handlers) =>
   handlers
     .handle("findById", ({ path }) =>
       Effect.gen(function* () {
-        const service = yield* AccountService;
-        const account = yield* service.findById(path.accountId);
+        const service = yield* AccountService
+        const account = yield* service.findById(path.accountId)
         return yield* Option.match(account, {
           onNone: () =>
             Effect.fail(
@@ -226,32 +222,32 @@ const AccountsLive = HttpApiBuilder.group(AppApi, "accounts", (handlers) =>
               }),
             ),
           onSome: Effect.succeed,
-        });
+        })
       }),
     )
     .handle("create", ({ payload }) =>
       Effect.gen(function* () {
-        const service = yield* AccountService;
-        return yield* service.create(payload);
+        const service = yield* AccountService
+        return yield* service.create(payload)
       }),
     )
     .handle("list", ({ urlParams }) =>
       Effect.gen(function* () {
-        const service = yield* AccountService;
+        const service = yield* AccountService
         // urlParams are already decoded
         return yield* service.list({
           companyId: urlParams.companyId,
           page: urlParams.page ?? 1,
           limit: urlParams.limit ?? 20,
-        });
+        })
       }),
     ),
-).pipe(Layer.provide(AccountServiceLive));
+).pipe(Layer.provide(AccountServiceLive))
 
 // Compose all implementations
 const ApiLive = HttpApiBuilder.api(AppApi).pipe(
   Layer.provide([AccountsLive, CompaniesLive, ReportsLive]),
-);
+)
 ```
 
 ---
@@ -261,31 +257,28 @@ const ApiLive = HttpApiBuilder.api(AppApi).pipe(
 ### Cookie-Based Authentication
 
 ```typescript
-class AuthMiddleware extends HttpApiMiddleware.Tag<AuthMiddleware>()(
-  "AuthMiddleware",
-  {
-    failure: UnauthorizedError,
-    provides: CurrentUser,
-    security: {
-      cookie: HttpApiSecurity.apiKey({
-        key: "session",
-        in: "cookie",
-      }),
-    },
+class AuthMiddleware extends HttpApiMiddleware.Tag<AuthMiddleware>()("AuthMiddleware", {
+  failure: UnauthorizedError,
+  provides: CurrentUser,
+  security: {
+    cookie: HttpApiSecurity.apiKey({
+      key: "session",
+      in: "cookie",
+    }),
   },
-) {}
+}) {}
 
 const AuthMiddlewareLive = Layer.succeed(
   AuthMiddleware,
   AuthMiddleware.of({
     cookie: (token) =>
       Effect.gen(function* () {
-        const authService = yield* AuthService;
-        const user = yield* authService.validateSession(token);
-        return user;
+        const authService = yield* AuthService
+        const user = yield* authService.validateSession(token)
+        return user
       }),
   }),
-);
+)
 
 // Apply to group
 class SecureApi extends HttpApiGroup.make("secure")
@@ -301,7 +294,7 @@ HttpServerResponse.setCookie("session", token, {
   httpOnly: true, // Not accessible via JavaScript
   secure: true, // HTTPS only
   sameSite: "strict", // CSRF protection
-});
+})
 ```
 
 ---
@@ -318,21 +311,21 @@ pnpm generate:api
 ### Making API Calls
 
 ```typescript
-import { api } from "@/api/client";
+import { api } from "@/api/client"
 
 // GET with query params
 const { data, error } = await api.GET("/api/v1/accounts", {
   params: {
     query: { companyId: "comp_123", page: 1, limit: 20 },
   },
-});
+})
 
 // GET with path params
 const { data, error } = await api.GET("/api/v1/accounts/{accountId}", {
   params: {
     path: { accountId: "acc_456" },
   },
-});
+})
 
 // POST
 const { data, error } = await api.POST("/api/v1/accounts", {
@@ -341,41 +334,41 @@ const { data, error } = await api.POST("/api/v1/accounts", {
     type: "Asset",
     companyId: "comp_123",
   },
-});
+})
 
 // PATCH
 const { data, error } = await api.PATCH("/api/v1/accounts/{accountId}", {
   params: { path: { accountId: "acc_456" } },
   body: { name: "Updated Name" },
-});
+})
 
 // DELETE
 const { data, error } = await api.DELETE("/api/v1/accounts/{accountId}", {
   params: { path: { accountId: "acc_456" } },
-});
+})
 ```
 
 ### Error Handling
 
 ```typescript
-const { data, error } = await api.POST("/api/v1/accounts", { body });
+const { data, error } = await api.POST("/api/v1/accounts", { body })
 
 if (error) {
   if (error.status === 422) {
     // ValidationError
-    console.log(error.body.errors);
+    console.log(error.body.errors)
   } else if (error.status === 401) {
     // UnauthorizedError
-    redirect({ to: "/login" });
+    redirect({ to: "/login" })
   } else if (error.status === 404) {
     // NotFoundError
-    console.log(error.body.message);
+    console.log(error.body.message)
   }
-  return;
+  return
 }
 
 // data is typed as the success response
-console.log(data.id, data.name);
+console.log(data.id, data.name)
 ```
 
 ---
@@ -423,22 +416,22 @@ function OrganizationsPage() {
 ```typescript
 export const Route = createRootRouteWithContext<RouterContext>()({
   beforeLoad: async ({ request }) => {
-    const cookie = request?.headers?.get("cookie");
+    const cookie = request?.headers?.get("cookie")
 
     if (!cookie) {
-      return { user: null };
+      return { user: null }
     }
 
     // Forward cookie header to API
     const { data, error } = await api.GET("/api/auth/me", {
       headers: { cookie },
-    });
+    })
 
-    return { user: error ? null : (data?.user ?? null) };
+    return { user: error ? null : (data?.user ?? null) }
   },
 
   component: RootComponent,
-});
+})
 ```
 
 ### Client-Side Mutations with Revalidation
@@ -479,24 +472,24 @@ function CreateOrganizationForm() {
 
 ```typescript
 // WRONG - bypasses type safety
-const response = await fetch("/api/v1/organizations");
-const data = await response.json();
+const response = await fetch("/api/v1/organizations")
+const data = await response.json()
 
 // CORRECT - use typed client
-const { data, error } = await api.GET("/api/v1/organizations");
+const { data, error } = await api.GET("/api/v1/organizations")
 ```
 
 ### DO NOT Store Tokens in localStorage
 
 ```typescript
 // WRONG - vulnerable to XSS
-localStorage.setItem("token", response.token);
+localStorage.setItem("token", response.token)
 headers: {
-  Authorization: `Bearer ${localStorage.getItem("token")}`;
+  Authorization: `Bearer ${localStorage.getItem("token")}`
 }
 
 // CORRECT - server sets httpOnly cookie, browser sends automatically
-await api.POST("/api/auth/login", { body: { email, password } });
+await api.POST("/api/auth/login", { body: { email, password } })
 ```
 
 ### DO NOT Return Tokens in Response Body

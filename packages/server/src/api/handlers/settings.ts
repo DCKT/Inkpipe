@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect"
-import { HttpApiBuilder } from "effect/unstable/httpapi"
-import { HttpServerResponse } from "effect/unstable/http"
+import { HttpApiBuilder } from "effect/http-api"
+import { HttpServerResponse } from "effect/http"
 import { AppConfigSchema, SettingsImportError } from "@inkpipe/shared"
 import type { AppConfig } from "@inkpipe/shared"
 import { ConfigService } from "../../layers/core/Config"
@@ -12,13 +12,15 @@ export const SettingsGroupLive = HttpApiBuilder.group(InkpipeApi, "settings", (h
       Effect.gen(function* () {
         const configService = yield* ConfigService
         return yield* configService.loadConfig
-      }))
+      }),
+    )
     .handle("update", ({ payload }) =>
       Effect.gen(function* () {
         const configService = yield* ConfigService
         yield* configService.saveConfig(payload as AppConfig)
         return { success: true }
-      }))
+      }),
+    )
     .handle("export", () =>
       Effect.gen(function* () {
         const configService = yield* ConfigService
@@ -30,16 +32,18 @@ export const SettingsGroupLive = HttpApiBuilder.group(InkpipeApi, "settings", (h
             "Content-Disposition": `attachment; filename="inkpipe-settings-${today}.json"`,
           },
         })
-      }))
+      }),
+    )
     .handle("import", ({ payload }) =>
       Effect.gen(function* () {
         const config = yield* Schema.decodeUnknownEffect(AppConfigSchema)(payload as unknown).pipe(
-          Effect.mapError((e) =>
-            new SettingsImportError({ message: `Invalid settings format: ${String(e)}` }),
+          Effect.mapError(
+            (e) => new SettingsImportError({ message: `Invalid settings format: ${String(e)}` }),
           ),
         )
         const configService = yield* ConfigService
         yield* configService.saveConfig(config)
         return { success: true }
-      })),
+      }),
+    ),
 )

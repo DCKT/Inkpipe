@@ -45,78 +45,120 @@ describe("ConfigService", () => {
       expect(config.kcc.cropping).toBe("1")
       expect(config.kcc.splitter).toBe("0")
       expect(config.kcc.batchSplit).toBe("0")
-    }))
+    }),
+  )
 
-  it.effect("saveConfig then loadConfig round-trips every section, including booleans that default true", () =>
-    Effect.gen(function* () {
-      const overrides: AppConfig = {
-        prowlarr: { url: "http://prowlarr.local", apiKey: "prowlarr-key" },
-        alldebrid: { apiKey: "alldebrid-key" },
-        kcc: {
-          dockerImage: "custom/kcc:latest", profile: "Kindle", format: "MOBI",
-          mangaStyle: true, webtoon: true, twoPanel: true,
-          // these three default `true` at the DB level — round-tripping `false`
-          // specifically verifies saveConfig/loadConfig don't silently coerce
-          // a false back to the default true.
-          upscale: false, stretch: true, hq: true, gamma: 2.2,
-          cropping: "2", croppingPower: 1.5,
-          forceColor: false,
-          forcePng: true, noAutoContrast: true, blackBorders: true,
-          whiteBorders: true, splitter: "1", noProcessing: true,
-          eraseRainbow: false, coverFill: true, batchSplit: "2",
-          targetSize: 500, customWidth: 800, customHeight: 1200, noKepub: true,
-        },
-        copyparty: { url: "http://copyparty.local", uploadPath: "/books", password: "secret" },
-        komga: { url: "http://komga.local", apiKey: "komga-key", defaultLibraryId: "lib-1" },
-        annasArchive: { apiKey: "aa-key", baseUrl: "https://annas-archive.example" },
-        telegram: { botToken: "telegram-token", chatId: "12345" },
-        general: { publicUrl: "https://inkpipe.example.com" },
-      }
+  it.effect(
+    "saveConfig then loadConfig round-trips every section, including booleans that default true",
+    () =>
+      Effect.gen(function* () {
+        const overrides: AppConfig = {
+          prowlarr: { url: "http://prowlarr.local", apiKey: "prowlarr-key" },
+          alldebrid: { apiKey: "alldebrid-key" },
+          kcc: {
+            dockerImage: "custom/kcc:latest",
+            profile: "Kindle",
+            format: "MOBI",
+            mangaStyle: true,
+            webtoon: true,
+            twoPanel: true,
+            // these three default `true` at the DB level — round-tripping `false`
+            // specifically verifies saveConfig/loadConfig don't silently coerce
+            // a false back to the default true.
+            upscale: false,
+            stretch: true,
+            hq: true,
+            gamma: 2.2,
+            cropping: "2",
+            croppingPower: 1.5,
+            forceColor: false,
+            forcePng: true,
+            noAutoContrast: true,
+            blackBorders: true,
+            whiteBorders: true,
+            splitter: "1",
+            noProcessing: true,
+            eraseRainbow: false,
+            coverFill: true,
+            batchSplit: "2",
+            targetSize: 500,
+            customWidth: 800,
+            customHeight: 1200,
+            noKepub: true,
+          },
+          copyparty: { url: "http://copyparty.local", uploadPath: "/books", password: "secret" },
+          komga: { url: "http://komga.local", apiKey: "komga-key", defaultLibraryId: "lib-1" },
+          annasArchive: { apiKey: "aa-key", baseUrl: "https://annas-archive.example" },
+          telegram: { botToken: "telegram-token", chatId: "12345" },
+          general: { publicUrl: "https://inkpipe.example.com" },
+        }
 
-      const roundTripped = yield* makeProgram((svc) =>
-        Effect.gen(function* () {
-          yield* svc.saveConfig(overrides)
-          return yield* svc.loadConfig
-        }),
-      )
+        const roundTripped = yield* makeProgram((svc) =>
+          Effect.gen(function* () {
+            yield* svc.saveConfig(overrides)
+            return yield* svc.loadConfig
+          }),
+        )
 
-      expect(roundTripped).toEqual(overrides)
-    }))
+        expect(roundTripped).toEqual(overrides)
+      }),
+  )
 
-  it.effect("calling saveConfig twice updates the same row in place (no duplicate/stale rows)", () =>
-    Effect.gen(function* () {
-      const first: AppConfig = {
-        prowlarr: { url: "http://prowlarr.local", apiKey: "key1" },
-        alldebrid: { apiKey: "" },
-        kcc: {
-          dockerImage: "ghcr.io/ciromattia/kcc:latest", profile: "KoBO", format: "Auto",
-          mangaStyle: false, webtoon: false, twoPanel: false,
-          upscale: true, stretch: false, hq: false, gamma: 1.0,
-          cropping: "1", croppingPower: 1.0, forceColor: true,
-          forcePng: false, noAutoContrast: false, blackBorders: false,
-          whiteBorders: false, splitter: "0", noProcessing: false,
-          eraseRainbow: true, coverFill: false, batchSplit: "0",
-          targetSize: 0, customWidth: 0, customHeight: 0, noKepub: false,
-        },
-        copyparty: { url: "", uploadPath: "/", password: "" },
-        komga: { url: "", apiKey: "", defaultLibraryId: "" },
-        annasArchive: { apiKey: "", baseUrl: "https://annas-archive.gl" },
-        telegram: { botToken: "", chatId: "" },
-        general: { publicUrl: "" },
-      }
+  it.effect(
+    "calling saveConfig twice updates the same row in place (no duplicate/stale rows)",
+    () =>
+      Effect.gen(function* () {
+        const first: AppConfig = {
+          prowlarr: { url: "http://prowlarr.local", apiKey: "key1" },
+          alldebrid: { apiKey: "" },
+          kcc: {
+            dockerImage: "ghcr.io/ciromattia/kcc:latest",
+            profile: "KoBO",
+            format: "Auto",
+            mangaStyle: false,
+            webtoon: false,
+            twoPanel: false,
+            upscale: true,
+            stretch: false,
+            hq: false,
+            gamma: 1.0,
+            cropping: "1",
+            croppingPower: 1.0,
+            forceColor: true,
+            forcePng: false,
+            noAutoContrast: false,
+            blackBorders: false,
+            whiteBorders: false,
+            splitter: "0",
+            noProcessing: false,
+            eraseRainbow: true,
+            coverFill: false,
+            batchSplit: "0",
+            targetSize: 0,
+            customWidth: 0,
+            customHeight: 0,
+            noKepub: false,
+          },
+          copyparty: { url: "", uploadPath: "/", password: "" },
+          komga: { url: "", apiKey: "", defaultLibraryId: "" },
+          annasArchive: { apiKey: "", baseUrl: "https://annas-archive.gl" },
+          telegram: { botToken: "", chatId: "" },
+          general: { publicUrl: "" },
+        }
 
-      const final = yield* makeProgram((svc) =>
-        Effect.gen(function* () {
-          yield* svc.saveConfig(first)
-          yield* svc.saveConfig({ ...first, alldebrid: { apiKey: "key2" } })
-          return yield* svc.loadConfig
-        }),
-      )
+        const final = yield* makeProgram((svc) =>
+          Effect.gen(function* () {
+            yield* svc.saveConfig(first)
+            yield* svc.saveConfig({ ...first, alldebrid: { apiKey: "key2" } })
+            return yield* svc.loadConfig
+          }),
+        )
 
-      // If saveConfig ever mis-used INSERT instead of UPDATE, a second call would
-      // create a duplicate row and loadConfig's `rows[0]` would silently read
-      // whichever row SQLite happens to return first, not necessarily the latest.
-      expect(final.prowlarr).toEqual({ url: "http://prowlarr.local", apiKey: "key1" })
-      expect(final.alldebrid).toEqual({ apiKey: "key2" })
-    }))
+        // If saveConfig ever mis-used INSERT instead of UPDATE, a second call would
+        // create a duplicate row and loadConfig's `rows[0]` would silently read
+        // whichever row SQLite happens to return first, not necessarily the latest.
+        expect(final.prowlarr).toEqual({ url: "http://prowlarr.local", apiKey: "key1" })
+        expect(final.alldebrid).toEqual({ apiKey: "key2" })
+      }),
+  )
 })

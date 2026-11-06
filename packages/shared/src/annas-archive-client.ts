@@ -7,7 +7,5 @@ export function sortAnnasArchiveResults(
 ): AnnasArchiveResult[] {
   const code = `[${preferredLanguage.toLowerCase()}]`
   const isPreferred = (r: AnnasArchiveResult) => r.language?.toLowerCase().includes(code) ?? false
-  return results
-    .slice()
-    .sort((a, b) => Number(isPreferred(b)) - Number(isPreferred(a)))
+  return results.slice().sort((a, b) => Number(isPreferred(b)) - Number(isPreferred(a)))
 }

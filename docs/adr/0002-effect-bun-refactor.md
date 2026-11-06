@@ -3,6 +3,7 @@
 ## Context
 
 Inkpipe v1 was a TanStack Start monolith (React SSR + server functions). We needed to:
+
 - Remove TanStack Start, Router, Router Plugin (keeping only React Query)
 - Split into separate server + frontend projects
 - Use Bun APIs for all server operations

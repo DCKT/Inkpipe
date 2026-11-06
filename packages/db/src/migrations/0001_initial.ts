@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { SqlClient } from "effect/unstable/sql"
+import { SqlClient } from "effect/sql"
 
 const tryParseJson = (value: string): unknown => {
   try {
@@ -21,9 +21,10 @@ export default Effect.gen(function* () {
     WHERE type = 'table' AND name = 'watches'
   `
 
-  const oldConfig = oldConfigExists.length > 0
-    ? yield* sql<{ key: string; value: string }>`SELECT key, value FROM config`
-    : []
+  const oldConfig =
+    oldConfigExists.length > 0
+      ? yield* sql<{ key: string; value: string }>`SELECT key, value FROM config`
+      : []
 
   if (oldConfigExists.length > 0) {
     yield* sql`DROP TABLE IF EXISTS config`

@@ -12,7 +12,11 @@ import { LogService } from "../core/Log"
 export class AnnasArchivePipelineService extends Context.Service<
   AnnasArchivePipelineService,
   {
-    readonly run: (result: AnnasArchiveResult, subfolder?: string, createdFolder?: boolean) => Effect.Effect<void, PipelineError>
+    readonly run: (
+      result: AnnasArchiveResult,
+      subfolder?: string,
+      createdFolder?: boolean,
+    ) => Effect.Effect<void, PipelineError>
   }
 >()("AnnasArchivePipelineService") {}
 
@@ -47,9 +51,9 @@ export const AnnasArchivePipelineServiceLive = Layer.effect(
           const jobDir = yield* fileManager.ensureJobDir(String(job.id))
           yield* jl.info("pipeline", "Job dir:", jobDir)
 
-          const downloadUrl = yield* annasArchive.getDownloadUrl(result.md5).pipe(
-            Effect.mapError((e) => new PipelineError({ message: e.message })),
-          )
+          const downloadUrl = yield* annasArchive
+            .getDownloadUrl(result.md5)
+            .pipe(Effect.mapError((e) => new PipelineError({ message: e.message })))
 
           let extension = result.extension
           if (!extension) {
@@ -65,24 +69,24 @@ export const AnnasArchivePipelineServiceLive = Layer.effect(
 
           const destPath = join(jobDir, `${sanitizeFilename(result.title)}.${extension}`)
           yield* jl.info("pipeline", "Downloading to:", destPath)
-          yield* annasArchive.downloadFile(downloadUrl, destPath, (received, total) => {
-            if (total > 0) {
-              Effect.runForkWith(context)(
-                jobStore.updateJob(job.id, { progress: Math.round((received / total) * 100) }),
-              )
-            }
-          }).pipe(
-            Effect.mapError((e) => new PipelineError({ message: e.message })),
-          )
+          yield* annasArchive
+            .downloadFile(downloadUrl, destPath, (received, total) => {
+              if (total > 0) {
+                Effect.runForkWith(context)(
+                  jobStore.updateJob(job.id, { progress: Math.round((received / total) * 100) }),
+                )
+              }
+            })
+            .pipe(Effect.mapError((e) => new PipelineError({ message: e.message })))
 
           // Stage 2: Copyparty upload (no conversion — books are already in their final format)
           const config = yield* configService.loadConfig
           if (config.copyparty.url) {
             yield* jl.info("pipeline", "Stage: UPLOADING_COPYPARTY")
             yield* jobStore.updateJob(job.id, { stage: "UPLOADING_COPYPARTY", progress: 0 })
-            yield* copyparty.uploadFile(destPath, subfolder).pipe(
-              Effect.mapError((e) => new PipelineError({ message: e.message })),
-            )
+            yield* copyparty
+              .uploadFile(destPath, subfolder)
+              .pipe(Effect.mapError((e) => new PipelineError({ message: e.message })))
             yield* jl.info("pipeline", "Copyparty upload complete")
           } else {
             yield* jl.info("pipeline", "Copyparty not configured, skipping upload")

@@ -6,14 +6,10 @@ self.addEventListener("push", (event) => {
     badge: "/icon-192.png",
     tag: data.tag ?? "inkpipe-watch",
   }
-  event.waitUntil(
-    self.registration.showNotification(data.title ?? "Inkpipe", options),
-  )
+  event.waitUntil(self.registration.showNotification(data.title ?? "Inkpipe", options))
 })
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
-  event.waitUntil(
-    clients.openWindow("/watches"),
-  )
+  event.waitUntil(clients.openWindow("/watches"))
 })

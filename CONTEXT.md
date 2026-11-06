@@ -18,6 +18,7 @@ Manga/comic pipeline: search for content via Prowlarr, download torrents via All
 ## Architecture
 
 Monorepo with five packages:
+
 - `packages/shared` — Effect Schema domain types, API contracts, error types, utility functions
 - `packages/db` — SQLite database connection factory via `@effect/sql-sqlite-bun`, versioned migrations, shared by server and watcher
 - `packages/server` — Bun HTTP server with Effect TS. `@effect/sql` (`@effect/sql-sqlite-bun`) for persistence. All IO via Effect services.

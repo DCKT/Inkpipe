@@ -19,12 +19,33 @@ interface Logger {
 export class AllDebridService extends Context.Service<
   AllDebridService,
   {
-    readonly uploadMagnet: (magnetOrUrl: string) => Effect.Effect<UploadResult, AllDebridNotConfigured | MagnetUploadError | AllDebridHttpError>
-    readonly getMagnetStatus: (magnetId: number) => Effect.Effect<{ ready: boolean; statusCode: number; status: string }, AllDebridNotConfigured | MagnetStatusError | AllDebridHttpError>
-    readonly getMagnetFiles: (magnetId: number) => Effect.Effect<DebridFile[], AllDebridNotConfigured | AllDebridHttpError>
-    readonly unlockLink: (link: string) => Effect.Effect<{ url: string; filename: string; size: number }, AllDebridNotConfigured | AllDebridHttpError>
+    readonly uploadMagnet: (
+      magnetOrUrl: string,
+    ) => Effect.Effect<
+      UploadResult,
+      AllDebridNotConfigured | MagnetUploadError | AllDebridHttpError
+    >
+    readonly getMagnetStatus: (
+      magnetId: number,
+    ) => Effect.Effect<
+      { ready: boolean; statusCode: number; status: string },
+      AllDebridNotConfigured | MagnetStatusError | AllDebridHttpError
+    >
+    readonly getMagnetFiles: (
+      magnetId: number,
+    ) => Effect.Effect<DebridFile[], AllDebridNotConfigured | AllDebridHttpError>
+    readonly unlockLink: (
+      link: string,
+    ) => Effect.Effect<
+      { url: string; filename: string; size: number },
+      AllDebridNotConfigured | AllDebridHttpError
+    >
     readonly deleteMagnet: (magnetId: number) => Effect.Effect<void, AllDebridNotConfigured>
-    readonly downloadFile: (url: string, destPath: string, onProgress?: (received: number, total: number) => void) => Effect.Effect<void, AllDebridNotConfigured | AllDebridHttpError>
+    readonly downloadFile: (
+      url: string,
+      destPath: string,
+      onProgress?: (received: number, total: number) => void,
+    ) => Effect.Effect<void, AllDebridNotConfigured | AllDebridHttpError>
   }
 >()("AllDebridService") {}
 
@@ -47,7 +68,7 @@ function fetchWithAuth(url: string, apiKey: string, init?: RequestInit): Promise
     ...init,
     headers: {
       ...init?.headers,
-      "Authorization": `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
     },
   })
 }
@@ -60,7 +81,9 @@ interface ApiResponse<T> {
 
 function parseApiResponse<T>(raw: ApiResponse<T>): T {
   if (raw.status === "error") {
-    throw new Error(`API error: ${raw.error?.code ?? "UNKNOWN"} - ${raw.error?.message ?? "Unknown error"}`)
+    throw new Error(
+      `API error: ${raw.error?.code ?? "UNKNOWN"} - ${raw.error?.message ?? "Unknown error"}`,
+    )
   }
   if (!raw.data) {
     throw new Error("No data in API response")
@@ -68,16 +91,30 @@ function parseApiResponse<T>(raw: ApiResponse<T>): T {
   return raw.data
 }
 
-async function pollDelayedLink(delayedId: number, apiKey: string, log: Logger, maxAttempts = 30): Promise<string> {
+async function pollDelayedLink(
+  delayedId: number,
+  apiKey: string,
+  log: Logger,
+  maxAttempts = 30,
+): Promise<string> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    Effect.runSync(log.info("alldebrid", `Polling delayed link ${delayedId} (attempt ${attempt + 1}/${maxAttempts})`))
+    Effect.runSync(
+      log.info(
+        "alldebrid",
+        `Polling delayed link ${delayedId} (attempt ${attempt + 1}/${maxAttempts})`,
+      ),
+    )
     const body = new URLSearchParams({ id: String(delayedId) })
     const response = await fetchWithAuth(buildUrl("v4/link/delayed"), apiKey, {
       method: "POST",
       body,
       signal: AbortSignal.timeout(30000),
     })
-    const raw = await response.json() as ApiResponse<{ status: number; time_left: number; link?: string }>
+    const raw = (await response.json()) as ApiResponse<{
+      status: number
+      time_left: number
+      link?: string
+    }>
     const data = parseApiResponse(raw)
 
     if (data.status === 2 && data.link) {
@@ -91,7 +128,9 @@ async function pollDelayedLink(delayedId: number, apiKey: string, log: Logger, m
     const wait = Math.min((data.time_left ?? 5) * 1000 + 1000, 30000)
     await new Promise((resolve) => setTimeout(resolve, wait))
   }
-  throw new Error(`Delayed link ${delayedId} did not become available within ${maxAttempts} attempts`)
+  throw new Error(
+    `Delayed link ${delayedId} did not become available within ${maxAttempts} attempts`,
+  )
 }
 
 async function downloadWithRetry(
@@ -110,7 +149,12 @@ async function downloadWithRetry(
       lastError = e instanceof Error ? e : new Error(String(e))
       if (attempt < maxRetries - 1) {
         const delay = Math.min(1000 * Math.pow(2, attempt), 10000)
-        Effect.runSync(log.info("alldebrid", `Download attempt ${attempt + 1} failed: ${lastError.message}, retrying in ${delay}ms`))
+        Effect.runSync(
+          log.info(
+            "alldebrid",
+            `Download attempt ${attempt + 1} failed: ${lastError.message}, retrying in ${delay}ms`,
+          ),
+        )
         await new Promise((resolve) => setTimeout(resolve, delay))
       }
     }
@@ -199,7 +243,9 @@ export const AllDebridServiceLive = Layer.effect(
 
         return yield* Effect.tryPromise({
           try: async () => {
-            Effect.runSyncWith(context)(log.info("alldebrid", `Checking status for magnet ${magnetId}`))
+            Effect.runSyncWith(context)(
+              log.info("alldebrid", `Checking status for magnet ${magnetId}`),
+            )
             const body = new URLSearchParams({ id: String(magnetId) })
             const response = await fetchWithAuth(buildUrl("v4.1/magnet/status"), apiKey, {
               method: "POST",
@@ -208,15 +254,36 @@ export const AllDebridServiceLive = Layer.effect(
             })
             const data = parseApiResponse<{
               magnets?: Array<{ id: number; filename: string; statusCode: number; status: string }>
-            }>(await response.json() as ApiResponse<{ magnets?: Array<{ id: number; filename: string; statusCode: number; status: string }> }>)
-            Effect.runSyncWith(context)(log.info("alldebrid", `Status response for magnet ${magnetId}:`, JSON.stringify(data)))
+            }>(
+              (await response.json()) as ApiResponse<{
+                magnets?: Array<{
+                  id: number
+                  filename: string
+                  statusCode: number
+                  status: string
+                }>
+              }>,
+            )
+            Effect.runSyncWith(context)(
+              log.info(
+                "alldebrid",
+                `Status response for magnet ${magnetId}:`,
+                JSON.stringify(data),
+              ),
+            )
             const magnets = data.magnets
             const magnet = Array.isArray(magnets) ? magnets[0] : magnets
             if (!magnet) {
-              Effect.runSyncWith(context)(log.info("alldebrid", `Magnet ${magnetId} not yet in response`))
+              Effect.runSyncWith(context)(
+                log.info("alldebrid", `Magnet ${magnetId} not yet in response`),
+              )
               return { ready: false, statusCode: 0, status: "Waiting" }
             }
-            return { ready: magnet.statusCode === 4, statusCode: magnet.statusCode, status: magnet.status }
+            return {
+              ready: magnet.statusCode === 4,
+              statusCode: magnet.statusCode,
+              status: magnet.status,
+            }
           },
           catch: (e) => {
             const message = e instanceof Error ? e.message : String(e)
@@ -238,7 +305,9 @@ export const AllDebridServiceLive = Layer.effect(
 
         return yield* Effect.tryPromise({
           try: async () => {
-            Effect.runSyncWith(context)(log.info("alldebrid", `Fetching files for magnet ${magnetId}`))
+            Effect.runSyncWith(context)(
+              log.info("alldebrid", `Fetching files for magnet ${magnetId}`),
+            )
             const body = new URLSearchParams()
             body.append("id[]", String(magnetId))
             const response = await fetchWithAuth(buildUrl("v4/magnet/files"), apiKey, {
@@ -248,13 +317,15 @@ export const AllDebridServiceLive = Layer.effect(
             })
             const data = parseApiResponse<{
               magnets?: Array<{ files: FileNode[] }>
-            }>(await response.json() as ApiResponse<{ magnets?: Array<{ files: FileNode[] }> }>)
+            }>((await response.json()) as ApiResponse<{ magnets?: Array<{ files: FileNode[] }> }>)
             const magnetData = data.magnets?.[0]
             if (!magnetData?.files) {
               throw new Error("No files returned from AllDebrid")
             }
             const files = flattenFileTree(magnetData.files)
-            Effect.runSyncWith(context)(log.info("alldebrid", `Found ${files.length} files for magnet ${magnetId}`))
+            Effect.runSyncWith(context)(
+              log.info("alldebrid", `Found ${files.length} files for magnet ${magnetId}`),
+            )
             return files
           },
           catch: (e) => {
@@ -284,7 +355,7 @@ export const AllDebridServiceLive = Layer.effect(
               body,
               signal: AbortSignal.timeout(30000),
             })
-            const raw = await response.json() as ApiResponse<{
+            const raw = (await response.json()) as ApiResponse<{
               link: string
               filename: string
               filesize: number
@@ -323,8 +394,12 @@ export const AllDebridServiceLive = Layer.effect(
             await fetchWithAuth(buildUrl("v4/magnet/delete", { id: String(magnetId) }), apiKey)
           },
           catch: (e) => {
-            Effect.runSyncWith(context)(log.error("alldebrid", `Failed to delete magnet ${magnetId}:`, e))
-            return new AllDebridNotConfigured({ message: `Delete failed: ${e instanceof Error ? e.message : String(e)}` })
+            Effect.runSyncWith(context)(
+              log.error("alldebrid", `Failed to delete magnet ${magnetId}:`, e),
+            )
+            return new AllDebridNotConfigured({
+              message: `Delete failed: ${e instanceof Error ? e.message : String(e)}`,
+            })
           },
         })
       })
@@ -370,23 +445,33 @@ function flattenFileTree(nodes: FileNode[]): DebridFile[] {
   return files
 }
 
-async function uploadViaMagnet(magnetUri: string, apiKey: string, log: Logger): Promise<UploadResult> {
+async function uploadViaMagnet(
+  magnetUri: string,
+  apiKey: string,
+  log: Logger,
+): Promise<UploadResult> {
   Effect.runSync(log.info("alldebrid", "Uploading magnet URI:", magnetUri.slice(0, 80) + "..."))
-  const response = await fetchWithAuth(
-    buildUrl("v4/magnet/upload", { magnets: magnetUri }),
-    apiKey,
-  )
+  const response = await fetchWithAuth(buildUrl("v4/magnet/upload", { magnets: magnetUri }), apiKey)
   const data = parseApiResponse<{
     magnets?: Array<{ id: number; ready: boolean; error?: { code: string; message: string } }>
-  }>(await response.json() as ApiResponse<{ magnets?: Array<{ id: number; ready: boolean; error?: { code: string; message: string } }> }>)
+  }>(
+    (await response.json()) as ApiResponse<{
+      magnets?: Array<{ id: number; ready: boolean; error?: { code: string; message: string } }>
+    }>,
+  )
   Effect.runSync(log.info("alldebrid", "Magnet upload response:", JSON.stringify(data)))
   const magnet = data.magnets?.[0]
   if (!magnet) throw new Error("No magnet returned from AllDebrid")
-  if (magnet.error) throw new Error(`AllDebrid magnet error: ${magnet.error.code} - ${magnet.error.message}`)
+  if (magnet.error)
+    throw new Error(`AllDebrid magnet error: ${magnet.error.code} - ${magnet.error.message}`)
   return { id: magnet.id, ready: magnet.ready }
 }
 
-async function uploadViaTorrentUrl(torrentUrl: string, apiKey: string, log: Logger): Promise<UploadResult> {
+async function uploadViaTorrentUrl(
+  torrentUrl: string,
+  apiKey: string,
+  log: Logger,
+): Promise<UploadResult> {
   Effect.runSync(log.info("alldebrid", "Downloading .torrent from:", torrentUrl.slice(0, 120)))
 
   const torrentResponse = await fetch(torrentUrl, { signal: AbortSignal.timeout(60000) })
@@ -404,10 +489,15 @@ async function uploadViaTorrentUrl(torrentUrl: string, apiKey: string, log: Logg
   })
   const data = parseApiResponse<{
     files?: Array<{ id: number; ready: boolean; error?: { code: string; message: string } }>
-  }>(await response.json() as ApiResponse<{ files?: Array<{ id: number; ready: boolean; error?: { code: string; message: string } }> }>)
+  }>(
+    (await response.json()) as ApiResponse<{
+      files?: Array<{ id: number; ready: boolean; error?: { code: string; message: string } }>
+    }>,
+  )
   Effect.runSync(log.info("alldebrid", "Torrent upload response:", JSON.stringify(data)))
   const file = data.files?.[0]
   if (!file) throw new Error("No file returned from AllDebrid")
-  if (file.error) throw new Error(`AllDebrid torrent error: ${file.error.code} - ${file.error.message}`)
+  if (file.error)
+    throw new Error(`AllDebrid torrent error: ${file.error.code} - ${file.error.message}`)
   return { id: file.id, ready: file.ready }
 }

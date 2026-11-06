@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { HttpApiBuilder } from "effect/http-api"
 import { NoMagnetUrl } from "@inkpipe/shared"
 import { AllDebridService } from "../../layers/integrations/AllDebrid"
 import { InkpipeApi } from "@inkpipe/shared"
@@ -15,5 +15,6 @@ export const AllDebridGroupLive = HttpApiBuilder.group(InkpipeApi, "alldebrid", 
       }
 
       return yield* allDebrid.uploadMagnet(target)
-    })),
+    }),
+  ),
 )

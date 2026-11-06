@@ -15,7 +15,9 @@ const PROWLARR_TIMEOUT_MS = 30000
 export class ProwlarrService extends Context.Service<
   ProwlarrService,
   {
-    readonly search: (query: string) => Effect.Effect<ProwlarrResult[], ProwlarrNotConfigured | ProwlarrHttpError>
+    readonly search: (
+      query: string,
+    ) => Effect.Effect<ProwlarrResult[], ProwlarrNotConfigured | ProwlarrHttpError>
     readonly getLatest: Effect.Effect<ProwlarrResult[], ProwlarrNotConfigured | ProwlarrHttpError>
   }
 >()("ProwlarrService") {}
@@ -62,10 +64,15 @@ export const ProwlarrServiceLive = Layer.effect(
 
       return yield* Effect.tryPromise({
         try: () =>
-          doProwlarrSearch(`${url}/api/v1/search`, apiKey, {
-            type: "search",
-            categories: ["8010", "7030"],
-          }, log),
+          doProwlarrSearch(
+            `${url}/api/v1/search`,
+            apiKey,
+            {
+              type: "search",
+              categories: ["8010", "7030"],
+            },
+            log,
+          ),
         catch: (e) => {
           if (e instanceof DOMException && e.name === "TimeoutError") {
             return new ProwlarrHttpError({

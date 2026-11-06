@@ -9,14 +9,32 @@ const testConfig: AppConfig = {
   prowlarr: { url: "", apiKey: "" },
   alldebrid: { apiKey: "" },
   kcc: {
-    dockerImage: "ghcr.io/ciromattia/kcc:latest", profile: "KoBO", format: "Auto",
-    mangaStyle: false, webtoon: false, twoPanel: false,
-    upscale: true, stretch: false, hq: false, gamma: 1.0,
-    cropping: "1", croppingPower: 1.0, forceColor: true,
-    forcePng: false, noAutoContrast: false, blackBorders: false,
-    whiteBorders: false, splitter: "0", noProcessing: false,
-    eraseRainbow: true, coverFill: false, batchSplit: "0",
-    targetSize: 0, customWidth: 0, customHeight: 0, noKepub: false,
+    dockerImage: "ghcr.io/ciromattia/kcc:latest",
+    profile: "KoBO",
+    format: "Auto",
+    mangaStyle: false,
+    webtoon: false,
+    twoPanel: false,
+    upscale: true,
+    stretch: false,
+    hq: false,
+    gamma: 1.0,
+    cropping: "1",
+    croppingPower: 1.0,
+    forceColor: true,
+    forcePng: false,
+    noAutoContrast: false,
+    blackBorders: false,
+    whiteBorders: false,
+    splitter: "0",
+    noProcessing: false,
+    eraseRainbow: true,
+    coverFill: false,
+    batchSplit: "0",
+    targetSize: 0,
+    customWidth: 0,
+    customHeight: 0,
+    noKepub: false,
   },
   copyparty: { url: "", uploadPath: "/", password: "" },
   komga: { url: "", apiKey: "", defaultLibraryId: "" },
@@ -32,10 +50,7 @@ function makeConfigLayer(config?: Partial<AppConfig>) {
   })
 }
 
-const TestLayer = Layer.provide(
-  TelegramServiceLive,
-  Layer.merge(LogServiceLive, makeConfigLayer()),
-)
+const TestLayer = Layer.provide(TelegramServiceLive, Layer.merge(LogServiceLive, makeConfigLayer()))
 
 const NotConfiguredLayer = Layer.provide(
   // `TelegramServiceLive` also appears in `TestLayer` above, and both are used
@@ -43,10 +58,7 @@ const NotConfiguredLayer = Layer.provide(
   // the second build would reuse the already-memoized instance (built with
   // `TestLayer`'s config) instead of picking up this test's empty config.
   Layer.fresh(TelegramServiceLive),
-  Layer.merge(
-    LogServiceLive,
-    makeConfigLayer({ telegram: { botToken: "", chatId: "" } }),
-  ),
+  Layer.merge(LogServiceLive, makeConfigLayer({ telegram: { botToken: "", chatId: "" } })),
 )
 
 function mockOk(result: unknown) {
@@ -77,7 +89,8 @@ layer(TestLayer)("TelegramService", (it) => {
 
         expect(globalThis.fetch).toHaveBeenCalledTimes(1)
         expect(result).toEqual({ messageId: 42 })
-      }))
+      }),
+    )
 
     it.effect("calls the correct Telegram API URL and request shape", () =>
       Effect.gen(function* () {
@@ -96,7 +109,8 @@ layer(TestLayer)("TelegramService", (it) => {
           text: "hello",
           parse_mode: "HTML",
         })
-      }))
+      }),
+    )
 
     it.effect("fails with TelegramHttpError when the response is missing message_id", () =>
       Effect.gen(function* () {
@@ -106,12 +120,15 @@ layer(TestLayer)("TelegramService", (it) => {
         const error = yield* Effect.flip(svc.sendMessage({ text: "hello" }))
 
         expect(error.message).toContain("message_id")
-      }))
+      }),
+    )
 
     it.effect("includes reply_markup when a replyMarkup is provided", () =>
       Effect.gen(function* () {
         mockOk({ message_id: 1 })
-        const replyMarkup = { inline_keyboard: [[{ text: "⬇️ Download", callback_data: "dl:1:2" }]] }
+        const replyMarkup = {
+          inline_keyboard: [[{ text: "⬇️ Download", callback_data: "dl:1:2" }]],
+        }
 
         const svc = yield* TelegramService
         yield* svc.sendMessage({ text: "hello", replyMarkup })
@@ -124,13 +141,22 @@ layer(TestLayer)("TelegramService", (it) => {
           parse_mode: "HTML",
           reply_markup: replyMarkup,
         })
-      }))
+      }),
+    )
   })
 
   describe("getUpdates", () => {
     it.effect("calls the correct URL and returns the result array", () =>
       Effect.gen(function* () {
-        const update = { update_id: 5, callback_query: { id: "cb1", data: "dl:1:2", from: { id: 999 }, message: { message_id: 42, chat: { id: 12345 } } } }
+        const update = {
+          update_id: 5,
+          callback_query: {
+            id: "cb1",
+            data: "dl:1:2",
+            from: { id: 999 },
+            message: { message_id: 42, chat: { id: 12345 } },
+          },
+        }
         mockOk([update])
 
         const svc = yield* TelegramService
@@ -146,7 +172,8 @@ layer(TestLayer)("TelegramService", (it) => {
           timeout: 25,
           allowed_updates: ["callback_query"],
         })
-      }))
+      }),
+    )
 
     it.effect("returns an empty array when Telegram returns no result", () =>
       Effect.gen(function* () {
@@ -156,7 +183,8 @@ layer(TestLayer)("TelegramService", (it) => {
         const updates = yield* svc.getUpdates(0, 25)
 
         expect(updates).toEqual([])
-      }))
+      }),
+    )
   })
 
   describe("answerCallbackQuery", () => {
@@ -175,7 +203,8 @@ layer(TestLayer)("TelegramService", (it) => {
           callback_query_id: "cb1",
           text: "Download started",
         })
-      }))
+      }),
+    )
 
     it.effect("omits text when not provided", () =>
       Effect.gen(function* () {
@@ -187,7 +216,8 @@ layer(TestLayer)("TelegramService", (it) => {
         const fetchMock = (globalThis as any).fetch as ReturnType<typeof vi.fn>
         const init = fetchMock.mock.calls[0][1] as RequestInit
         expect(JSON.parse(init.body as string)).toEqual({ callback_query_id: "cb1" })
-      }))
+      }),
+    )
   })
 
   describe("editMessageText", () => {
@@ -208,7 +238,8 @@ layer(TestLayer)("TelegramService", (it) => {
           text: "updated text",
           parse_mode: "HTML",
         })
-      }))
+      }),
+    )
 
     it.effect("includes reply_markup when provided (used to keep or replace buttons)", () =>
       Effect.gen(function* () {
@@ -227,7 +258,8 @@ layer(TestLayer)("TelegramService", (it) => {
           parse_mode: "HTML",
           reply_markup: replyMarkup,
         })
-      }))
+      }),
+    )
   })
 
   describe("error handling", () => {
@@ -237,17 +269,21 @@ layer(TestLayer)("TelegramService", (it) => {
         const error = yield* Effect.flip(svc.sendMessage({ text: "hello" }))
 
         expect(error.message).toBe("Telegram is not configured")
-      }).pipe(Effect.provide(NotConfiguredLayer)))
+      }).pipe(Effect.provide(NotConfiguredLayer)),
+    )
 
     it.effect("fails with TelegramHttpError on network failure", () =>
       Effect.gen(function* () {
-        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("ECONNREFUSED"))
+        ;((globalThis as any).fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
+          new Error("ECONNREFUSED"),
+        )
 
         const svc = yield* TelegramService
         const error = yield* Effect.flip(svc.sendMessage({ text: "hello" }))
 
         expect(error.message).toContain("ECONNREFUSED")
-      }))
+      }),
+    )
 
     it.effect("fails with TelegramHttpError on non-OK response", () =>
       Effect.gen(function* () {
@@ -261,12 +297,13 @@ layer(TestLayer)("TelegramService", (it) => {
         const error = yield* Effect.flip(svc.sendMessage({ text: "hello" }))
 
         expect(error.message).toContain("400")
-      }))
+      }),
+    )
   })
 })
 
 describe("escapeHtml", () => {
-  it("escapes &, <, >, and \" in that order", () => {
+  it('escapes &, <, >, and " in that order', () => {
     expect(escapeHtml('<b>a & "b"</b>')).toBe("&lt;b&gt;a &amp; &quot;b&quot;&lt;/b&gt;")
   })
 

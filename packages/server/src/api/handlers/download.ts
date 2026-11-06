@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { HttpApiBuilder } from "effect/http-api"
 import { PipelineService } from "../../layers/pipeline/Pipeline"
 import { CopypartyService } from "../../layers/integrations/Copyparty"
 import { InkpipeApi } from "@inkpipe/shared"
@@ -23,5 +23,6 @@ export const DownloadGroupLive = HttpApiBuilder.group(InkpipeApi, "download", (h
       }
 
       return { started: payload.items.length }
-    })),
+    }),
+  ),
 )

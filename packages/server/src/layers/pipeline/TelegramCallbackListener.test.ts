@@ -20,14 +20,32 @@ const testConfig: AppConfig = {
   prowlarr: { url: "", apiKey: "" },
   alldebrid: { apiKey: "" },
   kcc: {
-    dockerImage: "ghcr.io/ciromattia/kcc:latest", profile: "KoBO", format: "Auto",
-    mangaStyle: false, webtoon: false, twoPanel: false,
-    upscale: true, stretch: false, hq: false, gamma: 1.0,
-    cropping: "1", croppingPower: 1.0, forceColor: true,
-    forcePng: false, noAutoContrast: false, blackBorders: false,
-    whiteBorders: false, splitter: "0", noProcessing: false,
-    eraseRainbow: true, coverFill: false, batchSplit: "0",
-    targetSize: 0, customWidth: 0, customHeight: 0, noKepub: false,
+    dockerImage: "ghcr.io/ciromattia/kcc:latest",
+    profile: "KoBO",
+    format: "Auto",
+    mangaStyle: false,
+    webtoon: false,
+    twoPanel: false,
+    upscale: true,
+    stretch: false,
+    hq: false,
+    gamma: 1.0,
+    cropping: "1",
+    croppingPower: 1.0,
+    forceColor: true,
+    forcePng: false,
+    noAutoContrast: false,
+    blackBorders: false,
+    whiteBorders: false,
+    splitter: "0",
+    noProcessing: false,
+    eraseRainbow: true,
+    coverFill: false,
+    batchSplit: "0",
+    targetSize: 0,
+    customWidth: 0,
+    customHeight: 0,
+    noKepub: false,
   },
   copyparty: { url: "", uploadPath: "/", password: "" },
   komga: { url: "", apiKey: "", defaultLibraryId: "" },
@@ -80,7 +98,10 @@ function makeCallbackUpdate(
 
 interface Deps {
   config?: Partial<AppConfig>
-  getUpdatesImpl?: (offset: number, timeoutSeconds: number) => Effect.Effect<TelegramUpdate[], never>
+  getUpdatesImpl?: (
+    offset: number,
+    timeoutSeconds: number,
+  ) => Effect.Effect<TelegramUpdate[], never>
   getAlertImpl?: () => Effect.Effect<WatchAlert, any>
   getWatchImpl?: () => Effect.Effect<Watch, any>
   runPipelineSpy?: ReturnType<typeof vi.fn>
@@ -106,12 +127,14 @@ function makeGetUpdates(update: TelegramUpdate) {
 
 function makeLayer(deps: Deps = {}) {
   const runPipelineSpy = deps.runPipelineSpy ?? vi.fn((..._args: unknown[]) => Effect.void)
-  const uploadMagnetSpy = deps.uploadMagnetSpy ?? vi.fn((_magnetOrUrl: string) => Effect.succeed({ id: 1, ready: true }))
+  const uploadMagnetSpy =
+    deps.uploadMagnetSpy ?? vi.fn((_magnetOrUrl: string) => Effect.succeed({ id: 1, ready: true }))
   const acknowledgeAlertSpy = deps.acknowledgeAlertSpy ?? vi.fn(() => Effect.void)
   const updateWatchSpy = deps.updateWatchSpy ?? vi.fn(() => Effect.succeed(testWatch))
   const answerCallbackQuerySpy = deps.answerCallbackQuerySpy ?? vi.fn(() => Effect.void)
   const editMessageTextSpy = deps.editMessageTextSpy ?? vi.fn(() => Effect.void)
-  const sendMessageSpy = deps.sendMessageSpy ?? vi.fn((_payload: { text: string }) => Effect.succeed({ messageId: 1 }))
+  const sendMessageSpy =
+    deps.sendMessageSpy ?? vi.fn((_payload: { text: string }) => Effect.succeed({ messageId: 1 }))
 
   return Layer.mergeAll(
     LogServiceLive,
@@ -165,12 +188,20 @@ afterEach(() => {
 describe("parseWatchCallback", () => {
   it("parses a well-formed download callback", () => {
     const parsed = parseWatchCallback("dl:3:7")
-    expect(parsed).toEqual({ action: "download", watchId: WatchId.make(3), alertId: WatchAlertId.make(7) })
+    expect(parsed).toEqual({
+      action: "download",
+      watchId: WatchId.make(3),
+      alertId: WatchAlertId.make(7),
+    })
   })
 
   it("parses a well-formed save-magnet callback", () => {
     const parsed = parseWatchCallback("sm:3:7")
-    expect(parsed).toEqual({ action: "saveMagnet", watchId: WatchId.make(3), alertId: WatchAlertId.make(7) })
+    expect(parsed).toEqual({
+      action: "saveMagnet",
+      watchId: WatchId.make(3),
+      alertId: WatchAlertId.make(7),
+    })
   })
 
   it("returns undefined for an unrecognized prefix", () => {
@@ -193,63 +224,77 @@ describe("parseWatchCallback", () => {
 
 describe("TelegramCallbackListenerService", () => {
   describe("download action (dl:)", () => {
-    it.effect("triggers the pipeline (with no subfolder) and acknowledges the alert for a non-book watch", () =>
-      Effect.gen(function* () {
-        const runPipelineSpy = vi.fn((..._args: unknown[]) => Effect.void)
-        const acknowledgeAlertSpy = vi.fn(() => Effect.void)
-        const answerCallbackQuerySpy = vi.fn(() => Effect.void)
+    it.effect(
+      "triggers the pipeline (with no subfolder) and acknowledges the alert for a non-book watch",
+      () =>
+        Effect.gen(function* () {
+          const runPipelineSpy = vi.fn((..._args: unknown[]) => Effect.void)
+          const acknowledgeAlertSpy = vi.fn(() => Effect.void)
+          const answerCallbackQuerySpy = vi.fn(() => Effect.void)
 
-        yield* runFor({ runPipelineSpy, acknowledgeAlertSpy, answerCallbackQuerySpy })
+          yield* runFor({ runPipelineSpy, acknowledgeAlertSpy, answerCallbackQuerySpy })
 
-        expect(runPipelineSpy).toHaveBeenCalledTimes(1)
-        const [result, subfolder, createdFolder] = runPipelineSpy.mock.calls[0]
-        expect(result).toMatchObject({ title: testAlert.title, magnetUrl: testAlert.magnetUrl })
-        expect(subfolder).toBeUndefined()
-        expect(createdFolder).toBe(false)
-        expect(acknowledgeAlertSpy).toHaveBeenCalledWith(testAlert.watchId, testAlert.id)
-        expect(answerCallbackQuerySpy).toHaveBeenCalledWith("cb1", "Download request sent")
-      }))
+          expect(runPipelineSpy).toHaveBeenCalledTimes(1)
+          const [result, subfolder, createdFolder] = runPipelineSpy.mock.calls[0]
+          expect(result).toMatchObject({ title: testAlert.title, magnetUrl: testAlert.magnetUrl })
+          expect(subfolder).toBeUndefined()
+          expect(createdFolder).toBe(false)
+          expect(acknowledgeAlertSpy).toHaveBeenCalledWith(testAlert.watchId, testAlert.id)
+          expect(answerCallbackQuerySpy).toHaveBeenCalledWith("cb1", "Download request sent")
+        }),
+    )
 
-    it.effect("acknowledges and answers immediately without waiting for the pipeline to finish", () =>
-      Effect.gen(function* () {
-        // A never-resolving pipeline stands in for a long-running download;
-        // if the handler awaited it directly, this test would hang until
-        // the outer race times out and the acknowledge/answer assertions
-        // below would never be reached.
-        const runPipelineSpy = vi.fn((..._args: unknown[]) => Effect.never)
-        const acknowledgeAlertSpy = vi.fn(() => Effect.void)
-        const answerCallbackQuerySpy = vi.fn(() => Effect.void)
+    it.effect(
+      "acknowledges and answers immediately without waiting for the pipeline to finish",
+      () =>
+        Effect.gen(function* () {
+          // A never-resolving pipeline stands in for a long-running download;
+          // if the handler awaited it directly, this test would hang until
+          // the outer race times out and the acknowledge/answer assertions
+          // below would never be reached.
+          const runPipelineSpy = vi.fn((..._args: unknown[]) => Effect.never)
+          const acknowledgeAlertSpy = vi.fn(() => Effect.void)
+          const answerCallbackQuerySpy = vi.fn(() => Effect.void)
 
-        yield* runFor({ runPipelineSpy, acknowledgeAlertSpy, answerCallbackQuerySpy })
+          yield* runFor({ runPipelineSpy, acknowledgeAlertSpy, answerCallbackQuerySpy })
 
-        expect(runPipelineSpy).toHaveBeenCalledTimes(1)
-        expect(acknowledgeAlertSpy).toHaveBeenCalledWith(testAlert.watchId, testAlert.id)
-        expect(answerCallbackQuerySpy).toHaveBeenCalledWith("cb1", "Download request sent")
-      }))
+          expect(runPipelineSpy).toHaveBeenCalledTimes(1)
+          expect(acknowledgeAlertSpy).toHaveBeenCalledWith(testAlert.watchId, testAlert.id)
+          expect(answerCallbackQuerySpy).toHaveBeenCalledWith("cb1", "Download request sent")
+        }),
+    )
 
     it.effect("sends a follow-up message once the backgrounded pipeline succeeds", () =>
       Effect.gen(function* () {
         const runPipelineSpy = vi.fn((..._args: unknown[]) => Effect.void)
-        const sendMessageSpy = vi.fn((_payload: { text: string }) => Effect.succeed({ messageId: 2 }))
+        const sendMessageSpy = vi.fn((_payload: { text: string }) =>
+          Effect.succeed({ messageId: 2 }),
+        )
 
         yield* runFor({ runPipelineSpy, sendMessageSpy })
 
         expect(sendMessageSpy).toHaveBeenCalledWith({
           text: `✅ Download complete: ${testAlert.title}`,
         })
-      }))
+      }),
+    )
 
     it.effect("sends a follow-up message with the error when the backgrounded pipeline fails", () =>
       Effect.gen(function* () {
-        const runPipelineSpy = vi.fn((..._args: unknown[]) => Effect.fail(new Error("AllDebrid timed out") as any))
-        const sendMessageSpy = vi.fn((_payload: { text: string }) => Effect.succeed({ messageId: 2 }))
+        const runPipelineSpy = vi.fn((..._args: unknown[]) =>
+          Effect.fail(new Error("AllDebrid timed out") as any),
+        )
+        const sendMessageSpy = vi.fn((_payload: { text: string }) =>
+          Effect.succeed({ messageId: 2 }),
+        )
 
         yield* runFor({ runPipelineSpy, sendMessageSpy })
 
         expect(sendMessageSpy).toHaveBeenCalledWith({
           text: `❌ Download failed: ${testAlert.title}\nAllDebrid timed out`,
         })
-      }))
+      }),
+    )
 
     it.effect("passes the watch's current subfolder into the pipeline for a book watch", () =>
       Effect.gen(function* () {
@@ -261,7 +306,8 @@ describe("TelegramCallbackListenerService", () => {
         const [, subfolder, createdFolder] = runPipelineSpy.mock.calls[0]
         expect(subfolder).toBe("manga/one-piece")
         expect(createdFolder).toBe(false)
-      }))
+      }),
+    )
 
     it.effect("does not re-trigger the pipeline for an already-acknowledged alert", () =>
       Effect.gen(function* () {
@@ -276,14 +322,17 @@ describe("TelegramCallbackListenerService", () => {
 
         expect(runPipelineSpy).not.toHaveBeenCalled()
         expect(answerCallbackQuerySpy).toHaveBeenCalledWith("cb1", "Already downloaded")
-      }))
+      }),
+    )
   })
 
   describe("save-magnet action (sm:)", () => {
     it.effect("uploads the magnet and acknowledges the alert, without touching the pipeline", () =>
       Effect.gen(function* () {
         const runPipelineSpy = vi.fn(() => Effect.void)
-        const uploadMagnetSpy = vi.fn((_magnetOrUrl: string) => Effect.succeed({ id: 1, ready: true }))
+        const uploadMagnetSpy = vi.fn((_magnetOrUrl: string) =>
+          Effect.succeed({ id: 1, ready: true }),
+        )
         const acknowledgeAlertSpy = vi.fn(() => Effect.void)
         const answerCallbackQuerySpy = vi.fn(() => Effect.void)
 
@@ -301,11 +350,14 @@ describe("TelegramCallbackListenerService", () => {
         expect(runPipelineSpy).not.toHaveBeenCalled()
         expect(acknowledgeAlertSpy).toHaveBeenCalledWith(testAlert.watchId, testAlert.id)
         expect(answerCallbackQuerySpy).toHaveBeenCalledWith("cb1", "Saved to magnet")
-      }))
+      }),
+    )
 
     it.effect("does not re-upload for an already-acknowledged alert", () =>
       Effect.gen(function* () {
-        const uploadMagnetSpy = vi.fn((_magnetOrUrl: string) => Effect.succeed({ id: 1, ready: true }))
+        const uploadMagnetSpy = vi.fn((_magnetOrUrl: string) =>
+          Effect.succeed({ id: 1, ready: true }),
+        )
         const answerCallbackQuerySpy = vi.fn(() => Effect.void)
 
         yield* runFor({
@@ -319,32 +371,44 @@ describe("TelegramCallbackListenerService", () => {
 
         expect(uploadMagnetSpy).not.toHaveBeenCalled()
         expect(answerCallbackQuerySpy).toHaveBeenCalledWith("cb1", "Already saved")
-      }))
+      }),
+    )
 
-    it.effect("answers with an error and does not acknowledge when the alert has neither a magnet nor a download URL", () =>
-      Effect.gen(function* () {
-        const uploadMagnetSpy = vi.fn((_magnetOrUrl: string) => Effect.succeed({ id: 1, ready: true }))
-        const acknowledgeAlertSpy = vi.fn(() => Effect.void)
-        const answerCallbackQuerySpy = vi.fn(() => Effect.void)
+    it.effect(
+      "answers with an error and does not acknowledge when the alert has neither a magnet nor a download URL",
+      () =>
+        Effect.gen(function* () {
+          const uploadMagnetSpy = vi.fn((_magnetOrUrl: string) =>
+            Effect.succeed({ id: 1, ready: true }),
+          )
+          const acknowledgeAlertSpy = vi.fn(() => Effect.void)
+          const answerCallbackQuerySpy = vi.fn(() => Effect.void)
 
-        yield* runFor({
-          uploadMagnetSpy,
-          acknowledgeAlertSpy,
-          answerCallbackQuerySpy,
-          getAlertImpl: () => Effect.succeed({ ...testAlert, magnetUrl: null, downloadUrl: null }),
-          getUpdatesImpl: makeGetUpdates(
-            makeCallbackUpdate({ data: `sm:${testAlert.watchId}:${testAlert.id}` }),
-          ),
-        })
+          yield* runFor({
+            uploadMagnetSpy,
+            acknowledgeAlertSpy,
+            answerCallbackQuerySpy,
+            getAlertImpl: () =>
+              Effect.succeed({ ...testAlert, magnetUrl: null, downloadUrl: null }),
+            getUpdatesImpl: makeGetUpdates(
+              makeCallbackUpdate({ data: `sm:${testAlert.watchId}:${testAlert.id}` }),
+            ),
+          })
 
-        expect(uploadMagnetSpy).not.toHaveBeenCalled()
-        expect(acknowledgeAlertSpy).not.toHaveBeenCalled()
-        expect(answerCallbackQuerySpy).toHaveBeenCalledWith("cb1", "No magnet or download URL for this alert")
-      }))
+          expect(uploadMagnetSpy).not.toHaveBeenCalled()
+          expect(acknowledgeAlertSpy).not.toHaveBeenCalled()
+          expect(answerCallbackQuerySpy).toHaveBeenCalledWith(
+            "cb1",
+            "No magnet or download URL for this alert",
+          )
+        }),
+    )
 
     it.effect("falls back to the alert's downloadUrl when there is no magnetUrl", () =>
       Effect.gen(function* () {
-        const uploadMagnetSpy = vi.fn((_magnetOrUrl: string) => Effect.succeed({ id: 1, ready: true }))
+        const uploadMagnetSpy = vi.fn((_magnetOrUrl: string) =>
+          Effect.succeed({ id: 1, ready: true }),
+        )
         const acknowledgeAlertSpy = vi.fn(() => Effect.void)
 
         yield* runFor({
@@ -361,9 +425,12 @@ describe("TelegramCallbackListenerService", () => {
           ),
         })
 
-        expect(uploadMagnetSpy).toHaveBeenCalledWith("https://indexer.example.com/download/abc.torrent")
+        expect(uploadMagnetSpy).toHaveBeenCalledWith(
+          "https://indexer.example.com/download/abc.torrent",
+        )
         expect(acknowledgeAlertSpy).toHaveBeenCalledWith(testAlert.watchId, testAlert.id)
-      }))
+      }),
+    )
   })
 
   it.effect("ignores a callback from a chat other than the configured one", () =>
@@ -381,7 +448,8 @@ describe("TelegramCallbackListenerService", () => {
 
       expect(runPipelineSpy).not.toHaveBeenCalled()
       expect(answerCallbackQuerySpy).not.toHaveBeenCalled()
-    }))
+    }),
+  )
 
   it.effect("ignores an update with no callback_query", () =>
     Effect.gen(function* () {
@@ -397,7 +465,8 @@ describe("TelegramCallbackListenerService", () => {
       })
 
       expect(runPipelineSpy).not.toHaveBeenCalled()
-    }))
+    }),
+  )
 
   it.effect("ignores a callback whose data does not match a known prefix", () =>
     Effect.gen(function* () {
@@ -412,7 +481,8 @@ describe("TelegramCallbackListenerService", () => {
 
       expect(getAlertImpl).not.toHaveBeenCalled()
       expect(runPipelineSpy).not.toHaveBeenCalled()
-    }))
+    }),
+  )
 
   it.effect("continues processing the rest of a batch after a defect handling one update", () =>
     Effect.gen(function* () {
@@ -446,17 +516,22 @@ describe("TelegramCallbackListenerService", () => {
       // update in the same batch from being processed.
       expect(runPipelineSpy).toHaveBeenCalledTimes(1)
       expect(runPipelineSpy.mock.calls[0][0]).toMatchObject({ title: secondAlert.title })
-    }))
+    }),
+  )
 
   it.effect("does not call getUpdates when Telegram is not configured", () =>
     Effect.gen(function* () {
       const getUpdatesImpl = vi.fn(() => Effect.succeed([] as TelegramUpdate[]))
 
-      yield* runFor({
-        config: { telegram: { botToken: "", chatId: "" } },
-        getUpdatesImpl,
-      }, 50)
+      yield* runFor(
+        {
+          config: { telegram: { botToken: "", chatId: "" } },
+          getUpdatesImpl,
+        },
+        50,
+      )
 
       expect(getUpdatesImpl).not.toHaveBeenCalled()
-    }))
+    }),
+  )
 })

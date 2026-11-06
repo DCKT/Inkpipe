@@ -41,9 +41,9 @@ function makeConfig(kccOverrides: Partial<AppConfig["kcc"]> = {}): AppConfig {
     kcc: makeDefaultKccConfig(kccOverrides),
     copyparty: { url: "", uploadPath: "/", password: "" },
     komga: { url: "", apiKey: "", defaultLibraryId: "" },
-  annasArchive: { apiKey: "", baseUrl: "https://annas-archive.org" },
-  telegram: { botToken: "", chatId: "" },
-  general: { publicUrl: "" },
+    annasArchive: { apiKey: "", baseUrl: "https://annas-archive.org" },
+    telegram: { botToken: "", chatId: "" },
+    general: { publicUrl: "" },
   }
 }
 
@@ -100,11 +100,14 @@ describe("buildKccArgs", () => {
     })
 
     it("excludes all disabled boolean flags", () => {
-      const args = buildKccArgs("comic.cbz", makeConfig({
-        upscale: false,
-        forceColor: false,
-        eraseRainbow: false,
-      }))
+      const args = buildKccArgs(
+        "comic.cbz",
+        makeConfig({
+          upscale: false,
+          forceColor: false,
+          eraseRainbow: false,
+        }),
+      )
       expect(args).not.toContain("--upscale")
       expect(args).not.toContain("--forcecolor")
       expect(args).not.toContain("--eraserainbow")
@@ -205,21 +208,24 @@ describe("buildKccArgs", () => {
 
   describe("all flags disabled + non-default values", () => {
     it("returns minimal args when everything is off", () => {
-      const args = buildKccArgs("book.cbz", makeConfig({
-        format: "EPUB",
-        gamma: 1.5,
-        croppingPower: 0.9,
-        splitter: "2",
-        batchSplit: "1",
-        targetSize: 50,
-        customWidth: 1000,
-        customHeight: 1500,
-        upscale: false,
-        forceColor: false,
-        eraseRainbow: false,
-        mangaStyle: true,
-        noKepub: true,
-      }))
+      const args = buildKccArgs(
+        "book.cbz",
+        makeConfig({
+          format: "EPUB",
+          gamma: 1.5,
+          croppingPower: 0.9,
+          splitter: "2",
+          batchSplit: "1",
+          targetSize: 50,
+          customWidth: 1000,
+          customHeight: 1500,
+          upscale: false,
+          forceColor: false,
+          eraseRainbow: false,
+          mangaStyle: true,
+          noKepub: true,
+        }),
+      )
 
       // Always present
       expect(args).toContain("--profile")

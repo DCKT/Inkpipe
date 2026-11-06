@@ -1,17 +1,15 @@
-import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import JobCard from "./JobCard";
-import { runApi, WS_BASE } from "../lib/apiClient";
-import type { Job } from "../lib/types";
-import { ToastGroup } from "../ui/toast";
+import { useEffect, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import JobCard from "./JobCard"
+import { runApi, WS_BASE } from "../lib/apiClient"
+import type { Job } from "../lib/types"
+import { ToastGroup } from "../ui/toast"
 
-type JobsSocketMessage =
-  | { type: "init"; jobs: Job[] }
-  | { type: "update"; job: Job };
+type JobsSocketMessage = { type: "init"; jobs: Job[] } | { type: "update"; job: Job }
 
 export function JobsDrawer() {
-  const [open, setOpen] = useState(false);
-  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false)
+  const queryClient = useQueryClient()
 
   const jobsQuery = useQuery({
     queryKey: ["jobs"],
@@ -20,67 +18,63 @@ export function JobsDrawer() {
     // establish (e.g. a proxy that doesn't forward Upgrade), this keeps the
     // drawer live instead of freezing at its initial fetch.
     refetchInterval: 15000,
-  });
+  })
 
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let cancelled = false;
+    let ws: WebSocket | null = null
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    let cancelled = false
 
     const connect = () => {
-      if (cancelled) return;
-      ws = new WebSocket(`${WS_BASE}/api/jobs/ws`);
+      if (cancelled) return
+      ws = new WebSocket(`${WS_BASE}/api/jobs/ws`)
 
       ws.onmessage = (event) => {
-        const msg = JSON.parse(event.data) as JobsSocketMessage;
+        const msg = JSON.parse(event.data) as JobsSocketMessage
         if (msg.type === "init") {
-          queryClient.setQueryData(["jobs"], msg.jobs);
+          queryClient.setQueryData(["jobs"], msg.jobs)
         } else if (msg.type === "update") {
           queryClient.setQueryData<Job[]>(["jobs"], (prev) => {
-            const list = prev ?? [];
-            const idx = list.findIndex((j) => j.id === msg.job.id);
-            if (idx === -1) return [msg.job, ...list];
-            const next = list.slice();
-            next[idx] = msg.job;
-            return next;
-          });
+            const list = prev ?? []
+            const idx = list.findIndex((j) => j.id === msg.job.id)
+            if (idx === -1) return [msg.job, ...list]
+            const next = list.slice()
+            next[idx] = msg.job
+            return next
+          })
         }
-      };
+      }
 
       ws.onclose = () => {
-        if (!cancelled) reconnectTimer = setTimeout(connect, 3000);
-      };
-    };
+        if (!cancelled) reconnectTimer = setTimeout(connect, 3000)
+      }
+    }
 
-    connect();
+    connect()
 
     return () => {
-      cancelled = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      ws?.close();
-    };
-  }, [queryClient]);
+      cancelled = true
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      ws?.close()
+    }
+  }, [queryClient])
 
   const clearMutation = useMutation({
     mutationFn: () => runApi((client) => client.jobs.clear({})),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      ToastGroup.create.success("Cleared completed jobs");
+      queryClient.invalidateQueries({ queryKey: ["jobs"] })
+      ToastGroup.create.success("Cleared completed jobs")
     },
     onError: (err) => {
-      ToastGroup.create.error("Failed to clear jobs", err.message);
+      ToastGroup.create.error("Failed to clear jobs", err.message)
     },
-  });
+  })
 
-  const jobs = jobsQuery.data ?? [];
-  if (jobs.length === 0) return null;
+  const jobs = jobsQuery.data ?? []
+  if (jobs.length === 0) return null
 
-  const activeJobs = jobs.filter(
-    (j) => j.stage !== "DONE" && j.stage !== "FAILED",
-  );
-  const completedJobs = jobs.filter(
-    (j) => j.stage === "DONE" || j.stage === "FAILED",
-  );
+  const activeJobs = jobs.filter((j) => j.stage !== "DONE" && j.stage !== "FAILED")
+  const completedJobs = jobs.filter((j) => j.stage === "DONE" || j.stage === "FAILED")
 
   return (
     <>
@@ -90,9 +84,7 @@ export function JobsDrawer() {
         onClick={() => setOpen((v) => !v)}
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-border bg-surface shadow-lg"
       >
-        <span className="font-mono text-[10px] uppercase tracking-widest text-secondary">
-          Jobs
-        </span>
+        <span className="font-mono text-[10px] uppercase tracking-widest text-secondary">Jobs</span>
         {activeJobs.length > 0 && (
           <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-[2px] bg-accent font-mono text-on-accent text-[10px] font-bold min-w-[18px] h-[18px] px-1 leading-none rotate-3 shadow-sm">
             {activeJobs.length > 99 ? "99+" : activeJobs.length}
@@ -102,10 +94,7 @@ export function JobsDrawer() {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-end">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setOpen(false)}
-          />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
           <div className="relative z-10 flex max-h-[70vh] w-full flex-col overflow-y-auto rounded-t-2xl border-t border-border bg-surface px-4 pb-6 pt-4">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display text-lg italic text-primary">Jobs</h2>
@@ -122,9 +111,7 @@ export function JobsDrawer() {
             {activeJobs.length > 0 && (
               <section className="mb-6">
                 <h3 className="chapter-marker mb-3">
-                  <span className="chapter-marker-label">
-                    Active &middot; {activeJobs.length}
-                  </span>
+                  <span className="chapter-marker-label">Active &middot; {activeJobs.length}</span>
                 </h3>
                 <div className="island-shell rounded-2xl px-4">
                   {activeJobs.map((job) => (
@@ -145,12 +132,8 @@ export function JobsDrawer() {
                   <button
                     className="ml-3 px-3 py-1 text-sm border border-secondary rounded-[3px] hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-colors"
                     onClick={() => {
-                      if (
-                        confirm(
-                          `Remove all ${completedJobs.length} completed jobs?`,
-                        )
-                      ) {
-                        clearMutation.mutate();
+                      if (confirm(`Remove all ${completedJobs.length} completed jobs?`)) {
+                        clearMutation.mutate()
                       }
                     }}
                   >
@@ -168,5 +151,5 @@ export function JobsDrawer() {
         </div>
       )}
     </>
-  );
+  )
 }

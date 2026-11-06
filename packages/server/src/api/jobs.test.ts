@@ -4,8 +4,8 @@
 // that clearing completed jobs re-broadcasts the fresh job list.
 import { Effect, Layer } from "effect"
 import { describe, it, expect, afterEach } from "@effect/vitest"
-import { HttpApi, HttpApiBuilder } from "effect/unstable/httpapi"
-import { HttpRouter } from "effect/unstable/http"
+import { HttpApi, HttpApiBuilder } from "effect/http-api"
+import { HttpRouter } from "effect/http"
 import * as BunHttpServer from "@effect/platform-bun/BunHttpServer"
 import type { Job } from "@inkpipe/shared"
 import { JobId } from "@inkpipe/shared"
@@ -83,7 +83,10 @@ describe("jobs API", () => {
 
     const remainingJobs = [makeJob({ id: JobId.make(2), stage: "UPLOADING" })]
     const { handler } = makeHandler(
-      makeStore({ deleteCompletedJobs: Effect.succeed(3), getAllJobs: Effect.succeed(remainingJobs) }),
+      makeStore({
+        deleteCompletedJobs: Effect.succeed(3),
+        getAllJobs: Effect.succeed(remainingJobs),
+      }),
     )
 
     const res = await handler(new Request("http://localhost/api/jobs", { method: "DELETE" }))

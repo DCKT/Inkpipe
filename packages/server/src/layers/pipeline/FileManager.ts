@@ -13,8 +13,14 @@ export class FileManagerService extends Context.Service<
     readonly isRunningInDocker: Effect.Effect<boolean>
     readonly ensureJobDir: (jobId: string) => Effect.Effect<string, FileManagerError>
     readonly cleanupJobDir: (jobId: string) => Effect.Effect<void, FileManagerError>
-    readonly findFileByExtension: (dir: string, extensions: string[]) => Effect.Effect<string | null, FileManagerError>
-    readonly findAllFilesByExtension: (dir: string, extensions: string[]) => Effect.Effect<string[], FileManagerError>
+    readonly findFileByExtension: (
+      dir: string,
+      extensions: string[],
+    ) => Effect.Effect<string | null, FileManagerError>
+    readonly findAllFilesByExtension: (
+      dir: string,
+      extensions: string[],
+    ) => Effect.Effect<string[], FileManagerError>
     readonly extractRarArchive: (filePath: string) => Effect.Effect<string, FileManagerError>
   }
 >()("FileManagerService") {}
@@ -24,11 +30,8 @@ const DOCKER_TEMP_DIR = "/tmp/inkpipe"
 export const FileManagerServiceLive = Layer.effect(
   FileManagerService,
   Effect.gen(function* () {
-    const getTempBase = Effect.sync(
-      () =>
-        existsSync("/.dockerenv")
-          ? DOCKER_TEMP_DIR
-          : join(tmpdir(), "inkpipe"),
+    const getTempBase = Effect.sync(() =>
+      existsSync("/.dockerenv") ? DOCKER_TEMP_DIR : join(tmpdir(), "inkpipe"),
     )
 
     const isRunningInDocker = Effect.sync(() => existsSync("/.dockerenv"))
@@ -68,9 +71,7 @@ export const FileManagerServiceLive = Layer.effect(
       Effect.tryPromise({
         try: async () => {
           const files = await readdir(dir)
-          const match = files.find((f) =>
-            extensions.some((ext) => f.toLowerCase().endsWith(ext)),
-          )
+          const match = files.find((f) => extensions.some((ext) => f.toLowerCase().endsWith(ext)))
           return match ? join(dir, match) : null
         },
         catch: (e) =>
@@ -119,9 +120,7 @@ export const FileManagerServiceLive = Layer.effect(
                 if (code === 0) {
                   resolve(extractDir)
                 } else {
-                  reject(
-                    new Error(`unrar exited with code ${code}: ${stderr}`),
-                  )
+                  reject(new Error(`unrar exited with code ${code}: ${stderr}`))
                 }
               })
               proc.on("error", (err: Error) => {
