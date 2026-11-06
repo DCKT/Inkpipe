@@ -10,6 +10,7 @@ import { Url, toString as urlToString } from "foldkit/url"
 import type { ApiClientService } from "./api"
 import * as AnnasArchive from "./annasArchive"
 import * as Convert from "./convert"
+import * as Debug from "./debug"
 import * as Jobs from "./jobs"
 import * as Komga from "./komga"
 import * as Latest from "./latest"
@@ -39,6 +40,7 @@ export const Model = Schema.Struct({
   komga: Komga.Model,
   watches: Watches.Model,
   watchDetail: WatchDetail.Model,
+  debug: Debug.Model,
 })
 
 export type Model = typeof Model.Type
@@ -61,6 +63,7 @@ export const Message = defineMessageUnion({
   GotKomgaMessage: { message: Komga.Message },
   GotWatchesMessage: { message: Watches.Message },
   GotWatchDetailMessage: { message: WatchDetail.Message },
+  GotDebugMessage: { message: Debug.Message },
   RequestedToast: { request: ToastRequest },
 })
 
@@ -99,6 +102,11 @@ const initialWatchDetail = (route: AppRoute) =>
       })
     : { model: WatchDetail.init() }
 
+const initialDebug = (route: AppRoute) =>
+  route._tag === "Debug"
+    ? Debug.enter(Debug.init(import.meta.env.DEV))
+    : { model: Debug.init(import.meta.env.DEV) }
+
 const initialSettings = (route: AppRoute) =>
   route._tag === "Settings"
     ? Settings.enter(Option.isSome(route.komgaNotConfigured))
@@ -119,6 +127,7 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
       komga: initialKomga(route),
       watches: initialWatches(route),
       watchDetail: initialWatchDetail(route),
+      debug: initialDebug(route),
     },
     {
       toParentModel: ({
@@ -132,6 +141,7 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         komga,
         watches,
         watchDetail,
+        debug,
       }) => ({
         route,
         toasts: initialToasts(),
@@ -145,6 +155,7 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
         komga,
         watches,
         watchDetail,
+        debug,
       }),
       folds: {
         sidebar: { toParentMessage: (message) => Message.GotSidebarMessage({ message }) },
@@ -181,6 +192,7 @@ export const init: Runtime.RoutingApplicationInit<Model, Message, void, AppResou
           toParentMessage: (message) => Message.GotWatchDetailMessage({ message }),
           foldOutMessage: foldWatchDetailOutMessage,
         },
+        debug: { toParentMessage: (message) => Message.GotDebugMessage({ message }) },
       },
     },
   )
@@ -437,6 +449,15 @@ const foldLeaveWatchDetail = Update.foldChildStep({
   ...watchDetailFold,
 })
 
+const debugFold = {
+  read: (model: Model) => Option.some(model.debug),
+  write: (model: Model, debug: Debug.Model) => modifyFields(model, { debug: () => debug }),
+  toParentMessage: (message: Debug.Message) => Message.GotDebugMessage({ message }),
+}
+
+const foldDebug = Update.foldChild({ update: Debug.update, ...debugFold })
+const foldEnterDebug = Update.foldChildStep({ update: Debug.enter, ...debugFold })
+
 const settingsFold = {
   read: (model: Model) => Option.some(model.settings),
   write: (model: Model, settings: Settings.Model) =>
@@ -481,6 +502,10 @@ const enterPage = (previous: AppRoute, next: AppRoute): Step => {
 
   if (next._tag === "Watches" && previous._tag !== "Watches") {
     return foldEnterWatches
+  }
+
+  if (next._tag === "Debug" && previous._tag !== "Debug") {
+    return foldEnterDebug
   }
 
   // Moving between two watches is also an entry: the page must switch to the new one.
@@ -559,6 +584,7 @@ export const update = (model: Model, message: Message): UpdateReturn =>
 
     GotWatchesMessage: ({ message }) => foldWatches(model, message),
     GotWatchDetailMessage: ({ message }) => foldWatchDetail(model, message),
+    GotDebugMessage: ({ message }) => foldDebug(model, message),
 
     RequestedToast: ({ request }) => foldToastShow(model, toShowInput(request)),
   })
@@ -648,12 +674,18 @@ const pageView = (model: Model, h: HtmlBuilder<Message>): Html =>
         view: Convert.view,
         toParentMessage: (message) => Message.GotConvertMessage({ message }),
       }),
-    Debug: () => placeholderPage(model.route, h),
-    NotFound: () => placeholderPage(model.route, h),
+    Debug: () =>
+      h.submodel({
+        slotId: "debug",
+        model: model.debug,
+        view: Debug.view,
+        toParentMessage: (message) => Message.GotDebugMessage({ message }),
+      }),
+    NotFound: () => notFoundPage(model.route, h),
   })
 
-/** Pages not ported yet render their title only. */
-const placeholderPage = (route: AppRoute, h: HtmlBuilder<Message>): Html =>
+/** The page for a URL no route matches. */
+const notFoundPage = (route: AppRoute, h: HtmlBuilder<Message>): Html =>
   h.main(
     [h.Class("page-wrap py-8")],
     [h.h1([h.Class("display-title text-2xl")], [routeTitle(route)])],

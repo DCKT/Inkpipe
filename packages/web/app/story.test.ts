@@ -187,7 +187,7 @@ describe("settings page integration", () => {
         expect(m.settings.isKomgaNotConfigured).toBe(true)
         expect(AsyncData.isFailure(m.settings.form)).toBe(true)
       }),
-      message(Message.ChangedUrl({ url: urlOrThrow("http://localhost/debug") })),
+      message(Message.ChangedUrl({ url: urlOrThrow("http://localhost/nope") })),
       message(Message.ChangedUrl({ url: urlOrThrow("http://localhost/settings") })),
       Command.resolve(
         Settings.FetchSettings,

@@ -10,6 +10,7 @@ import * as Komga from "./komga"
 import * as Latest from "./latest"
 import * as Prowlarr from "./prowlarr"
 import * as Settings from "./settings"
+import * as Debug from "./debug"
 import * as WatchDetail from "./watchDetail"
 import * as Watches from "./watches"
 import * as Sidebar from "./sidebar"
@@ -31,6 +32,7 @@ export const modelAt = (route: AppRoute): Model =>
     komga: Komga.init(),
     watches: Watches.init(),
     watchDetail: WatchDetail.init(),
+    debug: Debug.init(true),
   })
 
 /**
