@@ -10,6 +10,7 @@ import * as Komga from "./komga"
 import * as Latest from "./latest"
 import * as Prowlarr from "./prowlarr"
 import * as Settings from "./settings"
+import * as Watches from "./watches"
 import * as Sidebar from "./sidebar"
 import { initialToasts } from "./toast"
 import type { AppRoute } from "./route"
@@ -27,6 +28,7 @@ export const modelAt = (route: AppRoute): Model =>
     annasArchive: AnnasArchive.init(),
     convert: Convert.init(),
     komga: Komga.init(),
+    watches: Watches.init(),
   })
 
 /**
