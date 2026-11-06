@@ -5,8 +5,9 @@ import type { Html, HtmlBuilder } from "foldkit/html"
 // Shared form renderers. Everything here is a pure view helper over Foldkit's
 // stateless UI primitives; the state lives in whichever Model owns the form.
 
-const labelClass = "mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-accent"
-const inputClass =
+export const labelClass =
+  "mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-accent"
+export const inputClass =
   "w-full rounded-[3px] border border-border bg-surface px-4 py-2.5 text-sm text-primary placeholder:text-secondary focus:border-accent focus:outline-none aria-[invalid=true]:border-red-500"
 
 export const buttonClass = {
