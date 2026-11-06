@@ -4,23 +4,17 @@ import { UrlRequest } from "foldkit/navigation"
 import { fromString } from "foldkit/url"
 import { describe, expect, test } from "vitest"
 
-import { Toast as UiToast } from "@foldkit/ui"
+import { Dialog, Toast as UiToast } from "@foldkit/ui"
 
-import { initialToasts, toast } from "./toast"
-import {
-  AppRoute,
-  LoadExternal,
-  Message,
-  Model,
-  NavigateInternal,
-  subscriptions,
-  update,
-} from "./main"
+import * as Sidebar from "./sidebar"
+import { toast } from "./toast"
+import { modelAt } from "./testing"
+import { AppRoute, LoadExternal, Message, NavigateInternal, subscriptions, update } from "./main"
 
 const urlOrThrow = (raw: string) =>
   Option.getOrThrowWith(fromString(raw), () => new Error(`Failed to parse url: ${raw}`))
 
-const onProwlarr = Model.make({ route: AppRoute.Prowlarr(), toasts: initialToasts() })
+const onProwlarr = modelAt(AppRoute.Prowlarr())
 
 describe("update", () => {
   test("ChangedUrl updates the route", () => {
@@ -116,8 +110,29 @@ describe("toasts", () => {
   })
 })
 
+describe("mobile navigation", () => {
+  test("navigating closes an open drawer", () => {
+    const opened = {
+      ...onProwlarr,
+      sidebar: Sidebar.update(onProwlarr.sidebar, Sidebar.Message.ClickedOpenMobileNav()).model,
+    }
+    story(
+      update,
+      given(opened),
+      message(Message.ChangedUrl({ url: urlOrThrow("http://localhost/settings") })),
+      Command.resolve(Dialog.CloseDialog, Dialog.Message.CompletedCloseDialog()),
+      model((m) => {
+        expect(m.sidebar.mobileNav.isOpen).toBe(false)
+        expect(m.route).toStrictEqual(AppRoute.Settings())
+      }),
+    )
+  })
+})
+
 describe("subscriptions", () => {
-  test("the toast subscriptions are registered on the root model", () => {
-    expect(Object.keys(subscriptions).length).toBeGreaterThan(0)
+  test("the root registers both the toast and the sidebar subscriptions", () => {
+    const keys = Object.keys(subscriptions)
+    expect(keys).toContain("refreshUnreadCount")
+    expect(keys.length).toBeGreaterThan(1)
   })
 })

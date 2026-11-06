@@ -1,11 +1,12 @@
 import { Command, click, expect as sceneExpect, given, role, scene, selector } from "foldkit/scene"
 import { Animation } from "@foldkit/ui"
-import { describe, expect, test } from "vitest"
+import { describe, test } from "vitest"
 
-import { AppRoute, Message, Model, isSubLinkActive, update, view } from "./main"
-import { initialToasts, toast } from "./toast"
+import { AppRoute, Message, update, view } from "./main"
+import { modelAt } from "./testing"
+import { toast } from "./toast"
 
-const at = (route: AppRoute) => Model.make({ route, toasts: initialToasts() })
+const at = modelAt
 
 describe("view", () => {
   test("primary nav lists every section and settings", () => {
@@ -73,7 +74,7 @@ describe("view", () => {
     scene(
       { update, view },
       given(at(AppRoute.Debug())),
-      sceneExpect(role("link", { name: "Debug" })).toHaveClass("is-active-quiet"),
+      sceneExpect(role("link", { name: /Debug/ })).toHaveClass("is-active-quiet"),
     )
   })
 
@@ -115,22 +116,6 @@ describe("toasts", () => {
       sceneExpect(role("status")).toContainText("Saved"),
       sceneExpect(role("alert")).toBeAbsent(),
     )
-  })
-})
-
-describe("isSubLinkActive", () => {
-  const prowlarr = { label: "Prowlarr", path: "/", end: true } as const
-  const watches = { label: "Watches", path: "/watches" } as const
-
-  test("an `end` link only matches its exact path", () => {
-    expect(isSubLinkActive("/", prowlarr)).toBe(true)
-    expect(isSubLinkActive("/watches", prowlarr)).toBe(false)
-  })
-
-  test("a normal link matches nested paths but not prefix lookalikes", () => {
-    expect(isSubLinkActive("/watches/3", watches)).toBe(true)
-    expect(isSubLinkActive("/watches", watches)).toBe(true)
-    expect(isSubLinkActive("/watchesX", watches)).toBe(false)
   })
 })
 
