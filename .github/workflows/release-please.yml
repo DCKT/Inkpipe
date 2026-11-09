@@ -7,6 +7,19 @@ on:
     branches: [main]
 
 jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump workflow_run context
+        run: |
+          echo "conclusion=[${{ github.event.workflow_run.conclusion }}]"
+          echo "head_branch=[${{ github.event.workflow_run.head_branch }}]"
+          echo "event=[${{ github.event.workflow_run.event }}]"
+          echo "contains_release=[${{ contains(github.event.workflow_run.head_commit.message, 'chore: release') }}]"
+          echo "message=[$MSG]"
+        env:
+          MSG: ${{ github.event.workflow_run.head_commit.message }}
+
   release:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
