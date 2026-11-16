@@ -170,6 +170,71 @@ describe("update: clearing", () => {
   })
 })
 
+describe("update: force cleaning active jobs", () => {
+  test("asks for confirmation, Keep backs out, and it never overlaps the Clean confirmation", () => {
+    story(
+      Jobs.update,
+      given({ ...base, isConfirmingClear: true }),
+      message(Jobs.Message.ClickedForceClean()),
+      Command.expectHas(Jobs.FocusConfirmForceClean()),
+      Command.resolve(Jobs.FocusConfirmForceClean, Jobs.Message.CompletedFocus()),
+      model((m) => {
+        expect(m.isConfirmingForceClean).toBe(true)
+        expect(m.isConfirmingClear).toBe(false)
+      }),
+      message(Jobs.Message.ClickedCancelForceClean()),
+      Command.resolve(Jobs.FocusForceClean, Jobs.Message.CompletedFocus()),
+      model((m) => {
+        expect(m.isConfirmingForceClean).toBe(false)
+      }),
+    )
+  })
+
+  test("confirming sends exactly one ForceClearActiveJobs and reports the count", () => {
+    story(
+      Jobs.update,
+      given({ ...base, isConfirmingForceClean: true }),
+      message(Jobs.Message.ClickedConfirmForceClean()),
+      Command.expectHas(Jobs.ForceClearActiveJobs()),
+      Command.resolve(Jobs.FocusForceClean, Jobs.Message.CompletedFocus()),
+      model((m) => {
+        expect(m.isForceCleaning).toBe(true)
+        expect(m.isConfirmingForceClean).toBe(false)
+      }),
+      Command.resolve(
+        Jobs.ForceClearActiveJobs,
+        Jobs.Message.SucceededForceClearJobs({ deleted: 2 }),
+      ),
+      Command.resolve(
+        Jobs.FetchJobs,
+        Jobs.Message.CompletedFetchJobs({ epoch: 0, maybeJobs: Option.some([]) }),
+      ),
+      model((m) => {
+        expect(m.isForceCleaning).toBe(false)
+        expect(m.maybeClearStatus).toStrictEqual(
+          Option.some({ kind: "success", text: "Force-cleaned 2 jobs" }),
+        )
+      }),
+    )
+    const again = Jobs.update(
+      { ...base, isForceCleaning: true },
+      Jobs.Message.ClickedConfirmForceClean(),
+    )
+    expect(again.commands ?? []).toHaveLength(0)
+  })
+
+  test("a failure is reported in the drawer", () => {
+    const { model: m } = Jobs.update(
+      { ...base, isForceCleaning: true },
+      Jobs.Message.FailedForceClearJobs({ reason: "boom" }),
+    )
+    expect(m.isForceCleaning).toBe(false)
+    expect(m.maybeClearStatus).toStrictEqual(
+      Option.some({ kind: "error", text: "Failed to force-clean jobs: boom" }),
+    )
+  })
+})
+
 describe("update: drawer", () => {
   test("toggling opens, then closes, and resets any pending confirmation", () => {
     const stale = {
@@ -361,5 +426,16 @@ describe("Commands (against a stubbed API)", () => {
       json(500, { _tag: "WatchStoreError", message: "db down" }),
     )
     expect(failed._tag).toBe("FailedClearJobs")
+  })
+
+  test("ForceClearActiveJobs: success reports the count, failure the server's message", async () => {
+    expect(await run(Jobs.ForceClearActiveJobs(), json(200, { deleted: 2 }))).toStrictEqual(
+      Jobs.Message.SucceededForceClearJobs({ deleted: 2 }),
+    )
+    const failed = await run(
+      Jobs.ForceClearActiveJobs(),
+      json(500, { _tag: "WatchStoreError", message: "db down" }),
+    )
+    expect(failed._tag).toBe("FailedForceClearJobs")
   })
 })

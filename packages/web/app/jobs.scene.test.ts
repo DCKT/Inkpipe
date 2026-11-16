@@ -200,4 +200,28 @@ describe("jobs drawer", () => {
       sceneExpect(role("alert")).toContainText("boom"),
     )
   })
+
+  test("Force clean on Active removes stuck jobs after confirmation", () => {
+    scene(
+      { update, view },
+      given(withJobs([active, done])),
+      ...openDrawer,
+      click(role("button", { name: "Force clean" })),
+      Command.resolve(Jobs.FocusConfirmForceClean, Jobs.Message.CompletedFocus()),
+      sceneExpect(text("Force-remove all 1 active, even if still running?")).toExist(),
+      click(role("button", { name: "Remove" })),
+      Command.resolve(Jobs.FocusForceClean, Jobs.Message.CompletedFocus()),
+      sceneExpect(role("button", { name: "Cleaning…" })).toBeDisabled(),
+      Command.resolve(
+        Jobs.ForceClearActiveJobs,
+        Jobs.Message.SucceededForceClearJobs({ deleted: 1 }),
+      ),
+      Command.resolve(
+        Jobs.FetchJobs,
+        Jobs.Message.CompletedFetchJobs({ epoch: 0, maybeJobs: Option.some([done]) }),
+      ),
+      sceneExpect(role("status")).toContainText("Force-cleaned 1 job"),
+      sceneExpect(text("Active · 1")).toBeAbsent(),
+    )
+  })
 })

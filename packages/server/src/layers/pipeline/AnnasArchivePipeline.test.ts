@@ -127,6 +127,8 @@ function makeLayer(deps: Deps = {}) {
       getJob: () => Effect.succeed(undefined as any),
       getAllJobs: Effect.succeed([]),
       deleteCompletedJobs: Effect.succeed(0),
+      deleteActiveJobs: Effect.succeed(0),
+      failActiveJobs: () => Effect.succeed(0),
     } as any),
   )
 }

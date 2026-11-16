@@ -14,6 +14,8 @@ export const CLOCK_INTERVAL = Duration.seconds(1)
 export const JOBS_SOCKET_PATH = "/api/jobs/ws"
 export const CLEAN_BUTTON_ID = "jobs-clean"
 export const CONFIRM_CLEAN_BUTTON_ID = "jobs-clean-confirm"
+export const FORCE_CLEAN_BUTTON_ID = "jobs-force-clean"
+export const CONFIRM_FORCE_CLEAN_BUTTON_ID = "jobs-force-clean-confirm"
 
 // MODEL
 
@@ -27,6 +29,12 @@ export const Model = Schema.Struct({
   /** Two-step "Clean" so a stray click doesn't wipe history (replaces `confirm()`). */
   isConfirmingClear: Schema.Boolean,
   isClearing: Schema.Boolean,
+  /**
+   * Same two-step flow for "Force clean" on the Active section: removes jobs
+   * stuck in an active stage (e.g. the server crashed mid-pipeline).
+   */
+  isConfirmingForceClean: Schema.Boolean,
+  isForceCleaning: Schema.Boolean,
   maybeClearStatus: ClearStatus,
   /**
    * Bumped by every socket frame. A poll started before a newer frame arrived
@@ -54,6 +62,11 @@ export const Message = defineMessageUnion({
   ClickedConfirmClean: {},
   SucceededClearJobs: { deleted: Schema.Finite },
   FailedClearJobs: { reason: Schema.String },
+  ClickedForceClean: {},
+  ClickedCancelForceClean: {},
+  ClickedConfirmForceClean: {},
+  SucceededForceClearJobs: { deleted: Schema.Finite },
+  FailedForceClearJobs: { reason: Schema.String },
 })
 export type Message = typeof Message.Type
 
@@ -120,6 +133,11 @@ const focusCommand = (name: string, id: string) =>
 
 export const FocusConfirmClean = focusCommand("FocusConfirmClean", CONFIRM_CLEAN_BUTTON_ID)
 export const FocusClean = focusCommand("FocusClean", CLEAN_BUTTON_ID)
+export const FocusConfirmForceClean = focusCommand(
+  "FocusConfirmForceClean",
+  CONFIRM_FORCE_CLEAN_BUTTON_ID,
+)
+export const FocusForceClean = focusCommand("FocusForceClean", FORCE_CLEAN_BUTTON_ID)
 
 export const ClearJobs = Command.define("ClearJobs", {
   messages: [Message.SucceededClearJobs, Message.FailedClearJobs],
@@ -131,6 +149,18 @@ export const ClearJobs = Command.define("ClearJobs", {
   ),
 })
 
+export const ForceClearActiveJobs = Command.define("ForceClearActiveJobs", {
+  messages: [Message.SucceededForceClearJobs, Message.FailedForceClearJobs],
+  execute: callApi((client) => client.jobs.forceClearActive()).pipe(
+    Effect.match({
+      onSuccess: ({ deleted }) => Message.SucceededForceClearJobs({ deleted }),
+      onFailure: ({ message }) => Message.FailedForceClearJobs({ reason: message }),
+    }),
+  ),
+})
+
+const jobsCount = (count: number): string => `${count} ${count === 1 ? "job" : "jobs"}`
+
 // INIT
 
 export const init = (): Update.Return<Model, Message, ApiClientService> => ({
@@ -139,6 +169,8 @@ export const init = (): Update.Return<Model, Message, ApiClientService> => ({
     drawer: Dialog.init({ id: "jobs-drawer" }),
     isConfirmingClear: false,
     isClearing: false,
+    isConfirmingForceClean: false,
+    isForceCleaning: false,
     maybeClearStatus: Option.none(),
     socketEpoch: 0,
     nowMillis: 0,
@@ -167,7 +199,11 @@ const foldDrawerOpen = Update.foldChildStep({ update: Dialog.open, ...drawerFold
 const foldDrawerClose = Update.foldChildStep({ update: Dialog.close, ...drawerFold })
 
 const resetClearUi = (model: Model): Model =>
-  modifyFields(model, { isConfirmingClear: () => false, maybeClearStatus: () => Option.none() })
+  modifyFields(model, {
+    isConfirmingClear: () => false,
+    isConfirmingForceClean: () => false,
+    maybeClearStatus: () => Option.none(),
+  })
 
 export const update = (model: Model, message: Message): UpdateReturn =>
   Message.match<UpdateReturn>(message, {
@@ -206,6 +242,7 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     ClickedClean: () => ({
       model: modifyFields(model, {
         isConfirmingClear: () => true,
+        isConfirmingForceClean: () => false,
         maybeClearStatus: () => Option.none(),
       }),
       commands: [FocusConfirmClean()],
@@ -246,6 +283,51 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         isClearing: () => false,
         maybeClearStatus: () =>
           Option.some({ kind: "error" as const, text: `Failed to clear jobs: ${reason}` }),
+      }),
+    }),
+
+    ClickedForceClean: () => ({
+      model: modifyFields(model, {
+        isConfirmingForceClean: () => true,
+        isConfirmingClear: () => false,
+        maybeClearStatus: () => Option.none(),
+      }),
+      commands: [FocusConfirmForceClean()],
+    }),
+
+    ClickedCancelForceClean: () => ({
+      model: modifyFields(model, { isConfirmingForceClean: () => false }),
+      commands: [FocusForceClean()],
+    }),
+
+    ClickedConfirmForceClean: () =>
+      model.isForceCleaning
+        ? { model }
+        : {
+            model: modifyFields(model, {
+              isConfirmingForceClean: () => false,
+              isForceCleaning: () => true,
+            }),
+            commands: [ForceClearActiveJobs(), FocusForceClean()],
+          },
+
+    SucceededForceClearJobs: ({ deleted }) => ({
+      model: modifyFields(model, {
+        isForceCleaning: () => false,
+        maybeClearStatus: () =>
+          Option.some({
+            kind: "success" as const,
+            text: `Force-cleaned ${jobsCount(deleted)}`,
+          }),
+      }),
+      commands: [FetchJobs({ epoch: model.socketEpoch })],
+    }),
+
+    FailedForceClearJobs: ({ reason }) => ({
+      model: modifyFields(model, {
+        isForceCleaning: () => false,
+        maybeClearStatus: () =>
+          Option.some({ kind: "error" as const, text: `Failed to force-clean jobs: ${reason}` }),
       }),
     }),
   })
@@ -427,22 +509,34 @@ const section = (
 
 // The Clean button never changes identity, and the confirmation sits beside
 // it, so keyboard focus is never on an element that gets removed.
+type CleanControlsConfig = {
+  readonly buttonId: string
+  readonly confirmButtonId: string
+  readonly label: string
+  readonly busyLabel: string
+  readonly prompt: string
+  readonly isConfirming: boolean
+  readonly isBusy: boolean
+  readonly onClick: Message
+  readonly onConfirm: Message
+  readonly onCancel: Message
+}
+
 const cleanControls = (
-  model: Model,
-  completedCount: number,
+  config: CleanControlsConfig,
   h: HtmlBuilder<Message>,
 ): ReadonlyArray<Html> => [
   h.div(
     [h.Class("ml-3 flex items-center gap-2 text-sm")],
     [
-      ...(model.isConfirmingClear
+      ...(config.isConfirming
         ? [
-            h.span([h.Class("text-secondary")], [`Remove all ${completedCount} completed?`]),
+            h.span([h.Class("text-secondary")], [config.prompt]),
             h.button(
               [
-                h.Id(CONFIRM_CLEAN_BUTTON_ID),
+                h.Id(config.confirmButtonId),
                 h.Type("button"),
-                h.OnClick(Message.ClickedConfirmClean()),
+                h.OnClick(config.onConfirm),
                 h.Class("rounded-[3px] border border-red-500 px-3 py-1 text-red-500"),
               ],
               ["Remove"],
@@ -450,7 +544,7 @@ const cleanControls = (
             h.button(
               [
                 h.Type("button"),
-                h.OnClick(Message.ClickedCancelClean()),
+                h.OnClick(config.onCancel),
                 h.Class("rounded-[3px] border border-border px-3 py-1"),
               ],
               ["Keep"],
@@ -459,17 +553,59 @@ const cleanControls = (
         : []),
       h.button(
         [
-          h.Id(CLEAN_BUTTON_ID),
+          h.Id(config.buttonId),
           h.Type("button"),
-          h.Disabled(model.isClearing || model.isConfirmingClear),
-          h.OnClick(Message.ClickedClean()),
+          h.Disabled(config.isBusy || config.isConfirming),
+          h.OnClick(config.onClick),
           h.Class("rounded-[3px] border border-secondary px-3 py-1 disabled:opacity-50"),
         ],
-        [model.isClearing ? "Cleaning…" : "Clean"],
+        [config.isBusy ? config.busyLabel : config.label],
       ),
     ],
   ),
 ]
+
+const completedCleanControls = (
+  model: Model,
+  completedCount: number,
+  h: HtmlBuilder<Message>,
+): ReadonlyArray<Html> =>
+  cleanControls(
+    {
+      buttonId: CLEAN_BUTTON_ID,
+      confirmButtonId: CONFIRM_CLEAN_BUTTON_ID,
+      label: "Clean",
+      busyLabel: "Cleaning…",
+      prompt: `Remove all ${completedCount} completed?`,
+      isConfirming: model.isConfirmingClear,
+      isBusy: model.isClearing,
+      onClick: Message.ClickedClean(),
+      onConfirm: Message.ClickedConfirmClean(),
+      onCancel: Message.ClickedCancelClean(),
+    },
+    h,
+  )
+
+const activeForceCleanControls = (
+  model: Model,
+  activeCount: number,
+  h: HtmlBuilder<Message>,
+): ReadonlyArray<Html> =>
+  cleanControls(
+    {
+      buttonId: FORCE_CLEAN_BUTTON_ID,
+      confirmButtonId: CONFIRM_FORCE_CLEAN_BUTTON_ID,
+      label: "Force clean",
+      busyLabel: "Cleaning…",
+      prompt: `Force-remove all ${activeCount} active, even if still running?`,
+      isConfirming: model.isConfirmingForceClean,
+      isBusy: model.isForceCleaning,
+      onClick: Message.ClickedForceClean(),
+      onConfirm: Message.ClickedConfirmForceClean(),
+      onCancel: Message.ClickedCancelForceClean(),
+    },
+    h,
+  )
 
 export const view = Submodel.defineView<Model, Message>((model, h): Html => {
   if (model.jobs.length === 0 && !model.drawer.isOpen) return h.div([])
@@ -525,7 +661,17 @@ export const view = Submodel.defineView<Model, Message>((model, h): Html => {
                 ...(model.jobs.length === 0
                   ? [h.p([h.Class("py-6 text-center text-sm text-secondary")], ["No jobs"])]
                   : []),
-                ...(active.length > 0 ? [section("Active", active, model.nowMillis, h)] : []),
+                ...(active.length > 0
+                  ? [
+                      section(
+                        "Active",
+                        active,
+                        model.nowMillis,
+                        h,
+                        activeForceCleanControls(model, active.length, h),
+                      ),
+                    ]
+                  : []),
                 ...(completed.length > 0
                   ? [
                       section(
@@ -533,7 +679,7 @@ export const view = Submodel.defineView<Model, Message>((model, h): Html => {
                         completed,
                         model.nowMillis,
                         h,
-                        cleanControls(model, completed.length, h),
+                        completedCleanControls(model, completed.length, h),
                       ),
                     ]
                   : []),

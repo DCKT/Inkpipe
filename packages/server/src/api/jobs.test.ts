@@ -37,6 +37,8 @@ function makeStore(overrides: Partial<JobStoreShape> = {}) {
     getJob: () => Effect.succeed(undefined as any),
     getAllJobs: Effect.succeed([makeJob()]),
     deleteCompletedJobs: Effect.succeed(1),
+    deleteActiveJobs: Effect.succeed(1),
+    failActiveJobs: () => Effect.succeed(1),
     ...overrides,
   })
 }
@@ -94,6 +96,24 @@ describe("jobs API", () => {
     const body = await res.json()
     expect(body).toEqual({ deleted: 3 })
 
+    expect(broadcasts).toEqual([remainingJobs])
+  })
+
+  it("DELETE /api/jobs/active force-removes stuck active jobs and re-broadcasts", async () => {
+    const broadcasts: Job[][] = []
+    unsubscribes.push(subscribeJobListEvents((jobs) => broadcasts.push(jobs)))
+
+    const remainingJobs = [makeJob({ id: JobId.make(3), stage: "FAILED" })]
+    const { handler } = makeHandler(
+      makeStore({
+        deleteActiveJobs: Effect.succeed(2),
+        getAllJobs: Effect.succeed(remainingJobs),
+      }),
+    )
+
+    const res = await handler(new Request("http://localhost/api/jobs/active", { method: "DELETE" }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ deleted: 2 })
     expect(broadcasts).toEqual([remainingJobs])
   })
 })

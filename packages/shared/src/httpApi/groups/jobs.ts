@@ -12,3 +12,8 @@ export const JobsGroup = HttpApiGroup.make("jobs")
       success: ClearJobsResponseSchema,
     }),
   )
+  .add(
+    HttpApiEndpoint.delete("forceClearActive", "/api/jobs/active", {
+      success: ClearJobsResponseSchema,
+    }),
+  )

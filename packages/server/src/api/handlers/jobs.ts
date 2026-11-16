@@ -21,5 +21,14 @@ export const JobsGroupLive = HttpApiBuilder.group(InkpipeApi, "jobs", (handlers)
         broadcastJobs(jobs)
         return { deleted }
       }),
+    )
+    .handle("forceClearActive", () =>
+      Effect.gen(function* () {
+        const jobStore = yield* JobStoreService
+        const deleted = yield* jobStore.deleteActiveJobs
+        const jobs = yield* jobStore.getAllJobs
+        broadcastJobs(jobs)
+        return { deleted }
+      }),
     ),
 )

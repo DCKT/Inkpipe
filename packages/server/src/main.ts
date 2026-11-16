@@ -3,7 +3,7 @@ import { BunHttpServer, BunRuntime } from "@effect/platform-bun"
 import { DbMigratedLayer } from "@inkpipe/db"
 import { ConfigServiceLive } from "./layers/core/Config"
 import type { ConfigService } from "./layers/core/Config"
-import { JobStoreServiceLive } from "./layers/storage/JobStore"
+import { FailInterruptedJobsOnStartupLive, JobStoreServiceLive } from "./layers/storage/JobStore"
 import type { JobStoreService } from "./layers/storage/JobStore"
 import { LogServiceLive } from "./layers/core/Log"
 import type { LogService } from "./layers/core/Log"
@@ -120,6 +120,9 @@ const TelegramCallbackListenerRunnerLive = Layer.effectDiscard(
   }),
 ).pipe(Layer.provide(TelegramCallbackListenerLayer))
 
+// Jobs left mid-pipeline by a crash/restart can never finish: mark them FAILED.
+const InterruptedJobsRecoveryLive = Layer.provide(FailInterruptedJobsOnStartupLive, JobStoreLayer)
+
 const MainLayer = Layer.mergeAll(
   BaseLayer,
   ConfigLayer,
@@ -135,6 +138,7 @@ const MainLayer = Layer.mergeAll(
   AnnasArchiveLayer,
   AnnasArchivePipelineLayer,
   TelegramCallbackListenerRunnerLive,
+  InterruptedJobsRecoveryLive,
 ) as Layer.Layer<AllServices, never, never>
 
 const PORT = Number(process.env.PORT || 3000)

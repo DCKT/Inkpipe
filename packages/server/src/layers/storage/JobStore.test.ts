@@ -1,7 +1,12 @@
 import { Effect, Layer, Option } from "effect"
 import { describe, it, expect, beforeEach, afterEach, vi } from "@effect/vitest"
 import { JobId } from "@inkpipe/shared"
-import { JobStoreService, JobStoreServiceLive } from "./JobStore"
+import {
+  FailInterruptedJobsOnStartupLive,
+  INTERRUPTED_JOB_ERROR,
+  JobStoreService,
+  JobStoreServiceLive,
+} from "./JobStore"
 import { testDbLayer } from "../../__mocks__/testDb"
 import { subscribeJobEvents, subscribeJobListEvents } from "../../lib/jobEvents"
 
@@ -132,6 +137,61 @@ describe("JobStoreService", () => {
         }),
       )
       expect(deleted).toBe(0)
+    }),
+  )
+
+  it.effect("deleteActiveJobs removes only non-DONE/FAILED jobs and returns the count", () =>
+    Effect.gen(function* () {
+      const result = yield* makeProgram((svc) =>
+        Effect.gen(function* () {
+          yield* svc.createJob("Stuck uploading")
+          const converting = yield* svc.createJob("Stuck converting")
+          const done = yield* svc.createJob("Done")
+          const failed = yield* svc.createJob("Failed")
+          yield* svc.updateJob(converting.id, { stage: "CONVERTING" })
+          yield* svc.updateJob(done.id, { stage: "DONE" })
+          yield* svc.updateJob(failed.id, { stage: "FAILED", error: "boom" })
+
+          const deleted = yield* svc.deleteActiveJobs
+          const remainingJobs = yield* svc.getAllJobs
+          return { deleted, remainingIds: remainingJobs.map((j) => j.id), done, failed }
+        }),
+      )
+      expect(result.deleted).toBe(2)
+      expect([...result.remainingIds].sort()).toEqual([result.done.id, result.failed.id].sort())
+    }),
+  )
+
+  it.effect("startup recovery marks active jobs FAILED and leaves finished ones alone", () =>
+    Effect.gen(function* () {
+      const store = Layer.provide(JobStoreServiceLive, testDbLayer)
+      const result = yield* Effect.gen(function* () {
+        const svc = yield* JobStoreService
+        const uploading = yield* svc.createJob("Stuck uploading")
+        const converting = yield* svc.createJob("Stuck converting")
+        const done = yield* svc.createJob("Done")
+        yield* svc.updateJob(converting.id, { stage: "CONVERTING", progress: 60 })
+        yield* svc.updateJob(done.id, { stage: "DONE", progress: 100 })
+
+        yield* Layer.build(
+          FailInterruptedJobsOnStartupLive.pipe(Layer.provide(Layer.succeed(JobStoreService, svc))),
+        ).pipe(Effect.scoped)
+
+        const jobs = yield* svc.getAllJobs
+        const byId = (id: JobId) => jobs.find((j) => j.id === id)
+        return {
+          uploading: byId(uploading.id),
+          converting: byId(converting.id),
+          done: byId(done.id),
+        }
+      }).pipe(Effect.provide(store))
+
+      expect(result.uploading?.stage).toBe("FAILED")
+      expect(result.uploading?.error).toBe(INTERRUPTED_JOB_ERROR)
+      expect(result.converting?.stage).toBe("FAILED")
+      expect(result.converting?.progress).toBe(60)
+      expect(result.done?.stage).toBe("DONE")
+      expect(result.done?.error).toBeUndefined()
     }),
   )
 
